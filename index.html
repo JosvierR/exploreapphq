@@ -384,6 +384,36 @@
                 <p class="mb-0 small">© <span id="year"></span> Explore Atlas LLC • All rights reserved.</p>
             </div>
         </div>
+
+        <!-- Misión, Visión y Valores -->
+        <div class="row mt-4">
+            <div class="col-lg-4">
+                <h4>Misión</h4>
+                <p>
+                    Facilitar que las personas descubran y disfruten el mundo con rutas inteligentes,
+                    seguras y personalizadas, combinando datos en tiempo real y conocimiento local
+                    para ofrecer experiencias de viaje memorables y accesibles.
+                </p>
+            </div>
+            <div class="col-lg-4">
+                <h4>Visión</h4>
+                <p>
+                    Ser la plataforma líder de rutas y descubrimiento de destinos en Latinoamérica,
+                    transformando la forma en que las personas planifican, comparten y viven sus viajes
+                    con ayuda de la inteligencia artificial.
+                </p>
+            </div>
+            <div class="col-lg-4">
+                <h4>Valores</h4>
+                <ul class="mb-0">
+                    <li>Enfoque en el usuario y su seguridad.</li>
+                    <li>Innovación responsable en IA.</li>
+                    <li>Transparencia y confianza en los datos.</li>
+                    <li>Impulso a los destinos y negocios locales.</li>
+                    <li>Diversidad, inclusión y respeto por las comunidades.</li>
+                </ul>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -466,5 +496,112 @@
 <script src="assets/js/animation.js"></script>
 <script src="assets/js/imagesloaded.js"></script>
 <script src="assets/js/templatemo-custom.js"></script>
+<script>
+    (function () {
+      const translations = {
+        en: {
+          "section-title": "About",
+          "mission-title": "Mission",
+          "mission-text":
+            "Make it easy for people to discover and enjoy the world through smart, safe and personalized routes, combining real-time data and local knowledge to deliver memorable, accessible travel experiences.",
+          "vision-title": "Vision",
+          "vision-text":
+            "Become the leading routes and discovery platform in Latin America, transforming how people plan, share and live their trips with the help of artificial intelligence.",
+          "values-title": "Values",
+          "value-1": "User-centric design and safety first.",
+          "value-2": "Responsible AI innovation.",
+          "value-3": "Transparency and data trust.",
+          "value-4": "Support for local destinations and businesses.",
+          "value-5": "Diversity, inclusion and respect for communities."
+        },
+        es: {
+          "section-title": "Sobre",
+          "mission-title": "Misión",
+          "mission-text":
+            "Facilitar que las personas descubran y disfruten el mundo con rutas inteligentes, seguras y personalizadas, combinando datos en tiempo real y conocimiento local para ofrecer experiencias de viaje memorables y accesibles.",
+          "vision-title": "Visión",
+          "vision-text":
+            "Ser la plataforma líder de rutas y descubrimiento de destinos en Latinoamérica, transformando la forma en que las personas planifican, comparten y viven sus viajes con ayuda de la inteligencia artificial.",
+          "values-title": "Valores",
+          "value-1": "Enfoque en el usuario y su seguridad.",
+          "value-2": "Innovación responsable en IA.",
+          "value-3": "Transparencia y confianza en los datos.",
+          "value-4": "Impulso a los destinos y negocios locales.",
+          "value-5": "Diversidad, inclusión y respeto por las comunidades."
+        },
+        fr: {
+          "section-title": "À propos",
+          "mission-title": "Mission",
+          "mission-text":
+            "Faciliter la découverte du monde grâce à des itinéraires intelligents, sûrs et personnalisés, en combinant données en temps réel et connaissance locale pour offrir des expériences de voyage mémorables et accessibles.",
+          "vision-title": "Vision",
+          "vision-text":
+            "Devenir la plateforme de référence pour les itinéraires et la découverte de destinations en Amérique latine, en transformant la façon dont les personnes planifient, partagent et vivent leurs voyages grâce à l’intelligence artificielle.",
+          "values-title": "Valeurs",
+          "value-1": "Priorité à l’utilisateur et à sa sécurité.",
+          "value-2": "Innovation responsable en IA.",
+          "value-3": "Transparence et confiance dans les données.",
+          "value-4": "Soutien aux destinations et aux entreprises locales.",
+          "value-5": "Diversité, inclusion et respect des communautés."
+        },
+        pt: {
+          "section-title": "Sobre",
+          "mission-title": "Missão",
+          "mission-text":
+            "Facilitar que as pessoas descubram e aproveitem o mundo com rotas inteligentes, seguras e personalizadas, combinando dados em tempo real e conhecimento local para oferecer experiências de viagem memoráveis e acessíveis.",
+          "vision-title": "Visão",
+          "vision-text":
+            "Ser a plataforma líder em rotas e descoberta de destinos na América Latina, transformando a forma como as pessoas planejam, compartilham e vivem suas viagens com a ajuda da inteligência artificial.",
+          "values-title": "Valores",
+          "value-1": "Foco no usuário e em sua segurança.",
+          "value-2": "Inovação responsável em IA.",
+          "value-3": "Transparência e confiança nos dados.",
+          "value-4": "Impulso aos destinos e negócios locais.",
+          "value-5": "Diversidade, inclusão e respeito às comunidades."
+        }
+      };
+
+      function setLanguage(lang) {
+        const dict = translations[lang];
+        if (!dict) return;
+
+        document.querySelectorAll("[data-i18n-key]").forEach(function (el) {
+          const key = el.getAttribute("data-i18n-key");
+          if (dict[key]) {
+            el.textContent = dict[key];
+          }
+        });
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        const buttons = document.querySelectorAll(".lang-btn");
+
+        buttons.forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            const lang = this.getAttribute("data-lang");
+            setLanguage(lang);
+
+            // estilo de botón activo
+            buttons.forEach(function (b) {
+              b.classList.remove("btn-primary");
+              b.classList.add("btn-outline-primary");
+            });
+            this.classList.remove("btn-outline-primary");
+            this.classList.add("btn-primary");
+          });
+        });
+
+        // Idioma por defecto (cámbialo a "es" si quieres que sea español)
+        const defaultLang = "en";
+        setLanguage(defaultLang);
+        const defaultBtn = document.querySelector('.lang-btn[data-lang="' + defaultLang + '"]');
+        if (defaultBtn) {
+          defaultBtn.classList.remove("btn-outline-primary");
+          defaultBtn.classList.add("btn-primary");
+        }
+      });
+    })();
+</script>
+
 </body>
 </html>
