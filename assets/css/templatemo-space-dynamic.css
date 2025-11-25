@@ -4725,3 +4725,52 @@ Features - MEJORAS MODERNAS
   -webkit-background-clip: initial !important;
   -webkit-text-fill-color: #fff !important;
 }
+/* === Explore Atlas – Ajustes Misión / Visión / Valores + Idiomas === */
+
+/* Que el título y los botones queden en línea y bien alineados */
+.contact-us .section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Botones de idioma más bonitos y consistentes */
+.language-switcher .btn {
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+/* Botón activo (idioma seleccionado) */
+.language-switcher .btn.btn-primary {
+  border-color: transparent;
+}
+
+/* Que todo lo de misión/visión/valores use texto blanco */
+.contact-us .mission-row .mission-block h4,
+.contact-us .mission-row .mission-block p,
+.contact-us .mission-row .mission-block li,
+.contact-us .contact-legal p,
+.contact-us .contact-footer p {
+  color: #fff;
+}
+
+/* Dar un poquito de aire entre tarjetas en desktop */
+.contact-us .mission-row .mission-block {
+  margin-bottom: 20px;
+}
+
+/* En móvil, que la cabecera se vea centrada y ordenada */
+@media (max-width: 768px) {
+  .contact-us .section-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .language-switcher {
+    margin-top: 10px;
+  }
+}

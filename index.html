@@ -361,50 +361,67 @@
 <!-- ***** About / Contact ***** -->
 <div id="contact" class="contact-us section">
     <div class="container">
-        <div class="section-heading">
-            <h2>
+        <div
+                class="section-heading d-flex flex-column flex-lg-row justify-content-between align-items-lg-center align-items-start"
+        >
+            <h2 class="mb-3 mb-lg-0">
                 <span data-i18n-key="section-title">About</span>
                 <em>Explore Atlas LLC</em>
             </h2>
+
+            <!-- Selector de idioma alineado al título -->
+            <div class="language-switcher btn-group btn-group-sm" role="group" aria-label="Language selector">
+                <button type="button" class="btn btn-outline-primary lang-btn" data-lang="en">EN</button>
+                <button type="button" class="btn btn-outline-primary lang-btn" data-lang="es">ES</button>
+                <button type="button" class="btn btn-outline-primary lang-btn" data-lang="fr">FR</button>
+                <button type="button" class="btn btn-outline-primary lang-btn" data-lang="pt">PT</button>
+            </div>
         </div>
 
         <div class="row">
-            <div class="col-lg-6">
+            <!-- Columna de datos legales -->
+            <div class="col-lg-6 contact-legal">
                 <p><strong>Legal Entity:</strong> Explore Atlas LLC</p>
                 <p><strong>D-U-N-S:</strong> 119546449</p>
                 <p><strong>Address:</strong> 4200 Hillcrest Dr, Apt 815, Hollywood, FL 33021, United States</p>
-                <p><strong>Email:</strong> <a href="mailto:josvierrod@exploreapphq.com">josvierrod@exploreapphq.com</a></p>
+                <p>
+                    <strong>Email:</strong>
+                    <a href="mailto:josvierrod@exploreapphq.com">josvierrod@exploreapphq.com</a>
+                </p>
                 <p><strong>Phone:</strong> +1 829 659 2975</p>
             </div>
 
-            <div class="col-lg-6 d-flex flex-column align-items-lg-end align-items-start">
+            <!-- Columna redes + copyright -->
+            <div class="col-lg-6 d-flex flex-column align-items-lg-end align-items-start contact-footer">
                 <div class="social-links mb-3">
-                    <a class="social-btn" href="https://www.instagram.com/explore.app.latam?utm_source=ig_web_button_share_sheet&amp;igsh=ZDNlZDc0MzIxNw==" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                    <a
+                            class="social-btn"
+                            href="https://www.instagram.com/explore.app.latam?utm_source=ig_web_button_share_sheet&amp;igsh=ZDNlZDc0MzIxNw=="
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Instagram"
+                    >
                         <i class="fa-brands fa-instagram"></i>
                     </a>
-                    <a class="social-btn" href="https://www.tiktok.com/@explore.app?lang=es-419" target="_blank" rel="noopener noreferrer" aria-label="TikTok">
+                    <a
+                            class="social-btn"
+                            href="https://www.tiktok.com/@explore.app?lang=es-419"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="TikTok"
+                    >
                         <i class="fa-brands fa-tiktok"></i>
                     </a>
                 </div>
-                <p class="mb-0 small">© <span id="year"></span> Explore Atlas LLC • All rights reserved.</p>
-            </div>
-        </div>
-
-        <!-- Selector de idioma -->
-        <div class="row mt-4">
-            <div class="col-12 mb-3 d-flex justify-content-lg-end justify-content-start">
-                <div class="btn-group btn-group-sm" role="group" aria-label="Language selector">
-                    <button type="button" class="btn btn-outline-primary lang-btn" data-lang="en">EN</button>
-                    <button type="button" class="btn btn-outline-primary lang-btn" data-lang="es">ES</button>
-                    <button type="button" class="btn btn-outline-primary lang-btn" data-lang="fr">FR</button>
-                    <button type="button" class="btn btn-outline-primary lang-btn" data-lang="pt">PT</button>
-                </div>
+                <p class="mb-0 small">
+                    © <span id="year"></span> Explore Atlas LLC • All rights reserved.
+                </p>
             </div>
         </div>
 
         <!-- Misión, Visión y Valores -->
-        <div class="row">
-            <div class="col-lg-4">
+        <div class="row mt-4 mission-row">
+            <div class="col-lg-4 mission-block">
                 <h4 data-i18n-key="mission-title">Misión</h4>
                 <p data-i18n-key="mission-text">
                     Facilitar que las personas descubran y disfruten el mundo con rutas inteligentes,
@@ -412,7 +429,7 @@
                     para ofrecer experiencias de viaje memorables y accesibles.
                 </p>
             </div>
-            <div class="col-lg-4">
+            <div class="col-lg-4 mission-block">
                 <h4 data-i18n-key="vision-title">Visión</h4>
                 <p data-i18n-key="vision-text">
                     Ser la plataforma líder de rutas y descubrimiento de destinos en Latinoamérica,
@@ -420,9 +437,9 @@
                     con ayuda de la inteligencia artificial.
                 </p>
             </div>
-            <div class="col-lg-4">
+            <div class="col-lg-4 mission-block">
                 <h4 data-i18n-key="values-title">Valores</h4>
-                <ul class="mb-0">
+                <ul class="mb-0 list-unstyled">
                     <li data-i18n-key="value-1">Enfoque en el usuario y su seguridad.</li>
                     <li data-i18n-key="value-2">Innovación responsable en IA.</li>
                     <li data-i18n-key="value-3">Transparencia y confianza en los datos.</li>
