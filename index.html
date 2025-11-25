@@ -358,11 +358,16 @@
 </section>
 
 <!-- ***** About / Contact ***** -->
+<!-- ***** About / Contact ***** -->
 <div id="contact" class="contact-us section">
     <div class="container">
         <div class="section-heading">
-            <h2>About <em>Explore Atlas LLC</em></h2>
+            <h2>
+                <span data-i18n-key="section-title">About</span>
+                <em>Explore Atlas LLC</em>
+            </h2>
         </div>
+
         <div class="row">
             <div class="col-lg-6">
                 <p><strong>Legal Entity:</strong> Explore Atlas LLC</p>
@@ -385,37 +390,50 @@
             </div>
         </div>
 
-        <!-- Misión, Visión y Valores -->
+        <!-- Selector de idioma -->
         <div class="row mt-4">
+            <div class="col-12 mb-3 d-flex justify-content-lg-end justify-content-start">
+                <div class="btn-group btn-group-sm" role="group" aria-label="Language selector">
+                    <button type="button" class="btn btn-outline-primary lang-btn" data-lang="en">EN</button>
+                    <button type="button" class="btn btn-outline-primary lang-btn" data-lang="es">ES</button>
+                    <button type="button" class="btn btn-outline-primary lang-btn" data-lang="fr">FR</button>
+                    <button type="button" class="btn btn-outline-primary lang-btn" data-lang="pt">PT</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Misión, Visión y Valores -->
+        <div class="row">
             <div class="col-lg-4">
-                <h4>Misión</h4>
-                <p>
+                <h4 data-i18n-key="mission-title">Misión</h4>
+                <p data-i18n-key="mission-text">
                     Facilitar que las personas descubran y disfruten el mundo con rutas inteligentes,
                     seguras y personalizadas, combinando datos en tiempo real y conocimiento local
                     para ofrecer experiencias de viaje memorables y accesibles.
                 </p>
             </div>
             <div class="col-lg-4">
-                <h4>Visión</h4>
-                <p>
+                <h4 data-i18n-key="vision-title">Visión</h4>
+                <p data-i18n-key="vision-text">
                     Ser la plataforma líder de rutas y descubrimiento de destinos en Latinoamérica,
                     transformando la forma en que las personas planifican, comparten y viven sus viajes
                     con ayuda de la inteligencia artificial.
                 </p>
             </div>
             <div class="col-lg-4">
-                <h4>Valores</h4>
+                <h4 data-i18n-key="values-title">Valores</h4>
                 <ul class="mb-0">
-                    <li>Enfoque en el usuario y su seguridad.</li>
-                    <li>Innovación responsable en IA.</li>
-                    <li>Transparencia y confianza en los datos.</li>
-                    <li>Impulso a los destinos y negocios locales.</li>
-                    <li>Diversidad, inclusión y respeto por las comunidades.</li>
+                    <li data-i18n-key="value-1">Enfoque en el usuario y su seguridad.</li>
+                    <li data-i18n-key="value-2">Innovación responsable en IA.</li>
+                    <li data-i18n-key="value-3">Transparencia y confianza en los datos.</li>
+                    <li data-i18n-key="value-4">Impulso a los destinos y negocios locales.</li>
+                    <li data-i18n-key="value-5">Diversidad, inclusión y respeto por las comunidades.</li>
                 </ul>
             </div>
         </div>
     </div>
 </div>
+
 
 <!-- ***** Scripts ***** -->
 <script>
