@@ -3434,13 +3434,81 @@ Footer Style
 ---------------------------------------------
 */
 
-footer p {
-  text-align: center;
-  margin: 30px 0px 45px 0px;
+.site-footer-compact {
+  background-color: #fff;
+  color: #6c757d;
+  padding: 1.5rem 0;
+  font-size: 0.9rem;
+  border-top: 1px solid #e9ecef;
 }
 
-footer p a {
-  color: #fe3f40;
+.site-footer-compact .footer-main-line {
+  display: flex;
+  justify-content: center; /* Centered main content */
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2rem;
+}
+
+.site-footer-compact .footer-copyright p,
+.site-footer-compact .footer-legal-line p {
+  margin: 0;
+  color: #6c757d;
+}
+
+.site-footer-compact .footer-contact-info {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.site-footer-compact .footer-contact-info a,
+.site-footer-compact .footer-contact-info span {
+  color: #6c757d;
+  transition: color 0.2s ease;
+}
+
+.site-footer-compact .footer-contact-info a:hover {
+  color: var(--primary-color);
+}
+
+.site-footer-compact .footer-social-links {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.site-footer-compact .footer-social-links a {
+  color: #6c757d;
+  font-size: 1.2rem;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.site-footer-compact .footer-social-links a:hover {
+  color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.site-footer-compact .footer-legal-line {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #a9b3c1;
+}
+
+@media (max-width: 991px) {
+  .site-footer-compact .footer-main-line {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+  .site-footer-compact .footer-contact-info {
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+  }
 }
 
 /*
@@ -3560,10 +3628,20 @@ responsive
 }
 .section,
 section {
-  padding-top: 140px;
-  padding-bottom: 140px;
-  margin-top: 60px;
-  margin-bottom: 60px;
+  padding-top: 100px; /* Reducido desde 140px */
+  padding-bottom: 100px; /* Reducido desde 140px */
+  margin-top: 40px; /* Reducido desde 60px */
+  margin-bottom: 40px; /* Reducido desde 60px */
+}
+
+#screens {
+  margin-bottom: -20px; /* Reduce el margen inferior del carrusel */
+  padding-bottom: 80px; /* Reduce el padding inferior */
+}
+
+#pricing {
+  margin-top: -20px; /* Reduce el margen superior de los planes */
+  padding-top: 80px; /* Reduce el padding superior */
 }
 
 /* Mejora el espaciado de los encabezados */
@@ -3580,29 +3658,35 @@ section {
 
 /* Añade separación antes del footer o copyright */
 .contact-us {
-  margin-bottom: 80px;
+  margin-bottom: 0; /* Eliminado el margen inferior */
 }
 /* === Ajuste del bloque About (sin padding inferior) === */
-#contact.contact-us {
-  padding-top: 160px;
-  padding-bottom: 80px;
+#about.contact-us {
+  padding-top: 100px;
+  padding-bottom: 100px;
   margin-bottom: 0;
 }
 
-#contact.contact-us .container:last-of-type {
+#about.contact-us .container:last-of-type {
   margin-top: 40px;
 }
 /* Versión responsive: reduce el espacio en pantallas pequeñas */
 @media (max-width: 768px) {
   .section,
   section {
-    padding-top: 90px;
-    padding-bottom: 90px;
-    margin-top: 40px;
-    margin-bottom: 40px;
+    padding-top: 80px; /* Ajustado */
+    padding-bottom: 80px; /* Ajustado */
+    margin-top: 30px; /* Ajustado */
+    margin-bottom: 30px; /* Ajustado */
   }
   .section-heading {
     margin-bottom: 40px;
+  }
+  #screens {
+    padding-bottom: 60px;
+  }
+  #pricing {
+    padding-top: 60px;
   }
 }
 @media (max-width: 767px) {
