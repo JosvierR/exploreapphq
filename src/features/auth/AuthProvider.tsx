@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { apiUrl } from "@/lib/api";
 import { clearToken, getToken, setToken } from "./authStorage";
 
 type AuthState = {
@@ -30,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      const res = await fetch("/api/me", {
+      const res = await fetch(apiUrl("/api/me"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("invalid");

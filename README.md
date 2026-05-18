@@ -69,11 +69,60 @@ npm run preview  # Preview production build
 
 Copy `.env.example` to `.env` to customize admin credentials and SMTP.
 
-## Deploy
+## Deploy on Netlify
 
-Build `dist/` and host on any static host (Vercel, Netlify, GitHub Pages, Cloudflare Pages).
+Netlify hosts **only the frontend** (`dist/`). The API (`server/`) must run elsewhere (e.g. [Railway](https://railway.app), [Render](https://render.com)).
 
-For SPA routing, `public/_redirects` is included for Netlify-style hosts. On GitHub Pages, enable “single-page app” or copy `index.html` to `404.html`.
+### 1. Netlify (site)
+
+Connect the GitHub repo in Netlify. Build settings are in `netlify.toml`:
+
+| Setting | Value |
+|---------|--------|
+| Build command | `npm run build` |
+| Publish directory | `dist` |
+
+Deploy → `https://exploreapphq.com` shows the landing.
+
+### 2. API (Railway / Render — example)
+
+Create a **Web Service** from the same repo:
+
+- **Start command:** `npx tsx server/index.ts` (or `npm run build:api` + `node dist/server/index.js` if you add a start script)
+- **Root directory:** repo root
+- Add env vars from `.env.example` (`JWT_SECRET`, `SMTP_*`, `DB_PATH`, store URLs, etc.)
+- Attach a **persistent volume** for `data/explore.db` (SQLite)
+- Use real SMTP (Resend, SendGrid, SES) — not Mailpit
+
+Copy the public URL, e.g. `https://explore-api-production.up.railway.app`.
+
+### 3. Connect Netlify → API
+
+In `netlify.toml`, uncomment the `/api/*` redirect and set your API URL:
+
+```toml
+[[redirects]]
+  from = "/api/*"
+  to = "https://YOUR-API-URL.up.railway.app/api/:splat"
+  status = 200
+  force = true
+```
+
+Redeploy Netlify. The browser keeps calling `/api/access` on `exploreapphq.com`; Netlify forwards it to Railway.
+
+**Alternative:** set `VITE_API_URL=https://your-api...` in Netlify → Site settings → Environment variables (build time), without the proxy rule.
+
+### 4. Checklist
+
+- [ ] Netlify build succeeds (`npm run build`)
+- [ ] API health: `https://YOUR-API/api/health` → `{"ok":true}`
+- [ ] Signup on `https://exploreapphq.com/access` works
+- [ ] Confirmation email arrives (production SMTP)
+- [ ] `data/explore.db` on a persistent disk
+
+### Other static hosts
+
+`public/_redirects` works on Netlify-style hosts. For GitHub Pages, copy `index.html` to `404.html` for SPA routing.
 
 ## Waitlist & emails
 
