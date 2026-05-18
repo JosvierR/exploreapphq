@@ -1,0 +1,223 @@
+/* Landing motion — CSS only, respects reduced motion */
+
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+@keyframes float-soft-alt {
+  0%,
+  100% {
+    transform: translateY(-6px) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(8px) rotate(-4deg);
+  }
+}
+
+@keyframes float-soft-alt-r {
+  0%,
+  100% {
+    transform: translateY(4px) rotate(4deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(4deg);
+  }
+}
+
+@keyframes pin-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 4px rgba(0, 155, 255, 0.35);
+  }
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 8px rgba(0, 155, 255, 0.2);
+  }
+}
+
+@keyframes route-draw {
+  0% {
+    opacity: 0.35;
+    stroke-dashoffset: 120;
+  }
+  100% {
+    opacity: 0.85;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes glow-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translate(8%, -6%) scale(1.08);
+    opacity: 0.75;
+  }
+}
+
+@keyframes hero-enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes badge-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes chip-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes connector-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Hero entrance */
+.hero-enter .hero-tagline {
+  animation: hero-enter-up 0.65s var(--ease) both;
+}
+.hero-enter .hero-title {
+  animation: hero-enter-up 0.7s var(--ease) 0.06s both;
+}
+.hero-enter .hero-lead {
+  animation: hero-enter-up 0.7s var(--ease) 0.12s both;
+}
+.hero-enter .badge:nth-child(1) {
+  animation: badge-pop 0.5s var(--ease) 0.2s both;
+}
+.hero-enter .badge:nth-child(2) {
+  animation: badge-pop 0.5s var(--ease) 0.28s both;
+}
+.hero-enter .badge:nth-child(3) {
+  animation: badge-pop 0.5s var(--ease) 0.36s both;
+}
+.hero-enter .badge:nth-child(4) {
+  animation: badge-pop 0.5s var(--ease) 0.44s both;
+}
+.hero-enter .hero-enter-actions {
+  animation: hero-enter-up 0.65s var(--ease) 0.5s both;
+}
+.hero-enter .hero-enter-flow {
+  animation: hero-enter-up 0.65s var(--ease) 0.58s both;
+}
+
+.hero-visual--animated .hero-phone-wrap--main {
+  animation: float-soft 5.5s ease-in-out infinite;
+}
+.hero-visual--animated .hero-phone-wrap--left {
+  animation: float-soft-alt 6.2s ease-in-out infinite;
+}
+.hero-visual--animated .hero-phone-wrap--right {
+  animation: float-soft-alt-r 5.8s ease-in-out infinite;
+}
+.hero-visual--animated .hero-visual__glow {
+  animation: glow-drift 8s ease-in-out infinite;
+}
+.hero-visual--animated .map-pin {
+  animation: pin-pulse 2.4s ease-in-out infinite;
+}
+.hero-visual--animated .map-pin--2 {
+  animation-delay: 0.4s;
+}
+.hero-visual--animated .map-pin--3 {
+  animation-delay: 0.8s;
+}
+.hero-visual--animated .map-route-line {
+  animation: connector-pulse 2.5s ease-in-out infinite;
+}
+.hero-visual--animated .hero-connector__line {
+  animation: connector-pulse 2s ease-in-out infinite;
+}
+
+.nearby-chip {
+  animation: chip-float 4s ease-in-out infinite;
+}
+.nearby-chip--2 {
+  animation-delay: 0.5s;
+}
+.nearby-chip--3 {
+  animation-delay: 1s;
+}
+.nearby-chip--4 {
+  animation-delay: 1.5s;
+}
+.nearby-chip--5 {
+  animation-delay: 0.75s;
+}
+
+/* Reveal variants */
+.reveal {
+  opacity: 0;
+  transition:
+    opacity 0.75s var(--ease),
+    transform 0.75s var(--ease);
+}
+.reveal--up {
+  transform: translateY(28px);
+}
+.reveal--left {
+  transform: translateX(-32px);
+}
+.reveal--right {
+  transform: translateX(32px);
+}
+.reveal--scale {
+  transform: scale(0.96);
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-enter .hero-tagline,
+  .hero-enter .hero-title,
+  .hero-enter .hero-lead,
+  .hero-enter .badge,
+  .hero-enter .hero-enter-actions,
+  .hero-enter .hero-enter-flow,
+  .hero-visual--animated .hero-phone-wrap--main,
+  .hero-visual--animated .hero-phone-wrap--left,
+  .hero-visual--animated .hero-phone-wrap--right,
+  .hero-visual--animated .hero-visual__glow,
+  .hero-visual--animated .map-pin,
+  .hero-visual--animated .map-route-line,
+  .nearby-chip {
+    animation: none !important;
+  }
+}

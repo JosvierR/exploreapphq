@@ -1,0 +1,136 @@
+import cors from "cors";
+import express from "express";
+import jwt from "jsonwebtoken";
+import { requireAdmin } from "./adminAuth.js";
+import { config } from "./config.js";
+import {
+  addToWaitlist,
+  getWaitlistStats,
+  listWaitlist,
+  listWaitlistPendingLaunch,
+  markLaunchNotified,
+} from "./db.js";
+import { sendAppLaunchBulk, sendWaitlistEmail } from "./mail.js";
+
+const app = express();
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json());
+
+function normalizeEmail(email: unknown): string | null {
+  if (typeof email !== "string") return null;
+  const trimmed = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return null;
+  return trimmed;
+}
+
+app.get("/api/health", (_req, res) => {
+  res.json({ ok: true });
+});
+
+app.post("/api/access", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const password = typeof req.body?.password === "string" ? req.body.password : undefined;
+
+    if (!email) {
+      return res.status(400).json({ error: "Invalid email address." });
+    }
+
+    if (email === config.adminEmail) {
+      if (!password) {
+        return res.json({ access: "password_required" as const });
+      }
+      if (password !== config.adminPassword) {
+        return res.status(401).json({ error: "Incorrect password." });
+      }
+      const token = jwt.sign({ role: "admin", email }, config.jwtSecret, { expiresIn: "7d" });
+      return res.json({ access: "full" as const, token });
+    }
+
+    const { created } = addToWaitlist(email);
+    try {
+      await sendWaitlistEmail(email);
+    } catch (mailErr) {
+      console.error("[mail]", mailErr);
+      return res.status(503).json({
+        error: "Could not send confirmation email. Is Mailpit running on port 1025?",
+      });
+    }
+
+    return res.json({
+      access: "waitlist" as const,
+      created,
+      message: created
+        ? "You're on the list. Check your inbox — we'll notify you when the app is 100% ready."
+        : "You're already on the list. We'll notify you when the app is 100% ready.",
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Something went wrong. Please try again." });
+  }
+});
+
+/** Admin: view who signed up (requires admin JWT from /api/access) */
+app.get("/api/admin/waitlist", requireAdmin, (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 100, 500);
+  const offset = Math.max(Number(req.query.offset) || 0, 0);
+  const stats = getWaitlistStats();
+  const rows = listWaitlist(limit, offset);
+  return res.json({ stats, rows });
+});
+
+/**
+ * Admin: email everyone on the waitlist that the app is ready.
+ * ?dryRun=1 — only returns who would receive it.
+ * By default only emails rows where launch_notified_at IS NULL.
+ */
+app.post("/api/admin/waitlist/notify-launch", requireAdmin, async (req, res) => {
+  const dryRun = req.query.dryRun === "1" || req.body?.dryRun === true;
+  const pending = listWaitlistPendingLaunch();
+
+  if (dryRun) {
+    return res.json({
+      dryRun: true,
+      count: pending.length,
+      emails: pending.map((r) => r.email),
+    });
+  }
+
+  if (pending.length === 0) {
+    return res.json({ sent: [], failed: [], message: "No pending recipients." });
+  }
+
+  try {
+    const result = await sendAppLaunchBulk(
+      pending.map((r) => r.email),
+      markLaunchNotified,
+    );
+    return res.json({
+      ...result,
+      stats: getWaitlistStats(),
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Bulk send failed." });
+  }
+});
+
+app.get("/api/me", (req, res) => {
+  const header = req.headers.authorization;
+  const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
+
+  try {
+    const payload = jwt.verify(token, config.jwtSecret) as { role?: string; email?: string };
+    if (payload.role !== "admin") return res.status(401).json({ error: "Unauthorized" });
+    return res.json({ role: "admin", email: payload.email });
+  } catch {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+});
+
+app.listen(config.port, () => {
+  console.log(`API http://localhost:${config.port}`);
+  console.log(`Admin: ${config.adminEmail}`);
+  console.log(`SMTP ${config.smtp.host}:${config.smtp.port} (Mailpit)`);
+});
