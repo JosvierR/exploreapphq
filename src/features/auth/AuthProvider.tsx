@@ -1,3 +1,4 @@
+import { onAuthStateChanged, type User } from "firebase/auth";
 import {
   createContext,
   useCallback,
@@ -7,60 +8,57 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { apiUrl } from "@/lib/api";
-import { clearToken, getToken, setToken } from "./authStorage";
+import { isAdminEmail } from "@/lib/admin";
+import { firebaseSignOut } from "@/features/auth/firebaseAuth";
+import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase";
 
 type AuthState = {
+  user: User | null;
   isAdmin: boolean;
   isLoading: boolean;
-  login: (token: string) => void;
-  logout: () => void;
+  firebaseReady: boolean;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const firebaseReady = isFirebaseConfigured();
 
-  const verify = useCallback(async () => {
-    const token = getToken();
-    if (!token) {
-      setIsAdmin(false);
+  useEffect(() => {
+    if (!firebaseReady) {
       setIsLoading(false);
       return;
     }
-    try {
-      const res = await fetch(apiUrl("/api/me"), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("invalid");
-      setIsAdmin(true);
-    } catch {
-      clearToken();
-      setIsAdmin(false);
-    } finally {
+
+    const auth = getFirebaseAuth();
+    const unsub = onAuthStateChanged(auth, (next: User | null) => {
+      if (next && !isAdminEmail(next.email)) {
+        firebaseSignOut().finally(() => {
+          setUser(null);
+          setIsLoading(false);
+        });
+        return;
+      }
+      setUser(next);
       setIsLoading(false);
-    }
-  }, []);
+    });
 
-  useEffect(() => {
-    verify();
-  }, [verify]);
+    return () => unsub();
+  }, [firebaseReady]);
 
-  const login = useCallback((token: string) => {
-    setToken(token);
-    setIsAdmin(true);
-  }, []);
+  const logout = useCallback(async () => {
+    if (firebaseReady) await firebaseSignOut();
+    setUser(null);
+  }, [firebaseReady]);
 
-  const logout = useCallback(() => {
-    clearToken();
-    setIsAdmin(false);
-  }, []);
+  const isAdmin = Boolean(user && isAdminEmail(user.email));
 
   const value = useMemo(
-    () => ({ isAdmin, isLoading, login, logout }),
-    [isAdmin, isLoading, login, logout],
+    () => ({ user, isAdmin, isLoading, firebaseReady, logout }),
+    [user, isAdmin, isLoading, firebaseReady, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

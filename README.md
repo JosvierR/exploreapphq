@@ -34,16 +34,32 @@ Marketing site and future web app for **Explore Atlas** — a geospatial social 
 └── dist/                   # Production build output
 ```
 
-## Access / sign up
+## Access / sign up (Firebase)
 
-| Email | Behavior |
-|--------|----------|
-| `admin@example.com` | Asks for password → full site access |
-| Any other email | Saved to SQLite + confirmation email via Mailpit |
+| Route | Who | What |
+|--------|-----|------|
+| `/access` | Everyone | Email only → Firestore waitlist + welcome email (no login UI) |
+| `/team` | Admins only | Hidden team login (not linked on site) → Firebase Auth |
 
-Default admin password: `Admin12345678` (override with `ADMIN_PASSWORD` in `.env`).
+### Setup Firebase
 
-Entry route: **http://localhost:5173/access**
+1. [Firebase Console](https://console.firebase.google.com/) → create project → add **Web app** → copy config into `.env` as `VITE_FIREBASE_*`.
+2. **Authentication** → Email/Password → enable.
+3. **Authentication** → Users → Add user (your admin email + password).
+4. Set `VITE_ADMIN_EMAILS=your@email.com` in `.env` and Netlify env vars.
+5. **Firestore** → create database → deploy rules: `firebase deploy --only firestore:rules` (or paste `firestore.rules` in the console).
+
+### Local dev
+
+```bash
+npm run dev:all   # web + API (for welcome emails via Mailpit)
+docker compose up -d
+```
+
+- Public: http://localhost:5173/access  
+- Team: http://localhost:5173/team  
+
+Legacy API admin (`POST /api/access` + `ADMIN_PASSWORD`) still works for scripts; the site UI uses Firebase.
 
 ## Commands
 

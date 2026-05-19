@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
 import { MarketingLayout } from "@/components/layout/MarketingLayout";
 import { AccessPage } from "@/pages/auth/AccessPage";
+import { TeamLoginPage } from "@/pages/auth/TeamLoginPage";
 import { HomePage } from "@/pages/marketing/HomePage";
 import { TermsPage } from "@/pages/marketing/TermsPage";
 import { PrivacyPage } from "@/pages/marketing/PrivacyPage";
@@ -10,6 +11,7 @@ import { NotFoundPage } from "@/pages/marketing/NotFoundPage";
 
 export const router = createBrowserRouter([
   { path: "/access", element: <AccessPage /> },
+  { path: "/team", element: <TeamLoginPage /> },
   {
     element: (
       <ProtectedRoute>

@@ -19,6 +19,7 @@
     "better-sqlite3": "^11.7.0",
     "cors": "^2.8.5",
     "express": "^4.21.2",
+    "firebase": "^11.10.0",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^6.9.16",
     "react": "^19.0.0",

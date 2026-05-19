@@ -1,19 +1,15 @@
 import { FormEvent, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { requestAccess } from "@/lib/api";
+import { joinWaitlistByEmail, mapFirebaseAuthError } from "@/features/auth/firebaseAuth";
+import { isFirebaseConfigured } from "@/lib/firebase";
 import "@/styles/access.css";
 
-const ADMIN_EMAIL = "admin@example.com";
-
 export function AccessPage() {
-  const { isAdmin, login } = useAuth();
-  const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [needsPassword, setNeedsPassword] = useState(false);
-  const [waitlistMessage, setWaitlistMessage] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -21,67 +17,72 @@ export function AccessPage() {
     return <Navigate to="/" replace />;
   }
 
-  const normalized = email.trim().toLowerCase();
-  const isAdminEmail = normalized === ADMIN_EMAIL;
-
-  function handleEmailChange(value: string) {
-    setEmail(value);
-    setError(null);
-    setWaitlistMessage(null);
-    setNeedsPassword(value.trim().toLowerCase() === ADMIN_EMAIL);
-  }
-
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    setWaitlistMessage(null);
+    setSuccess(null);
     setLoading(true);
 
     try {
-      const result = await requestAccess(
-        normalized,
-        needsPassword && isAdminEmail ? password : undefined,
+      const { created } = await joinWaitlistByEmail(email);
+      setSuccess(
+        created
+          ? "You're in. We'll email you when Explore is ready — real places, videos and routes."
+          : "You're already on the list. We'll notify you as soon as you can download the app.",
       );
-
-      if (result.access === "password_required") {
-        setNeedsPassword(true);
-        return;
+      setEmail("");
+    } catch (err: unknown) {
+      const code = err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
+      if (code.startsWith("auth/")) {
+        setError(mapFirebaseAuthError(code));
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Something went wrong. Please try again.");
       }
-
-      if (result.access === "full") {
-        login(result.token);
-        navigate("/", { replace: true });
-        return;
-      }
-
-      setWaitlistMessage(result.message);
-      setPassword("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }
   }
 
+  const firebaseOk = isFirebaseConfigured();
+
   return (
     <div className="access-page">
-      <div className="access-card">
+      <div className="access-card access-card--public">
         <div className="access-brand">
           <BrandLogo />
         </div>
-        <h1>Get access to Explore</h1>
+
+        <p className="access-eyebrow">Early access</p>
+        <h1>Be first to explore</h1>
         <p className="access-lead">
-          Enter your email. Team members sign in with a password; everyone else joins the waitlist.
+          Discover real places through videos. Join the list and we'll let you know the moment you
+          can download Explore.
         </p>
 
-        {waitlistMessage ? (
+        <ul className="access-perks" aria-hidden="true">
+          <li>Real videos from real places</li>
+          <li>Save spots and build routes</li>
+          <li>Explore what's near you</li>
+        </ul>
+
+        {!firebaseOk && (
+          <p className="access-warn">
+            Firebase keys missing in build — waitlist still works if the API is connected.
+          </p>
+        )}
+
+        {success ? (
           <div className="access-success" role="status">
-            <p>{waitlistMessage}</p>
-            <p className="access-hint">Check Mailpit at localhost:8025 if you are testing locally.</p>
+            <span className="access-success__icon" aria-hidden="true">
+              ✓
+            </span>
+            <p>{success}</p>
           </div>
         ) : (
           <form className="access-form" onSubmit={handleSubmit}>
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">Your email</label>
             <input
               id="email"
               type="email"
@@ -89,23 +90,8 @@ export function AccessPage() {
               required
               placeholder="you@example.com"
               value={email}
-              onChange={(e) => handleEmailChange(e.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
             />
-
-            {needsPassword && isAdminEmail && (
-              <>
-                <label htmlFor="password">Password</label>
-                <input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  placeholder="Admin password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </>
-            )}
 
             {error && (
               <p className="access-error" role="alert">
@@ -114,12 +100,10 @@ export function AccessPage() {
             )}
 
             <button type="submit" className="btn btn-primary access-submit" disabled={loading}>
-              {loading
-                ? "Please wait…"
-                : needsPassword && isAdminEmail
-                  ? "Sign in"
-                  : "Continue"}
+              {loading ? "Joining…" : "Get early access"}
             </button>
+
+            <p className="access-footnote">No spam — just one email when the app is ready.</p>
           </form>
         )}
       </div>

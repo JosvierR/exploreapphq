@@ -27,6 +27,37 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
 
+/** Public waitlist signup (email only) — used by the Firebase front-end */
+app.post("/api/waitlist/signup", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    if (!email) {
+      return res.status(400).json({ error: "Invalid email address." });
+    }
+
+    const { created } = addToWaitlist(email);
+    try {
+      await sendWaitlistEmail(email);
+    } catch (mailErr) {
+      console.error("[mail]", mailErr);
+      return res.status(503).json({
+        error: "Could not send confirmation email. Try again later.",
+      });
+    }
+
+    return res.json({
+      ok: true,
+      created,
+      message: created
+        ? "You're on the list."
+        : "You're already on the list.",
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Something went wrong." });
+  }
+});
+
 app.post("/api/access", async (req, res) => {
   try {
     const email = normalizeEmail(req.body?.email);

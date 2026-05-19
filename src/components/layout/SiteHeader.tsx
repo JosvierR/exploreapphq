@@ -22,10 +22,10 @@ export function SiteHeader() {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await logout();
     closeMobile();
-    navigate("/access");
+    navigate("/team");
   }
 
   const closeMobile = () => {

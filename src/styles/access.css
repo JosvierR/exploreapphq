@@ -92,10 +92,71 @@
   line-height: 1.55;
 }
 
-.access-hint {
-  margin-top: 0.75rem !important;
-  font-size: 0.8rem !important;
-  color: rgba(255, 255, 255, 0.5) !important;
+.access-card--public {
+  width: min(100%, 440px);
+}
+
+.access-eyebrow {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5ac8fa;
+  margin-bottom: 0.5rem;
+}
+
+.access-perks {
+  list-style: none;
+  margin: 0 0 1.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.access-perks li {
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.75);
+  padding-left: 1.35rem;
+  position: relative;
+}
+
+.access-perks li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: #009bff;
+  font-weight: 800;
+}
+
+.access-footnote {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.access-warn {
+  font-size: 0.8rem;
+  color: #fcd34d;
+  text-align: center;
+  margin-bottom: 1rem;
+  line-height: 1.45;
+}
+
+.access-success__icon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(0, 155, 255, 0.2);
+  color: #5ac8fa;
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin-bottom: 0.75rem;
 }
 
 .auth-loading {

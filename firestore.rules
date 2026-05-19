@@ -1,0 +1,12 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /waitlist/{email} {
+      allow read: if false;
+      allow create: if email == request.resource.data.email
+        && request.resource.data.email.matches('^[^@]+@[^@]+\\.[^@]+$')
+        && request.resource.data.keys().hasOnly(['email', 'createdAt']);
+      allow update, delete: if false;
+    }
+  }
+}
