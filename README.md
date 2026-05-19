@@ -6,7 +6,7 @@ Marketing site and future web app for **Explore Atlas** — a geospatial social 
 
 - [Vite](https://vitejs.dev/) + [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
 - [React Router](https://reactrouter.com/) for client-side routing
-- [Express](https://expressjs.com/) API + **SQLite** waitlist
+- [Express](https://expressjs.com/) API + JSON waitlist (`data/waitlist.json`)
 - [Mailpit](https://mailpit.axllent.dev/) for local email (SMTP)
 - CSS design system in `src/styles/global.css`
 
@@ -134,7 +134,7 @@ Redeploy Netlify. The browser keeps calling `/api/access` on `exploreapphq.com`;
 - [ ] API health: `https://YOUR-API/api/health` → `{"ok":true}`
 - [ ] Signup on `https://exploreapphq.com/access` works
 - [ ] Confirmation email arrives (production SMTP)
-- [ ] `data/explore.db` on a persistent disk
+- [ ] `data/waitlist.json` on a persistent disk (Railway volume)
 
 ### Other static hosts
 
@@ -142,7 +142,7 @@ Redeploy Netlify. The browser keeps calling `/api/access` on `exploreapphq.com`;
 
 ## Waitlist & emails
 
-Every non-admin signup is stored in **SQLite** (`data/explore.db`, table `waitlist`).
+Every signup email is also stored in **`data/waitlist.json`** (and Firestore when Firebase is configured).
 
 | What | How |
 |------|-----|

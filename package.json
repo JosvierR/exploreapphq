@@ -16,7 +16,6 @@
     "email:test": "tsx server/scripts/send-test-email.ts"
   },
   "dependencies": {
-    "better-sqlite3": "^11.7.0",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "firebase": "^11.10.0",
@@ -27,7 +26,6 @@
     "react-router-dom": "^7.1.1"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.12",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.7",
