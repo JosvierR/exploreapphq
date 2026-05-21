@@ -3,7 +3,6 @@ import { Navigate } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { joinWaitlistByEmail, mapFirebaseAuthError } from "@/features/auth/firebaseAuth";
-import { isFirebaseConfigured } from "@/lib/firebase";
 import "@/styles/access.css";
 
 export function AccessPage() {
@@ -45,8 +44,6 @@ export function AccessPage() {
     }
   }
 
-  const firebaseOk = isFirebaseConfigured();
-
   return (
     <div className="access-page">
       <div className="access-card access-card--public">
@@ -66,12 +63,6 @@ export function AccessPage() {
           <li>Save spots and build routes</li>
           <li>Explore what's near you</li>
         </ul>
-
-        {!firebaseOk && (
-          <p className="access-warn">
-            Firebase keys missing in build — waitlist still works if the API is connected.
-          </p>
-        )}
 
         {success ? (
           <div className="access-success" role="status">

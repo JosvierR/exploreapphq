@@ -89,6 +89,8 @@ Copy `.env.example` to `.env` to customize admin credentials and SMTP.
 
 Netlify hosts **only the frontend** (`dist/`). The API (`server/`) must run elsewhere (e.g. [Railway](https://railway.app), [Render](https://render.com)).
 
+**Full Netlify checklist:** see [docs/NETLIFY_SETUP.md](docs/NETLIFY_SETUP.md)
+
 ### 1. Netlify (site)
 
 Connect the GitHub repo in Netlify. Build settings are in `netlify.toml`:

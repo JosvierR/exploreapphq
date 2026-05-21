@@ -3,10 +3,11 @@ import {
   signOut,
   type User,
 } from "firebase/auth";
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
-import { apiUrl } from "@/lib/api";
+import { joinWaitlistByEmail as joinWaitlist } from "@/lib/waitlistSignup";
 import { isAdminEmail } from "@/lib/admin";
-import { getFirebaseAuth, getFirestoreDb, isFirebaseConfigured } from "@/lib/firebase";
+import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase";
+
+export { joinWaitlist as joinWaitlistByEmail };
 
 export function mapFirebaseAuthError(code: string): string {
   switch (code) {
@@ -37,43 +38,6 @@ export async function firebaseAdminSignIn(email: string, password: string): Prom
     throw new Error("This account does not have team access.");
   }
   return cred.user;
-}
-
-/** Public waitlist: email only, no password, no Auth session for the user. */
-export async function joinWaitlistByEmail(email: string): Promise<{ created: boolean }> {
-  const normalized = email.trim().toLowerCase();
-
-  let created = true;
-
-  if (isFirebaseConfigured()) {
-    const ref = doc(getFirestoreDb(), "waitlist", normalized);
-    const existing = await getDoc(ref);
-    if (existing.exists()) {
-      created = false;
-    } else {
-      await setDoc(ref, {
-        email: normalized,
-        createdAt: serverTimestamp(),
-      });
-    }
-  }
-
-  await sendWelcomeEmail(normalized);
-  return { created };
-}
-
-async function sendWelcomeEmail(email: string) {
-  const res = await fetch(apiUrl("/api/waitlist/signup"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(
-      typeof data.error === "string" ? data.error : "Could not complete your request. Try again later.",
-    );
-  }
 }
 
 export async function firebaseSignOut() {

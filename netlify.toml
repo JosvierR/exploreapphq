@@ -1,18 +1,28 @@
-# Explore — Netlify (frontend)
-# https://docs.netlify.com/configure-builds/file-based-configuration/
+# Explore — Netlify (frontend + waitlist function)
 
 [build]
   command = "npm run build"
   publish = "dist"
 
-# 1) API proxy — must be ABOVE the SPA rule. Uncomment after deploying server/ to Railway/Render.
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Waitlist + welcome email (works without Railway API)
+[[redirects]]
+  from = "/api/waitlist/signup"
+  to = "/.netlify/functions/waitlist-signup"
+  status = 200
+  force = true
+
+# Optional: proxy other API routes to Railway/Render
 # [[redirects]]
 #   from = "/api/*"
-#   to = "https://YOUR-API-URL.up.railway.app/api/:splat"
+#   to = "https://YOUR-API.up.railway.app/api/:splat"
 #   status = 200
 #   force = true
 
-# 2) SPA — React Router
+# SPA — must be last
 [[redirects]]
   from = "/*"
   to = "/index.html"
