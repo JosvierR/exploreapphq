@@ -33,15 +33,11 @@ function buildWaitlistWelcomeEmail(email, links) {
 }
 
 function emailLinks() {
-  const siteUrl = process.env.SITE_URL ?? "https://exploreapphq.com";
+  const siteUrl = process.env.SITE_URL || "https://example.com";
   return {
     siteUrl,
-    appleUrl:
-      process.env.APP_STORE_URL ??
-      "https://apps.apple.com/do/app/explore-tourism/id6748882805?l=en-GB",
-    playUrl:
-      process.env.PLAY_STORE_URL ??
-      "https://play.google.com/store/apps/details?id=com.explore.miapp&hl=es",
+    appleUrl: process.env.APP_STORE_URL || "",
+    playUrl: process.env.PLAY_STORE_URL || "",
     logoUrl: `${siteUrl}/icon-192.png`,
   };
 }
@@ -72,12 +68,12 @@ async function sendWelcome(email) {
     host,
     port: Number(process.env.SMTP_PORT || 465),
     secure: process.env.SMTP_SECURE !== "false",
-    auth: { user: user || "resend", pass },
+    auth: { user: user || process.env.SMTP_USER, pass },
   });
 
   const { subject, html, text } = buildWaitlistWelcomeEmail(email, emailLinks());
   await transporter.sendMail({
-    from: process.env.SMTP_FROM ?? "Explore <onboarding@resend.dev>",
+    from: process.env.SMTP_FROM || "Explore <noreply@example.com>",
     to: email,
     subject,
     html,
