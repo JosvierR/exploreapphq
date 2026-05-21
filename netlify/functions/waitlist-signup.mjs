@@ -1,14 +1,34 @@
 import nodemailer from "nodemailer";
 import { getStore } from "@netlify/blobs";
-import { buildWaitlistWelcomeEmail } from "../../server/emails/waitlistWelcome.mjs";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function json(statusCode, body) {
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+function buildWaitlistWelcomeEmail(email, links) {
+  const body = `
+    <tr><td style="background:#0b0f14;padding:28px 32px;text-align:center;">
+      <p style="margin:0;font-size:26px;font-weight:800;color:#fff;">Explore</p>
+      <p style="margin:10px 0 0;font-size:14px;color:#b8c2cc;">Discover real places through videos</p>
+    </td></tr>
+    <tr><td style="background:#fff;padding:32px;">
+      <h1 style="margin:0 0 16px;font-size:24px;color:#0b0f14;">Thanks for joining Explore</h1>
+      <p style="margin:0;font-size:16px;line-height:1.65;color:#3d4654;">
+        We saved <strong>${email}</strong> on our early access list.
+      </p>
+    </td></tr>`;
+  const html = `<!DOCTYPE html><html><body style="margin:0;background:#eef2f7;font-family:system-ui,sans-serif;">
+    <table width="100%" style="padding:32px 16px;"><tr><td align="center">
+    <table style="max-width:560px;background:#fff;border-radius:12px;overflow:hidden;">${body}</table>
+    </td></tr></table></body></html>`;
   return {
-    statusCode,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    subject: "You're on the Explore list — we'll notify you when it's ready",
+    html,
+    text: `Thanks for joining Explore!\n\nWe saved ${email} on our early access list.\n\n— The Explore team`,
   };
 }
 
@@ -34,32 +54,30 @@ async function saveEmail(email) {
     await store.setJSON(email, { email, createdAt: new Date().toISOString() });
     return true;
   } catch (err) {
-    console.warn("[waitlist] Blobs store unavailable:", err.message);
+    console.warn("[waitlist] Blobs:", err?.message ?? err);
     return true;
   }
 }
 
 async function sendWelcome(email) {
   const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT || 587);
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
-
-  if (!host) {
-    console.warn("[waitlist] SMTP_HOST not set — skipping email");
+  if (!host || !pass) {
+    console.warn("[waitlist] SMTP not configured — skip email");
     return;
   }
 
   const transporter = nodemailer.createTransport({
     host,
-    port,
-    secure: process.env.SMTP_SECURE === "true",
-    auth: user && pass ? { user, pass } : undefined,
+    port: Number(process.env.SMTP_PORT || 465),
+    secure: process.env.SMTP_SECURE !== "false",
+    auth: { user: user || "resend", pass },
   });
 
   const { subject, html, text } = buildWaitlistWelcomeEmail(email, emailLinks());
   await transporter.sendMail({
-    from: process.env.SMTP_FROM ?? "Explore <noreply@exploreapphq.com>",
+    from: process.env.SMTP_FROM ?? "Explore <onboarding@resend.dev>",
     to: email,
     subject,
     html,
@@ -67,32 +85,25 @@ async function sendWelcome(email) {
   });
 }
 
-export default async (req) => {
-  if (req.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-      },
-    };
+export default async (request) => {
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: cors });
   }
 
-  if (req.httpMethod !== "POST") {
-    return json(405, { error: "Method not allowed" });
+  if (request.method !== "POST") {
+    return Response.json({ error: "Method not allowed" }, { status: 405, headers: cors });
   }
 
   let body;
   try {
-    body = JSON.parse(req.body || "{}");
+    body = await request.json();
   } catch {
-    return json(400, { error: "Invalid JSON" });
+    return Response.json({ error: "Invalid JSON" }, { status: 400, headers: cors });
   }
 
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   if (!EMAIL_RE.test(email)) {
-    return json(400, { error: "Invalid email address." });
+    return Response.json({ error: "Invalid email address." }, { status: 400, headers: cors });
   }
 
   try {
@@ -101,20 +112,18 @@ export default async (req) => {
       await sendWelcome(email);
     } catch (mailErr) {
       console.error("[waitlist] email failed:", mailErr);
-      if (created) {
-        return json(503, {
-          error: "You're on the list, but we could not send the confirmation email yet.",
-        });
-      }
     }
 
-    return json(200, {
-      ok: true,
-      created,
-      message: created ? "You're on the list." : "You're already on the list.",
-    });
+    return Response.json(
+      {
+        ok: true,
+        created,
+        message: created ? "You're on the list." : "You're already on the list.",
+      },
+      { status: 200, headers: cors },
+    );
   } catch (err) {
-    console.error(err);
-    return json(500, { error: "Something went wrong." });
+    console.error("[waitlist]", err);
+    return Response.json({ error: "Something went wrong." }, { status: 500, headers: cors });
   }
 };

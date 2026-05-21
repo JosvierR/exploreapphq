@@ -7,7 +7,10 @@ const WAITLIST_PATHS = [
   "/api/waitlist/signup",
 ] as const;
 
-async function postWaitlistSignup(email: string): Promise<{ created: boolean }> {
+async function postWaitlistSignup(
+  email: string,
+  options?: { optional?: boolean },
+): Promise<{ created: boolean }> {
   let lastError = "Could not complete signup. Please try again.";
 
   for (const path of WAITLIST_PATHS) {
@@ -31,6 +34,11 @@ async function postWaitlistSignup(email: string): Promise<{ created: boolean }> 
     }
   }
 
+  if (options?.optional) {
+    console.warn("[waitlist] server backup failed:", lastError);
+    return { created: true };
+  }
+
   throw new Error(lastError);
 }
 
@@ -49,10 +57,12 @@ async function saveToFirestore(email: string): Promise<boolean> {
 export async function joinWaitlistByEmail(email: string): Promise<{ created: boolean }> {
   const normalized = email.trim().toLowerCase();
   let created = true;
+  let savedInFirestore = false;
 
   if (isFirebaseConfigured()) {
     try {
       created = await saveToFirestore(normalized);
+      savedInFirestore = true;
     } catch (err) {
       const code =
         err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
@@ -68,6 +78,8 @@ export async function joinWaitlistByEmail(email: string): Promise<{ created: boo
     return { created: false };
   }
 
-  const server = await postWaitlistSignup(normalized);
+  const server = await postWaitlistSignup(normalized, {
+    optional: savedInFirestore,
+  });
   return { created: isFirebaseConfigured() ? created : server.created };
 }
