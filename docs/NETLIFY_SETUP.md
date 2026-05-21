@@ -4,7 +4,11 @@ Sitio de ejemplo: `https://sunny-dolphin-b73804.netlify.app`
 
 ## 1. Variables en Netlify (obligatorias para signup)
 
-**Site settings → Environment variables → Add variables** (marca **Build** y **Runtime** donde aplique).
+**Forma más fácil:** usa el archivo plantilla `netlify.env.example` → copia a `netlify.env` → rellena → **Import from .env** en Netlify.
+
+Guía detallada: [NETLIFY_ENV_IMPORTAR.md](./NETLIFY_ENV_IMPORTAR.md)
+
+**O manual:** Site settings → Environment variables → Add variables (scope **All**).
 
 ### Firebase (recomendado — guarda emails en Firestore)
 

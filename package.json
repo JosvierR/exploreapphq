@@ -13,7 +13,8 @@
     "lint": "tsc -b --noEmit",
     "waitlist:notify": "tsx server/scripts/notify-launch.ts",
     "waitlist:notify:dry": "tsx server/scripts/notify-launch.ts -- --dry-run",
-    "email:test": "tsx server/scripts/send-test-email.ts"
+    "email:test": "tsx server/scripts/send-test-email.ts",
+    "netlify:env": "powershell -ExecutionPolicy Bypass -File scripts/crear-netlify-env.ps1"
   },
   "dependencies": {
     "@netlify/blobs": "^8.1.0",

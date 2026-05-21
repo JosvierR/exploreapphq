@@ -8,6 +8,8 @@ data/
 .env
 .env.*
 !.env.example
+netlify.env
+SETUP_CREDENTIALS.local.md
 coverage/
 *.tsbuildinfo
 .vite/
