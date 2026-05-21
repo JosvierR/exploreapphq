@@ -42,6 +42,14 @@ export default async (request) => {
   const dryRun = body.dryRun === true || new URL(request.url).searchParams.get("dryRun") === "1";
 
   try {
+    const { assertResendProductionReady } = await import("./lib/resendSend.mjs");
+    try {
+      assertResendProductionReady();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Resend not configured for production.";
+      return jsonResponse(503, { error: msg, sent: [], failed: [] });
+    }
+
     const pending = await listPendingLaunchEmailsMerged();
 
     if (dryRun) {
@@ -64,6 +72,15 @@ export default async (request) => {
 
     const result = await sendLaunchBulk(pending, markLaunchNotified);
     const { stats } = await listWaitlistMerged();
+
+    if (result.failed.length > 0 && result.sent.length === 0) {
+      return jsonResponse(422, {
+        ...result,
+        stats,
+        error: result.failed.map((f) => `${f.email}: ${f.error}`).join(" | "),
+        message: `Failed to send ${result.failed.length} email(s).`,
+      });
+    }
 
     return jsonResponse(200, {
       ...result,

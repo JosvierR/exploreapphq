@@ -170,9 +170,15 @@ app.post("/api/admin/waitlist/notify-launch", requireAdmin, async (req, res) => 
       pending.map((r) => r.email),
       markLaunchNotified,
     );
+    const message =
+      result.failed.length > 0
+        ? `Sent ${result.sent.length}. Failed ${result.failed.length}.`
+        : `Sent ${result.sent.length} launch email(s) via Mailpit/local SMTP.`;
+
     return res.json({
       ...result,
       stats: getWaitlistStats(),
+      message,
     });
   } catch (err) {
     console.error(err);

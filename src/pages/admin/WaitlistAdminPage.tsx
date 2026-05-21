@@ -6,6 +6,7 @@ import {
   previewLaunchNotify,
   sendLaunchNotify,
   type WaitlistRow,
+  type EmailStatus,
   type WaitlistStats,
 } from "@/lib/adminApi";
 import "@/styles/admin-waitlist.css";
@@ -20,6 +21,8 @@ export function WaitlistAdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string[] | null>(null);
   const [result, setResult] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [emailStatus, setEmailStatus] = useState<EmailStatus | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -29,6 +32,7 @@ export function WaitlistAdminPage() {
       setStats(data.stats);
       setRows(data.rows);
       setSource(data.source ?? "");
+      setEmailStatus(data.emailStatus ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load waitlist.");
       setStats(null);
@@ -71,15 +75,25 @@ export function WaitlistAdminPage() {
     setBusy(true);
     setError(null);
     setResult(null);
+    setInfo(null);
     try {
       const data = await sendLaunchNotify();
-      const failed = data.failed?.length ?? 0;
+      const failed = data.failed ?? [];
       const sent = data.sent?.length ?? 0;
-      setResult(
-        failed > 0
-          ? `Sent ${sent}. Failed ${failed} — check Netlify function logs.`
-          : `Done — ${sent} launch email(s) sent.`,
-      );
+      if (failed.length > 0) {
+        setError(failed.map((f) => `${f.email}: ${f.error}`).join("\n"));
+        setResult(sent > 0 ? `Partially sent: ${sent} ok.` : null);
+      } else if (sent === 0) {
+        setError(null);
+        setResult(null);
+        setInfo((data.message as string | undefined) ?? "No emails were sent.");
+      } else {
+        setInfo(null);
+        setResult(
+          (data.message as string | undefined) ??
+            `Done — ${sent} launch email(s) sent via Resend.`,
+        );
+      }
       await load();
       setPreview(null);
     } catch (err) {
@@ -101,6 +115,33 @@ export function WaitlistAdminPage() {
           {source ? ` · Data: ${source}` : ""}
         </p>
       </header>
+
+      {emailStatus && !emailStatus.ready && (
+        <div className="admin-waitlist__banner" role="alert">
+          <strong>Production email not ready</strong>
+          <p>{emailStatus.reason}</p>
+          <p>
+            From: <code>{emailStatus.from}</code>
+          </p>
+          <ol>
+            <li>
+              <a href="https://resend.com/domains" target="_blank" rel="noreferrer">
+                Resend → Domains
+              </a>{" "}
+              → Add <strong>exploreapphq.com</strong> → copy DNS records to your DNS host
+            </li>
+            <li>Wait until status is <strong>Verified</strong></li>
+            <li>
+              Netlify → Environment variables →{" "}
+              <code>SMTP_FROM=Explore &lt;onboarding@exploreapphq.com&gt;</code> (or{" "}
+              <code>noreply@exploreapphq.com</code>)
+            </li>
+            <li>
+              <strong>Trigger deploy</strong> → Refresh this page → Send launch emails
+            </li>
+          </ol>
+        </div>
+      )}
 
       {stats && (
         <div className="admin-waitlist__stats">
@@ -129,7 +170,7 @@ export function WaitlistAdminPage() {
         <button
           type="button"
           className="admin-btn admin-btn--primary"
-          disabled={busy || !stats?.pendingLaunch}
+          disabled={busy || !stats?.pendingLaunch || (emailStatus != null && !emailStatus.ready)}
           onClick={() => void handleSend()}
         >
           {busy ? "Working…" : "Send launch emails"}
@@ -155,6 +196,11 @@ export function WaitlistAdminPage() {
             /access
           </a>
           .
+        </p>
+      )}
+      {info && (
+        <p className="admin-waitlist__warn" role="status">
+          {info}
         </p>
       )}
       {result && (
@@ -219,7 +265,13 @@ export function WaitlistAdminPage() {
       </section>
 
       <p className="admin-waitlist__hint">
-        Merges Firestore + Netlify Blobs. Launch emails mark <code>launchNotifiedAt</code> in Firestore.
+        <strong>Local (Mailpit):</strong> <code>npm run dev:mail</code> → <code>npm run dev:all</code> →
+        open <a href="http://localhost:8025">localhost:8025</a> — all test emails appear there (no real
+        inbox). <strong>Production (Netlify):</strong> use Resend with verified domain{" "}
+        <a href="https://resend.com/domains" target="_blank" rel="noreferrer">
+          exploreapphq.com
+        </a>
+        ; <code>onboarding@resend.dev</code> only delivers to your Resend account email.
       </p>
     </div>
   );

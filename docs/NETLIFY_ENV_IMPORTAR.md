@@ -36,6 +36,12 @@ Sin redeploy, las variables `VITE_*` **no** entran en la web.
 
 ---
 
+## Emails en producción (Resend + dominio)
+
+Sin dominio verificado en Resend, los correos **no llegan** a Gmail. Guía completa: **[docs/PRODUCCION_EMAIL.md](./PRODUCCION_EMAIL.md)**
+
+---
+
 ## Paso 4 — Probar
 
 - https://TU-SITIO.netlify.app/access → email → éxito

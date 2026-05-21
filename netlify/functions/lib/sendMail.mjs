@@ -1,5 +1,5 @@
-import nodemailer from "nodemailer";
 import { buildAppLaunchEmail } from "../../../server/emails/appLaunch.mjs";
+import { sendEmailViaResend } from "./resendSend.mjs";
 
 export function emailLinksFromEnv() {
   const siteUrl = process.env.SITE_URL || "https://example.com";
@@ -12,31 +12,15 @@ export function emailLinksFromEnv() {
 }
 
 export async function sendLaunchEmail(to) {
-  const host = process.env.SMTP_HOST;
-  const pass = process.env.SMTP_PASS;
-  if (!host || !pass) throw new Error("SMTP is not configured.");
-
-  const transporter = nodemailer.createTransport({
-    host,
-    port: Number(process.env.SMTP_PORT || 465),
-    secure: process.env.SMTP_SECURE !== "false",
-    auth: {
-      user: process.env.SMTP_USER || "resend",
-      pass,
-    },
-  });
-
   const { subject, html, text } = buildAppLaunchEmail(to, emailLinksFromEnv());
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM || "Explore <noreply@example.com>",
-    to,
-    subject,
-    html,
-    text,
-  });
+  const result = await sendEmailViaResend({ to, subject, html, text });
+  return result;
 }
 
 export async function sendLaunchBulk(emails, onSent) {
+  const { assertResendProductionReady } = await import("./resendSend.mjs");
+  assertResendProductionReady();
+
   const sent = [];
   const failed = [];
 
@@ -51,7 +35,7 @@ export async function sendLaunchBulk(emails, onSent) {
         error: err instanceof Error ? err.message : "Send failed",
       });
     }
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 300));
   }
 
   return { sent, failed };

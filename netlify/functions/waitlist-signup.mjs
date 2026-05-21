@@ -1,6 +1,6 @@
-import nodemailer from "nodemailer";
 import { buildWaitlistWelcomeEmail } from "../../server/emails/waitlistWelcome.mjs";
 import { saveWaitlistEntry } from "./lib/saveWaitlistEntry.mjs";
+import { sendEmailViaResend } from "./lib/resendSend.mjs";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -21,31 +21,13 @@ function emailLinks() {
 }
 
 async function sendWelcome(email) {
-  const host = process.env.SMTP_HOST;
-  const pass = process.env.SMTP_PASS;
-  if (!host || !pass) {
-    console.warn("[waitlist] SMTP not configured — skip email");
+  if (!process.env.SMTP_PASS) {
+    console.warn("[waitlist] SMTP_PASS (Resend API key) not set — skip email");
     return;
   }
 
-  const transporter = nodemailer.createTransport({
-    host,
-    port: Number(process.env.SMTP_PORT || 465),
-    secure: process.env.SMTP_SECURE !== "false",
-    auth: {
-      user: process.env.SMTP_USER || "resend",
-      pass,
-    },
-  });
-
   const { subject, html, text } = buildWaitlistWelcomeEmail(email, emailLinks());
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM || "Explore <onboarding@resend.dev>",
-    to: email,
-    subject,
-    html,
-    text,
-  });
+  await sendEmailViaResend({ to: email, subject, html, text, allowSandbox: true });
 }
 
 export default async (request) => {

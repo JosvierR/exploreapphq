@@ -20,10 +20,21 @@ export type WaitlistRow = {
   storage?: string;
 };
 
-const NOTIFY_ENDPOINTS = [
-  "/.netlify/functions/admin-notify-launch",
-  "/api/admin/waitlist/notify-launch",
-] as const;
+export type EmailStatus = {
+  ready: boolean;
+  from: string;
+  reason?: string;
+};
+
+function notifyEndpoints(): readonly string[] {
+  const local =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  // Local: Express API → Mailpit (port 1025). Production: Netlify Function → Resend.
+  return local
+    ? ["/api/admin/waitlist/notify-launch", "/.netlify/functions/admin-notify-launch"]
+    : ["/.netlify/functions/admin-notify-launch", "/api/admin/waitlist/notify-launch"];
+}
 
 async function getAdminToken(): Promise<string> {
   if (!isFirebaseConfigured()) {
@@ -46,8 +57,19 @@ type AdminJson = {
   emails?: string[];
   sent?: string[];
   failed?: { email: string; error: string }[];
+  warnings?: string[];
   message?: string;
+  emailStatus?: EmailStatus;
 };
+
+function waitlistApiPaths(): readonly string[] {
+  const local =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  return local
+    ? ["/api/admin/waitlist", "/.netlify/functions/admin-waitlist"]
+    : ["/.netlify/functions/admin-waitlist", "/api/admin/waitlist"];
+}
 
 async function adminFetch(path: string, init?: RequestInit): Promise<AdminJson> {
   const token = await getAdminToken();
@@ -78,7 +100,7 @@ async function adminPostNotify(dryRun: boolean): Promise<AdminJson> {
   const body = JSON.stringify(dryRun ? { dryRun: true } : {});
   let lastError = "Could not reach launch email service.";
 
-  for (const path of NOTIFY_ENDPOINTS) {
+  for (const path of notifyEndpoints()) {
     const url = dryRun ? `${path}?dryRun=1` : path;
     try {
       const res = await fetch(url, {
@@ -112,6 +134,18 @@ async function adminPostNotify(dryRun: boolean): Promise<AdminJson> {
   );
 }
 
+async function fetchEmailStatusFromApi(): Promise<EmailStatus | undefined> {
+  for (const path of waitlistApiPaths()) {
+    try {
+      const data = await adminFetch(path);
+      if (data.emailStatus) return data.emailStatus;
+    } catch {
+      /* try next */
+    }
+  }
+  return undefined;
+}
+
 function normalizeRow(row: WaitlistRow) {
   return {
     email: row.email,
@@ -122,11 +156,14 @@ function normalizeRow(row: WaitlistRow) {
 }
 
 export async function fetchAdminWaitlist() {
+  let emailStatus: EmailStatus | undefined;
+
   if (isFirebaseConfigured() && getFirebaseAuth().currentUser) {
     try {
       const direct = await fetchWaitlistFromFirestoreClient();
       if (direct.rows.length > 0) {
-        return { ...direct, source: "firestore (admin login)" };
+        emailStatus = await fetchEmailStatusFromApi();
+        return { ...direct, emailStatus, source: "firestore (admin login)" };
       }
     } catch (err) {
       const code =
@@ -140,21 +177,28 @@ export async function fetchAdminWaitlist() {
     }
   }
 
-  try {
-    const data = await adminFetch("/api/admin/waitlist");
-    const rows = (data.rows ?? []).map(normalizeRow);
-    return {
-      stats: data.stats ?? { total: rows.length, pendingLaunch: 0, notified: 0 },
-      rows,
-      source: (data as { source?: string }).source ?? "api",
-    };
-  } catch (err) {
-    if (isFirebaseConfigured() && getFirebaseAuth().currentUser) {
-      const direct = await fetchWaitlistFromFirestoreClient();
-      return { ...direct, source: "firestore (fallback)" };
+  for (const path of waitlistApiPaths()) {
+    try {
+      const data = await adminFetch(path);
+      const rows = (data.rows ?? []).map(normalizeRow);
+      return {
+        stats: data.stats ?? { total: rows.length, pendingLaunch: 0, notified: 0 },
+        rows,
+        emailStatus: data.emailStatus,
+        source: (data as { source?: string }).source ?? "api",
+      };
+    } catch (err) {
+      if ((err as Error & { status?: number }).status === 503) throw err;
     }
-    throw err;
   }
+
+  if (isFirebaseConfigured() && getFirebaseAuth().currentUser) {
+    const direct = await fetchWaitlistFromFirestoreClient();
+    emailStatus = await fetchEmailStatusFromApi();
+    return { ...direct, emailStatus, source: "firestore (fallback)" };
+  }
+
+  throw new Error("Could not load waitlist from API or Firestore.");
 }
 
 export async function previewLaunchNotify() {

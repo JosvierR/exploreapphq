@@ -1,4 +1,5 @@
 import { verifyAdminRequest, jsonResponse } from "./lib/verifyAdmin.mjs";
+import { getResendEmailStatus } from "./lib/resendSend.mjs";
 import { listWaitlistMerged } from "./lib/waitlistMerged.mjs";
 
 export default async (request) => {
@@ -30,7 +31,8 @@ export default async (request) => {
 
   try {
     const data = await listWaitlistMerged();
-    return jsonResponse(200, data);
+    const emailStatus = getResendEmailStatus();
+    return jsonResponse(200, { ...data, emailStatus });
   } catch (err) {
     console.error("[admin-waitlist]", err);
     return jsonResponse(500, {

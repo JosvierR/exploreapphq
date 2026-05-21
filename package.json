@@ -14,7 +14,11 @@
     "waitlist:notify": "tsx server/scripts/notify-launch.ts",
     "waitlist:notify:dry": "tsx server/scripts/notify-launch.ts -- --dry-run",
     "email:test": "tsx server/scripts/send-test-email.ts",
-    "netlify:env": "powershell -ExecutionPolicy Bypass -File scripts/crear-netlify-env.ps1"
+    "email:launch:test": "tsx server/scripts/send-launch-test-email.ts",
+    "dev:mail": "docker compose up -d mailpit",
+    "netlify:env": "powershell -ExecutionPolicy Bypass -File scripts/crear-netlify-env.ps1",
+    "resend:check": "node scripts/check-resend-domain.mjs",
+    "netlify:sync": "powershell -ExecutionPolicy Bypass -File scripts/sync-netlify-produccion.ps1"
   },
   "dependencies": {
     "@netlify/blobs": "^8.1.0",
