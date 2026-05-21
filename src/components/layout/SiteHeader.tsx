@@ -18,7 +18,7 @@ const NAV = [
 export function SiteHeader() {
   const scrolled = useHeaderScroll();
   const { locale, setLocale } = useI18n();
-  const { logout } = useAuth();
+  const { logout, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -67,6 +67,11 @@ export function SiteHeader() {
                 </button>
               ))}
             </div>
+            {isAdmin && (
+              <Link to="/admin/waitlist" className="btn btn-ghost btn-sm">
+                Waitlist
+              </Link>
+            )}
             <a href="#download" className="btn btn-primary">
               <T k="cta.start" />
             </a>

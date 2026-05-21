@@ -16,7 +16,7 @@ export function TeamLoginPage() {
   const [loading, setLoading] = useState(false);
 
   if (isAdmin) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/admin/waitlist" replace />;
   }
 
   if (!isFirebaseConfigured()) {
@@ -42,7 +42,7 @@ export function TeamLoginPage() {
     setLoading(true);
     try {
       await firebaseAdminSignIn(email, password);
-      navigate("/", { replace: true });
+      navigate("/admin/waitlist", { replace: true });
     } catch (err: unknown) {
       const code = err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
       if (code.startsWith("auth/")) {

@@ -10,7 +10,13 @@ import {
   listWaitlistPendingLaunch,
   markLaunchNotified,
 } from "./db.js";
+import { isFirebaseAdminConfigured } from "./firebaseAdmin.js";
 import { sendAppLaunchBulk, sendWaitlistEmail } from "./mail.js";
+import {
+  listPendingLaunchEmailsAsync,
+  listWaitlistFromFirestoreAsync,
+  markLaunchNotifiedFirestore,
+} from "./waitlistFirestore.js";
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
@@ -101,13 +107,23 @@ app.post("/api/access", async (req, res) => {
   }
 });
 
-/** Admin: view who signed up (requires admin JWT from /api/access) */
-app.get("/api/admin/waitlist", requireAdmin, (req, res) => {
+/** Admin: view who signed up (Firebase ID token from /team or legacy JWT) */
+app.get("/api/admin/waitlist", requireAdmin, async (req, res) => {
+  if (isFirebaseAdminConfigured()) {
+    try {
+      const data = await listWaitlistFromFirestoreAsync();
+      return res.json({ ...data, source: "firestore" });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Could not load Firestore waitlist." });
+    }
+  }
+
   const limit = Math.min(Number(req.query.limit) || 100, 500);
   const offset = Math.max(Number(req.query.offset) || 0, 0);
   const stats = getWaitlistStats();
   const rows = listWaitlist(limit, offset);
-  return res.json({ stats, rows });
+  return res.json({ stats, rows, source: "local" });
 });
 
 /**
@@ -117,21 +133,39 @@ app.get("/api/admin/waitlist", requireAdmin, (req, res) => {
  */
 app.post("/api/admin/waitlist/notify-launch", requireAdmin, async (req, res) => {
   const dryRun = req.query.dryRun === "1" || req.body?.dryRun === true;
-  const pending = listWaitlistPendingLaunch();
-
-  if (dryRun) {
-    return res.json({
-      dryRun: true,
-      count: pending.length,
-      emails: pending.map((r) => r.email),
-    });
-  }
-
-  if (pending.length === 0) {
-    return res.json({ sent: [], failed: [], message: "No pending recipients." });
-  }
 
   try {
+    if (isFirebaseAdminConfigured()) {
+      const pending = await listPendingLaunchEmailsAsync();
+
+      if (dryRun) {
+        return res.json({ dryRun: true, count: pending.length, emails: pending });
+      }
+
+      if (pending.length === 0) {
+        const { stats } = await listWaitlistFromFirestoreAsync();
+        return res.json({ sent: [], failed: [], message: "No pending recipients.", stats });
+      }
+
+      const result = await sendAppLaunchBulk(pending, markLaunchNotifiedFirestore);
+      const { stats } = await listWaitlistFromFirestoreAsync();
+      return res.json({ ...result, stats, message: `Sent ${result.sent.length} launch email(s).` });
+    }
+
+    const pending = listWaitlistPendingLaunch();
+
+    if (dryRun) {
+      return res.json({
+        dryRun: true,
+        count: pending.length,
+        emails: pending.map((r) => r.email),
+      });
+    }
+
+    if (pending.length === 0) {
+      return res.json({ sent: [], failed: [], message: "No pending recipients." });
+    }
+
     const result = await sendAppLaunchBulk(
       pending.map((r) => r.email),
       markLaunchNotified,

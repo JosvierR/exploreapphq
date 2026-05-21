@@ -1,0 +1,213 @@
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/features/auth/AuthProvider";
+import {
+  fetchAdminWaitlist,
+  previewLaunchNotify,
+  sendLaunchNotify,
+  type WaitlistRow,
+  type WaitlistStats,
+} from "@/lib/adminApi";
+import { firebaseSignOut } from "@/features/auth/firebaseAuth";
+import "@/styles/admin-waitlist.css";
+
+export function WaitlistAdminPage() {
+  const { user } = useAuth();
+  const [stats, setStats] = useState<WaitlistStats | null>(null);
+  const [rows, setRows] = useState<WaitlistRow[]>([]);
+  const [source, setSource] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string[] | null>(null);
+  const [result, setResult] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchAdminWaitlist();
+      setStats(data.stats);
+      setRows(data.rows);
+      setSource(data.source ?? "");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load waitlist.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function handlePreview() {
+    setBusy(true);
+    setError(null);
+    setPreview(null);
+    setResult(null);
+    try {
+      const data = await previewLaunchNotify();
+      setPreview(data.emails ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Preview failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleSend() {
+    const count = stats?.pendingLaunch ?? 0;
+    if (count === 0) {
+      setError("Nobody is waiting for the launch email.");
+      return;
+    }
+    const ok = window.confirm(
+      `Send the launch email to ${count} person(s)? This cannot be undone for those already notified.`,
+    );
+    if (!ok) return;
+
+    setBusy(true);
+    setError(null);
+    setResult(null);
+    try {
+      const data = await sendLaunchNotify();
+      const failed = data.failed?.length ?? 0;
+      const sent = data.sent?.length ?? 0;
+      setResult(
+        failed > 0
+          ? `Sent ${sent}. Failed ${failed} — check console/logs.`
+          : `Done — ${sent} launch email(s) sent.`,
+      );
+      await load();
+      setPreview(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Send failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="admin-waitlist">
+      <header className="admin-waitlist__header">
+        <div>
+          <p className="admin-waitlist__eyebrow">Team · Waitlist</p>
+          <h1>Early access list</h1>
+          <p className="admin-waitlist__sub">
+            Signed in as <strong>{user?.email}</strong>
+            {source ? ` · Source: ${source}` : ""}
+          </p>
+        </div>
+        <div className="admin-waitlist__header-actions">
+          <Link to="/" className="btn btn-secondary btn-sm">
+            View site
+          </Link>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => void firebaseSignOut()}
+          >
+            Sign out
+          </button>
+        </div>
+      </header>
+
+      {stats && (
+        <div className="admin-waitlist__stats">
+          <div className="admin-stat">
+            <span className="admin-stat__value">{stats.total}</span>
+            <span className="admin-stat__label">Total signups</span>
+          </div>
+          <div className="admin-stat admin-stat--highlight">
+            <span className="admin-stat__value">{stats.pendingLaunch}</span>
+            <span className="admin-stat__label">Awaiting launch email</span>
+          </div>
+          <div className="admin-stat">
+            <span className="admin-stat__value">{stats.notified}</span>
+            <span className="admin-stat__label">Already notified</span>
+          </div>
+        </div>
+      )}
+
+      <div className="admin-waitlist__actions">
+        <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void load()}>
+          Refresh
+        </button>
+        <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void handlePreview()}>
+          Preview who gets email
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={busy || !stats?.pendingLaunch}
+          onClick={() => void handleSend()}
+        >
+          {busy ? "Working…" : "Send launch emails"}
+        </button>
+      </div>
+
+      {error && (
+        <p className="admin-waitlist__error" role="alert">
+          {error}
+        </p>
+      )}
+      {result && (
+        <p className="admin-waitlist__success" role="status">
+          {result}
+        </p>
+      )}
+      {preview && (
+        <div className="admin-waitlist__preview">
+          <p>
+            <strong>{preview.length}</strong> would receive the launch email:
+          </p>
+          <ul>
+            {preview.map((e) => (
+              <li key={e}>{e}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <section className="admin-waitlist__table-wrap">
+        <h2>Registrations</h2>
+        {loading ? (
+          <p className="admin-waitlist__muted">Loading…</p>
+        ) : rows.length === 0 ? (
+          <p className="admin-waitlist__muted">No signups yet. Share /access with your audience.</p>
+        ) : (
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Joined</th>
+                <th>Launch email</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.email}>
+                  <td>{row.email}</td>
+                  <td>{row.createdAt ? new Date(row.createdAt).toLocaleString() : "—"}</td>
+                  <td>
+                    {row.launchNotifiedAt ? (
+                      <span className="admin-badge admin-badge--ok">Sent</span>
+                    ) : (
+                      <span className="admin-badge admin-badge--pending">Pending</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <p className="admin-waitlist__hint">
+        Requires <code>FIREBASE_SERVICE_ACCOUNT_JSON</code> in Netlify env. Data lives in Firestore
+        collection <code>waitlist</code>.
+      </p>
+    </div>
+  );
+}

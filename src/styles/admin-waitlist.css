@@ -1,0 +1,179 @@
+.admin-waitlist {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+  color: var(--text, #e8edf3);
+}
+
+.admin-waitlist__header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.admin-waitlist__eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #5ac8fa;
+}
+
+.admin-waitlist h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.admin-waitlist__sub {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.admin-waitlist__header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.admin-waitlist__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-stat {
+  padding: 1.25rem 1rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.admin-stat--highlight {
+  border-color: rgba(0, 155, 255, 0.45);
+  background: rgba(0, 155, 255, 0.1);
+}
+
+.admin-stat__value {
+  display: block;
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.1;
+}
+
+.admin-stat__label {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.admin-waitlist__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.admin-waitlist__error {
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  font-size: 0.9rem;
+}
+
+.admin-waitlist__success {
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: rgba(0, 155, 255, 0.12);
+  border: 1px solid rgba(0, 155, 255, 0.35);
+  color: #5ac8fa;
+  font-size: 0.9rem;
+}
+
+.admin-waitlist__preview {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.25rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.88rem;
+}
+
+.admin-waitlist__preview ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.admin-waitlist__table-wrap h2 {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-waitlist__muted {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9rem;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-table th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 700;
+}
+
+.admin-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.admin-badge--ok {
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+}
+
+.admin-badge--pending {
+  background: rgba(250, 204, 21, 0.15);
+  color: #fde047;
+}
+
+.admin-waitlist__hint {
+  margin-top: 2rem;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.35);
+  line-height: 1.5;
+}
+
+.admin-waitlist__hint code {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+}
