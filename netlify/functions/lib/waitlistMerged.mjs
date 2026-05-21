@@ -12,7 +12,7 @@ export async function listWaitlistMerged() {
       sources.push("firestore");
     } catch (err) {
       console.error("[waitlist] Firestore:", err);
-      if (!process.env.NETLIFY) throw err;
+      throw err;
     }
   }
 

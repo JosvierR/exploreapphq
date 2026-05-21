@@ -1,12 +1,21 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isTeamAdmin() {
+      return request.auth != null
+        && request.auth.token.email in [
+          "josvierrod@exploreapphq.com",
+        ];
+    }
+
     match /waitlist/{email} {
-      allow read: if false;
+      allow read: if isTeamAdmin();
       allow create: if email == request.resource.data.email
         && request.resource.data.email.matches('^[^@]+@[^@]+\\.[^@]+$')
         && request.resource.data.keys().hasOnly(['email', 'createdAt']);
-      allow update, delete: if false;
+      allow update: if isTeamAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['launchNotifiedAt']);
+      allow delete: if false;
     }
   }
 }

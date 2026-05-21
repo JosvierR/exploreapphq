@@ -1,4 +1,5 @@
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase";
+import { fetchWaitlistFromFirestoreClient } from "@/lib/waitlistFirestoreClient";
 
 export type WaitlistStats = {
   total: number;
@@ -65,13 +66,39 @@ function normalizeRow(row: WaitlistRow) {
 }
 
 export async function fetchAdminWaitlist() {
-  const data = await adminFetch("/api/admin/waitlist");
-  const rows = (data.rows ?? []).map(normalizeRow);
-  return {
-    stats: data.stats ?? { total: rows.length, pendingLaunch: 0, notified: 0 },
-    rows,
-    source: (data as { source?: string }).source,
-  };
+  if (isFirebaseConfigured() && getFirebaseAuth().currentUser) {
+    try {
+      const direct = await fetchWaitlistFromFirestoreClient();
+      if (direct.rows.length > 0) {
+        return { ...direct, source: "firestore (admin login)" };
+      }
+    } catch (err) {
+      const code =
+        err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
+      if (code === "permission-denied") {
+        throw new Error(
+          "Firestore blocked read. Deploy firestore.rules (firebase deploy --only firestore:rules) and sign in again.",
+        );
+      }
+      console.warn("[waitlist] Direct Firestore read failed:", err);
+    }
+  }
+
+  try {
+    const data = await adminFetch("/api/admin/waitlist");
+    const rows = (data.rows ?? []).map(normalizeRow);
+    return {
+      stats: data.stats ?? { total: rows.length, pendingLaunch: 0, notified: 0 },
+      rows,
+      source: (data as { source?: string }).source ?? "api",
+    };
+  } catch (err) {
+    if (isFirebaseConfigured() && getFirebaseAuth().currentUser) {
+      const direct = await fetchWaitlistFromFirestoreClient();
+      return { ...direct, source: "firestore (fallback)" };
+    }
+    throw err;
+  }
 }
 
 export async function previewLaunchNotify() {

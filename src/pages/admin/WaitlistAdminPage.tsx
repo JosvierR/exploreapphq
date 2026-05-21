@@ -149,17 +149,10 @@ export function WaitlistAdminPage() {
       )}
       {!loading && !error && rows.length === 0 && !configMissing && (
         <p className="admin-waitlist__warn" role="status">
-          No signups yet. Prueba en{" "}
+          No signups in the panel. If you see data in Firebase Console, deploy{" "}
+          <code>firestore.rules</code> and refresh. New signups:{" "}
           <a href={`${window.location.origin}/access`} target="_blank" rel="noreferrer">
             /access
-          </a>{" "}
-          — debe aparecer en{" "}
-          <a
-            href="https://console.firebase.google.com/project/turismo-oculto/firestore"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Firestore → waitlist
           </a>
           .
         </p>
