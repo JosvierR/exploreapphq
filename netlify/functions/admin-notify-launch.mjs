@@ -25,6 +25,13 @@ export default async (request) => {
   const auth = await verifyAdminRequest(request);
   if (!auth.ok) return jsonResponse(auth.status, { error: auth.error });
 
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    return jsonResponse(503, {
+      error:
+        "Add FIREBASE_SERVICE_ACCOUNT_JSON in Netlify environment variables (Secret), then redeploy.",
+    });
+  }
+
   let body = {};
   try {
     body = await request.json();

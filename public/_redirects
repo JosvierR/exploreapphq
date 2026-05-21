@@ -1,1 +1,4 @@
-/*    /index.html   200
+/api/waitlist/signup /.netlify/functions/waitlist-signup 200
+/api/admin/waitlist /.netlify/functions/admin-waitlist 200
+/api/admin/waitlist/notify-launch /.netlify/functions/admin-notify-launch 200
+/* /index.html 200

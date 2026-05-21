@@ -1,4 +1,4 @@
-import { collection, getDocs, Timestamp } from "firebase/firestore";
+import { collection, doc, getDocs, serverTimestamp, setDoc, Timestamp } from "firebase/firestore";
 import { getFirestoreDb, isFirebaseConfigured } from "@/lib/firebase";
 import type { WaitlistRow, WaitlistStats } from "@/lib/adminApi";
 
@@ -18,10 +18,10 @@ export async function fetchWaitlistFromFirestoreClient(): Promise<{
   }
 
   const snap = await getDocs(collection(getFirestoreDb(), "waitlist"));
-  const rows: WaitlistRow[] = snap.docs.map((doc) => {
-    const data = doc.data();
+  const rows: WaitlistRow[] = snap.docs.map((docSnap) => {
+    const data = docSnap.data();
     return {
-      email: (data.email as string) || doc.id,
+      email: (data.email as string) || docSnap.id,
       createdAt: toIso(data.createdAt),
       launchNotifiedAt: toIso(data.launchNotifiedAt),
       storage: "firestore",
@@ -37,4 +37,14 @@ export async function fetchWaitlistFromFirestoreClient(): Promise<{
     stats: { total, pendingLaunch: total - notified, notified },
     rows,
   };
+}
+
+export async function listPendingEmailsFromClient(): Promise<string[]> {
+  const { rows } = await fetchWaitlistFromFirestoreClient();
+  return rows.filter((r) => !r.launchNotifiedAt).map((r) => r.email);
+}
+
+export async function markLaunchNotifiedClient(email: string) {
+  const ref = doc(getFirestoreDb(), "waitlist", email);
+  await setDoc(ref, { launchNotifiedAt: serverTimestamp() }, { merge: true });
 }
