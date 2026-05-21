@@ -13,6 +13,7 @@ export type WaitlistRow = {
   launchNotifiedAt?: string | null;
   created_at?: string;
   launch_notified_at?: string | null;
+  storage?: string;
 };
 
 async function adminFetch(path: string, init?: RequestInit) {
@@ -58,6 +59,7 @@ function normalizeRow(row: WaitlistRow) {
     email: row.email,
     createdAt: row.createdAt ?? row.created_at ?? null,
     launchNotifiedAt: row.launchNotifiedAt ?? row.launch_notified_at ?? null,
+    storage: row.storage,
   };
 }
 

@@ -13,10 +13,10 @@ import {
 import { isFirebaseAdminConfigured } from "./firebaseAdmin.js";
 import { sendAppLaunchBulk, sendWaitlistEmail } from "./mail.js";
 import {
-  listPendingLaunchEmailsAsync,
-  listWaitlistFromFirestoreAsync,
-  markLaunchNotifiedFirestore,
-} from "./waitlistFirestore.js";
+  listPendingLaunchEmailsMergedAsync,
+  listWaitlistMergedAsync,
+} from "./waitlistMerged.js";
+import { markLaunchNotifiedFirestore } from "./waitlistFirestore.js";
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
@@ -111,8 +111,8 @@ app.post("/api/access", async (req, res) => {
 app.get("/api/admin/waitlist", requireAdmin, async (req, res) => {
   if (isFirebaseAdminConfigured()) {
     try {
-      const data = await listWaitlistFromFirestoreAsync();
-      return res.json({ ...data, source: "firestore" });
+      const data = await listWaitlistMergedAsync();
+      return res.json(data);
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: "Could not load Firestore waitlist." });
@@ -136,19 +136,19 @@ app.post("/api/admin/waitlist/notify-launch", requireAdmin, async (req, res) => 
 
   try {
     if (isFirebaseAdminConfigured()) {
-      const pending = await listPendingLaunchEmailsAsync();
+      const pending = await listPendingLaunchEmailsMergedAsync();
 
       if (dryRun) {
         return res.json({ dryRun: true, count: pending.length, emails: pending });
       }
 
       if (pending.length === 0) {
-        const { stats } = await listWaitlistFromFirestoreAsync();
+        const { stats } = await listWaitlistMergedAsync();
         return res.json({ sent: [], failed: [], message: "No pending recipients.", stats });
       }
 
       const result = await sendAppLaunchBulk(pending, markLaunchNotifiedFirestore);
-      const { stats } = await listWaitlistFromFirestoreAsync();
+      const { stats } = await listWaitlistMergedAsync();
       return res.json({ ...result, stats, message: `Sent ${result.sent.length} launch email(s).` });
     }
 

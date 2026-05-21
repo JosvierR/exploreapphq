@@ -9,6 +9,7 @@ data/
 .env.*
 !.env.example
 netlify.env
+.firebase-service-account.json
 SETUP_CREDENTIALS.local.md
 coverage/
 *.tsbuildinfo

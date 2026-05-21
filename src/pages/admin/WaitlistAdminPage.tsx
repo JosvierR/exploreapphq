@@ -8,7 +8,6 @@ import {
   type WaitlistRow,
   type WaitlistStats,
 } from "@/lib/adminApi";
-import { firebaseSignOut } from "@/features/auth/firebaseAuth";
 import "@/styles/admin-waitlist.css";
 
 export function WaitlistAdminPage() {
@@ -32,6 +31,8 @@ export function WaitlistAdminPage() {
       setSource(data.source ?? "");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load waitlist.");
+      setStats(null);
+      setRows([]);
     } finally {
       setLoading(false);
     }
@@ -63,7 +64,7 @@ export function WaitlistAdminPage() {
       return;
     }
     const ok = window.confirm(
-      `Send the launch email to ${count} person(s)? This cannot be undone for those already notified.`,
+      `Send the launch email to ${count} person(s)? Already-notified addresses are skipped.`,
     );
     if (!ok) return;
 
@@ -76,7 +77,7 @@ export function WaitlistAdminPage() {
       const sent = data.sent?.length ?? 0;
       setResult(
         failed > 0
-          ? `Sent ${sent}. Failed ${failed} — check console/logs.`
+          ? `Sent ${sent}. Failed ${failed} — check Netlify function logs.`
           : `Done — ${sent} launch email(s) sent.`,
       );
       await load();
@@ -88,29 +89,21 @@ export function WaitlistAdminPage() {
     }
   }
 
+  const showEnvHint =
+    !loading &&
+    !error &&
+    rows.length === 0 &&
+    (!source || source === "none");
+
   return (
     <div className="admin-waitlist">
       <header className="admin-waitlist__header">
-        <div>
-          <p className="admin-waitlist__eyebrow">Team · Waitlist</p>
-          <h1>Early access list</h1>
-          <p className="admin-waitlist__sub">
-            Signed in as <strong>{user?.email}</strong>
-            {source ? ` · Source: ${source}` : ""}
-          </p>
-        </div>
-        <div className="admin-waitlist__header-actions">
-          <Link to="/" className="btn btn-secondary btn-sm">
-            View site
-          </Link>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={() => void firebaseSignOut()}
-          >
-            Sign out
-          </button>
-        </div>
+        <p className="admin-waitlist__eyebrow">Early access</p>
+        <h1>Waitlist</h1>
+        <p className="admin-waitlist__sub">
+          Signed in as <strong>{user?.email}</strong>
+          {source ? ` · Data: ${source}` : ""}
+        </p>
       </header>
 
       {stats && (
@@ -131,15 +124,15 @@ export function WaitlistAdminPage() {
       )}
 
       <div className="admin-waitlist__actions">
-        <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void load()}>
+        <button type="button" className="admin-btn admin-btn--secondary" disabled={busy} onClick={() => void load()}>
           Refresh
         </button>
-        <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void handlePreview()}>
-          Preview who gets email
+        <button type="button" className="admin-btn admin-btn--secondary" disabled={busy} onClick={() => void handlePreview()}>
+          Preview recipients
         </button>
         <button
           type="button"
-          className="btn btn-primary"
+          className="admin-btn admin-btn--primary"
           disabled={busy || !stats?.pendingLaunch}
           onClick={() => void handleSend()}
         >
@@ -150,6 +143,20 @@ export function WaitlistAdminPage() {
       {error && (
         <p className="admin-waitlist__error" role="alert">
           {error}
+        </p>
+      )}
+      {showEnvHint && (
+        <p className="admin-waitlist__warn" role="status">
+          No data loaded. Add <code>FIREBASE_SERVICE_ACCOUNT_JSON</code> in Netlify (Secret), redeploy, then refresh.
+          Signups also live in{" "}
+          <a
+            href="https://console.firebase.google.com/project/turismo-oculto/firestore"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Firestore → waitlist
+          </a>
+          .
         </p>
       )}
       {result && (
@@ -175,13 +182,17 @@ export function WaitlistAdminPage() {
         {loading ? (
           <p className="admin-waitlist__muted">Loading…</p>
         ) : rows.length === 0 ? (
-          <p className="admin-waitlist__muted">No signups yet. Share /access with your audience.</p>
+          <p className="admin-waitlist__muted">
+            No signups in the panel yet. Test at{" "}
+            <Link to="/access">/access</Link> or check Firestore.
+          </p>
         ) : (
           <table className="admin-table">
             <thead>
               <tr>
                 <th>Email</th>
                 <th>Joined</th>
+                <th>Storage</th>
                 <th>Launch email</th>
               </tr>
             </thead>
@@ -190,6 +201,11 @@ export function WaitlistAdminPage() {
                 <tr key={row.email}>
                   <td>{row.email}</td>
                   <td>{row.createdAt ? new Date(row.createdAt).toLocaleString() : "—"}</td>
+                  <td>
+                    <span className="admin-badge admin-badge--storage">
+                      {(row as WaitlistRow & { storage?: string }).storage ?? "—"}
+                    </span>
+                  </td>
                   <td>
                     {row.launchNotifiedAt ? (
                       <span className="admin-badge admin-badge--ok">Sent</span>
@@ -205,8 +221,7 @@ export function WaitlistAdminPage() {
       </section>
 
       <p className="admin-waitlist__hint">
-        Requires <code>FIREBASE_SERVICE_ACCOUNT_JSON</code> in Netlify env. Data lives in Firestore
-        collection <code>waitlist</code>.
+        Merges Firestore + Netlify Blobs. Launch emails mark <code>launchNotifiedAt</code> in Firestore.
       </p>
     </div>
   );

@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
+import { AdminLayout } from "@/components/layout/AdminLayout";
 import { MarketingLayout } from "@/components/layout/MarketingLayout";
 import { AccessPage } from "@/pages/auth/AccessPage";
 import { TeamLoginPage } from "@/pages/auth/TeamLoginPage";
@@ -16,6 +17,14 @@ export const router = createBrowserRouter([
   {
     element: (
       <ProtectedRoute>
+        <AdminLayout />
+      </ProtectedRoute>
+    ),
+    children: [{ path: "/admin/waitlist", element: <WaitlistAdminPage /> }],
+  },
+  {
+    element: (
+      <ProtectedRoute>
         <MarketingLayout />
       </ProtectedRoute>
     ),
@@ -24,7 +33,6 @@ export const router = createBrowserRouter([
       { path: "/terms", element: <TermsPage /> },
       { path: "/privacy", element: <PrivacyPage /> },
       { path: "/thanks", element: <ThanksPage /> },
-      { path: "/admin/waitlist", element: <WaitlistAdminPage /> },
       { path: "*", element: <NotFoundPage /> },
     ],
   },

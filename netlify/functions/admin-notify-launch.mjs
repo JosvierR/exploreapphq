@@ -1,9 +1,9 @@
 import { verifyAdminRequest, jsonResponse } from "./lib/verifyAdmin.mjs";
+import { markLaunchNotified } from "./lib/waitlistFirestore.mjs";
 import {
-  listPendingLaunchEmails,
-  listWaitlistFromFirestore,
-  markLaunchNotified,
-} from "./lib/waitlistFirestore.mjs";
+  listPendingLaunchEmailsMerged,
+  listWaitlistMerged,
+} from "./lib/waitlistMerged.mjs";
 import { sendLaunchBulk } from "./lib/sendMail.mjs";
 
 export default async (request) => {
@@ -35,7 +35,7 @@ export default async (request) => {
   const dryRun = body.dryRun === true || new URL(request.url).searchParams.get("dryRun") === "1";
 
   try {
-    const pending = await listPendingLaunchEmails();
+    const pending = await listPendingLaunchEmailsMerged();
 
     if (dryRun) {
       return jsonResponse(200, {
@@ -46,7 +46,7 @@ export default async (request) => {
     }
 
     if (pending.length === 0) {
-      const { stats } = await listWaitlistFromFirestore();
+      const { stats } = await listWaitlistMerged();
       return jsonResponse(200, {
         sent: [],
         failed: [],
@@ -56,7 +56,7 @@ export default async (request) => {
     }
 
     const result = await sendLaunchBulk(pending, markLaunchNotified);
-    const { stats } = await listWaitlistFromFirestore();
+    const { stats } = await listWaitlistMerged();
 
     return jsonResponse(200, {
       ...result,

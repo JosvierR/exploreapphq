@@ -68,7 +68,7 @@ export function SiteHeader() {
               ))}
             </div>
             {isAdmin && (
-              <Link to="/admin/waitlist" className="btn btn-ghost btn-sm">
+              <Link to="/admin/waitlist" className="btn btn-ghost">
                 Waitlist
               </Link>
             )}

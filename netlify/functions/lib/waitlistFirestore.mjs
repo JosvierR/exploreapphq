@@ -18,6 +18,7 @@ export async function listWaitlistFromFirestore() {
       email: data.email || doc.id,
       createdAt,
       launchNotifiedAt,
+      storage: "firestore",
     };
   });
 

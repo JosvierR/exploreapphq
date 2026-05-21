@@ -1,5 +1,5 @@
 import { verifyAdminRequest, jsonResponse } from "./lib/verifyAdmin.mjs";
-import { listWaitlistFromFirestore } from "./lib/waitlistFirestore.mjs";
+import { listWaitlistMerged } from "./lib/waitlistMerged.mjs";
 
 export default async (request) => {
   if (request.method === "OPTIONS") {
@@ -21,8 +21,8 @@ export default async (request) => {
   if (!auth.ok) return jsonResponse(auth.status, { error: auth.error });
 
   try {
-    const data = await listWaitlistFromFirestore();
-    return jsonResponse(200, { ...data, source: "firestore" });
+    const data = await listWaitlistMerged();
+    return jsonResponse(200, data);
   } catch (err) {
     console.error("[admin-waitlist]", err);
     return jsonResponse(500, {
