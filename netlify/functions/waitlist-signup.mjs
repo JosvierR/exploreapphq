@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { getStore } from "@netlify/blobs";
+import { buildWaitlistWelcomeEmail } from "../../server/emails/waitlistWelcome.mjs";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -9,36 +10,13 @@ const cors = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-function buildWaitlistWelcomeEmail(email, links) {
-  const body = `
-    <tr><td style="background:#0b0f14;padding:28px 32px;text-align:center;">
-      <p style="margin:0;font-size:26px;font-weight:800;color:#fff;">Explore</p>
-      <p style="margin:10px 0 0;font-size:14px;color:#b8c2cc;">Discover real places through videos</p>
-    </td></tr>
-    <tr><td style="background:#fff;padding:32px;">
-      <h1 style="margin:0 0 16px;font-size:24px;color:#0b0f14;">Thanks for joining Explore</h1>
-      <p style="margin:0;font-size:16px;line-height:1.65;color:#3d4654;">
-        We saved <strong>${email}</strong> on our early access list.
-      </p>
-    </td></tr>`;
-  const html = `<!DOCTYPE html><html><body style="margin:0;background:#eef2f7;font-family:system-ui,sans-serif;">
-    <table width="100%" style="padding:32px 16px;"><tr><td align="center">
-    <table style="max-width:560px;background:#fff;border-radius:12px;overflow:hidden;">${body}</table>
-    </td></tr></table></body></html>`;
-  return {
-    subject: "You're on the Explore list — we'll notify you when it's ready",
-    html,
-    text: `Thanks for joining Explore!\n\nWe saved ${email} on our early access list.\n\n— The Explore team`,
-  };
-}
-
 function emailLinks() {
   const siteUrl = process.env.SITE_URL || "https://example.com";
   return {
     siteUrl,
     appleUrl: process.env.APP_STORE_URL || "",
     playUrl: process.env.PLAY_STORE_URL || "",
-    logoUrl: `${siteUrl}/icon-192.png`,
+    logoUrl: `${siteUrl.replace(/\/$/, "")}/icon-192.png`,
   };
 }
 

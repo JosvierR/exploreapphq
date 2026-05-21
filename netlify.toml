@@ -13,7 +13,7 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
-  included_files = ["netlify/functions/**"]
+  included_files = ["netlify/functions/**", "server/emails/waitlistWelcome.mjs"]
 
 # Waitlist + welcome email (works without Railway API)
 [[redirects]]

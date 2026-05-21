@@ -68,66 +68,7 @@ function ctaButtons(links: EmailLinks) {
               </table>`;
 }
 
-export function buildWaitlistWelcomeEmail(email: string, links: EmailLinks) {
-  const preheader = "You're on the list — we'll let you know when Explore is ready.";
-  const body = `
-          ${header(links)}
-          <tr>
-            <td style="background:#ffffff;padding:36px 32px 32px;border-left:1px solid #e8edf3;border-right:1px solid #e8edf3;">
-              <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#009bff;text-transform:uppercase;letter-spacing:0.06em;">You're in</p>
-              <h1 style="margin:0 0 16px;font-size:24px;line-height:1.25;font-weight:800;color:#0b0f14;letter-spacing:-0.02em;">Thanks for joining Explore</h1>
-              <p style="margin:0 0 14px;font-size:16px;line-height:1.65;color:#3d4654;">Hi there,</p>
-              <p style="margin:0 0 14px;font-size:16px;line-height:1.65;color:#3d4654;">
-                We saved <strong style="color:#0b0f14;">${email}</strong> on our early access list.
-                Explore helps you discover real places through short videos, maps and routes —
-                so you can see a spot, save it and actually go.
-              </p>
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:20px 0;background:#f7f9fc;border:1px solid #e8edf3;border-radius:14px;">
-                <tr>
-                  <td style="padding:18px 20px;">
-                    <p style="margin:0 0 10px;font-size:14px;font-weight:700;color:#0b0f14;">What happens next?</p>
-                    <p style="margin:0;font-size:14px;line-height:1.6;color:#5c6570;">
-                      We're putting the finishing touches on the app. When it's ready, you'll get another email from us with download links — no spam, just the launch note.
-                    </p>
-                  </td>
-                </tr>
-              </table>
-              <p style="margin:0;font-size:15px;line-height:1.6;color:#3d4654;">
-                Until then, follow us for previews and places to explore.
-              </p>
-              <p style="margin:24px 0 0;font-size:15px;line-height:1.5;color:#0b0f14;font-weight:600;">
-                — The Explore team
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td style="background:#ffffff;border-radius:0 0 20px 20px;border:1px solid #e8edf3;border-top:none;padding:0 32px 32px;">
-              <p style="margin:0;font-size:13px;color:#8a94a3;text-align:center;">Watch · Save · Route · Explore</p>
-            </td>
-          </tr>
-          ${footer(links)}`;
-
-  const html = layout(body, preheader);
-  const text = [
-    "Thanks for joining Explore!",
-    "",
-    `We saved ${email} on our early access list.`,
-    "Explore helps you discover real places through videos, maps and routes.",
-    "",
-    "What happens next? When the app is ready, we'll email you again with download links.",
-    "",
-    `App Store: ${links.appleUrl}`,
-    `Google Play: ${links.playUrl}`,
-    "",
-    "— The Explore team",
-  ].join("\n");
-
-  return {
-    subject: "You're on the Explore list — we'll notify you when it's ready",
-    html,
-    text,
-  };
-}
+export { buildWaitlistWelcomeEmail } from "./waitlistWelcome.mjs";
 
 export function buildAppLaunchEmail(email: string, links: EmailLinks) {
   const preheader = "Explore is ready — download the app and start discovering places.";
