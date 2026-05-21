@@ -37,6 +37,7 @@ async function adminFetch(path: string, init?: RequestInit) {
 
   const data = (await res.json().catch(() => ({}))) as {
     error?: string;
+    configMissing?: boolean;
     stats?: WaitlistStats;
     rows?: WaitlistRow[];
     dryRun?: boolean;

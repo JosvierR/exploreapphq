@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
-import { getStore } from "@netlify/blobs";
 import { buildWaitlistWelcomeEmail } from "../../server/emails/waitlistWelcome.mjs";
+import { saveWaitlistEntry } from "./lib/saveWaitlistEntry.mjs";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -20,22 +20,8 @@ function emailLinks() {
   };
 }
 
-async function saveEmail(email) {
-  try {
-    const store = getStore("waitlist");
-    const existing = await store.get(email, { type: "json" });
-    if (existing) return false;
-    await store.setJSON(email, { email, createdAt: new Date().toISOString() });
-    return true;
-  } catch (err) {
-    console.warn("[waitlist] Blobs:", err?.message ?? err);
-    return true;
-  }
-}
-
 async function sendWelcome(email) {
   const host = process.env.SMTP_HOST;
-  const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   if (!host || !pass) {
     console.warn("[waitlist] SMTP not configured — skip email");
@@ -46,12 +32,15 @@ async function sendWelcome(email) {
     host,
     port: Number(process.env.SMTP_PORT || 465),
     secure: process.env.SMTP_SECURE !== "false",
-    auth: { user: user || process.env.SMTP_USER, pass },
+    auth: {
+      user: process.env.SMTP_USER || "resend",
+      pass,
+    },
   });
 
   const { subject, html, text } = buildWaitlistWelcomeEmail(email, emailLinks());
   await transporter.sendMail({
-    from: process.env.SMTP_FROM || "Explore <noreply@example.com>",
+    from: process.env.SMTP_FROM || "Explore <onboarding@resend.dev>",
     to: email,
     subject,
     html,
@@ -81,7 +70,7 @@ export default async (request) => {
   }
 
   try {
-    const created = await saveEmail(email);
+    const { created } = await saveWaitlistEntry(email);
     try {
       await sendWelcome(email);
     } catch (mailErr) {
@@ -98,6 +87,9 @@ export default async (request) => {
     );
   } catch (err) {
     console.error("[waitlist]", err);
-    return Response.json({ error: "Something went wrong." }, { status: 500, headers: cors });
+    return Response.json(
+      { error: err instanceof Error ? err.message : "Something went wrong." },
+      { status: 500, headers: cors },
+    );
   }
 };

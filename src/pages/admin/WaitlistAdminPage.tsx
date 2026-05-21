@@ -89,11 +89,7 @@ export function WaitlistAdminPage() {
     }
   }
 
-  const showEnvHint =
-    !loading &&
-    !error &&
-    rows.length === 0 &&
-    (!source || source === "none");
+  const configMissing = error?.includes("FIREBASE_SERVICE_ACCOUNT_JSON");
 
   return (
     <div className="admin-waitlist">
@@ -145,10 +141,19 @@ export function WaitlistAdminPage() {
           {error}
         </p>
       )}
-      {showEnvHint && (
+      {configMissing && (
         <p className="admin-waitlist__warn" role="status">
-          No data loaded. Add <code>FIREBASE_SERVICE_ACCOUNT_JSON</code> in Netlify (Secret), redeploy, then refresh.
-          Signups also live in{" "}
+          Add <code>FIREBASE_SERVICE_ACCOUNT_JSON</code> in Netlify → Environment variables (marca Secret).
+          Pega el JSON de Firebase → Service accounts → Generate key. Luego <strong>Trigger deploy</strong> y Refresh.
+        </p>
+      )}
+      {!loading && !error && rows.length === 0 && !configMissing && (
+        <p className="admin-waitlist__warn" role="status">
+          No signups yet. Prueba en{" "}
+          <a href={`${window.location.origin}/access`} target="_blank" rel="noreferrer">
+            /access
+          </a>{" "}
+          — debe aparecer en{" "}
           <a
             href="https://console.firebase.google.com/project/turismo-oculto/firestore"
             target="_blank"

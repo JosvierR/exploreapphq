@@ -4,11 +4,13 @@ import { getStore } from "@netlify/blobs";
 export async function listWaitlistFromBlobs() {
   try {
     const store = getStore("waitlist");
-    const { blobs } = await store.list();
+    const listed = await store.list();
+    const blobs = Array.isArray(listed) ? listed : listed?.blobs ?? [];
     const rows = [];
 
     for (const blob of blobs) {
-      const email = blob.key;
+      const email = blob.key ?? blob.pathname ?? blob.name;
+      if (!email || email.includes("/")) continue;
       let createdAt = blob.uploadedAt ?? null;
       try {
         const data = await store.get(email, { type: "json" });

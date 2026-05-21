@@ -18,6 +18,7 @@
     "server/emails/waitlistWelcome.mjs",
     "server/emails/appLaunch.mjs",
   ]
+  external_node_modules = ["firebase-admin"]
 
 # Waitlist + welcome email (works without Railway API)
 [[redirects]]

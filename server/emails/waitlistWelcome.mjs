@@ -1,4 +1,4 @@
-/** Shared welcome email (API + Netlify Function). Inline styles for email clients. */
+/** Shared welcome email HTML (used by API + Netlify Function). */
 
 function esc(s) {
   return String(s)

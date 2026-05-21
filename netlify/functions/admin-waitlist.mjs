@@ -20,6 +20,14 @@ export default async (request) => {
   const auth = await verifyAdminRequest(request);
   if (!auth.ok) return jsonResponse(auth.status, { error: auth.error });
 
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    return jsonResponse(503, {
+      error:
+        "Missing FIREBASE_SERVICE_ACCOUNT_JSON in Netlify. Add the Firebase service account JSON (Secret), redeploy, then refresh.",
+      configMissing: true,
+    });
+  }
+
   try {
     const data = await listWaitlistMerged();
     return jsonResponse(200, data);
