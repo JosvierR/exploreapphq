@@ -14,13 +14,23 @@ export function isSandboxFromAddress(fromEmail) {
 }
 
 /** Call before bulk / production sends */
+function mailDomainFromEnv() {
+  const from = parseFromAddress(process.env.SMTP_FROM);
+  const host = from.email.split("@")[1];
+  if (host && !isSandboxFromAddress(from.email)) return host;
+  try {
+    return new URL(process.env.SITE_URL || "").hostname.replace(/^www\./, "");
+  } catch {
+    return "your-domain.com";
+  }
+}
+
 export function assertResendProductionReady() {
   const from = parseFromAddress(process.env.SMTP_FROM);
   if (isSandboxFromAddress(from.email)) {
+    const d = mailDomainFromEnv();
     throw new Error(
-      "Resend: add and verify domain exploreapphq.com at https://resend.com/domains — " +
-        "then in Netlify set SMTP_FROM=Explore <onboarding@exploreapphq.com> and redeploy. " +
-        "onboarding@resend.dev cannot deliver to Gmail for your waitlist.",
+      `Resend: verify ${d} at https://resend.com/domains — set SMTP_FROM=Explore <onboarding@${d}> in Netlify and redeploy. onboarding@resend.dev cannot email your waitlist.`,
     );
   }
 }
@@ -35,15 +45,16 @@ export function getResendEmailStatus() {
       reason: "Missing SMTP_PASS (Resend API key re_...) in Netlify environment variables.",
     };
   }
+  const mailDomain = mailDomainFromEnv();
   if (isSandboxFromAddress(from.email)) {
     return {
       ready: false,
       from: `${from.name} <${from.email}>`,
-      reason:
-        "SMTP_FROM uses @resend.dev (test only). Add domain exploreapphq.com in Resend, verify DNS, then SMTP_FROM=Explore <onboarding@exploreapphq.com>.",
+      mailDomain,
+      reason: `SMTP_FROM uses @resend.dev (test only). Verify ${mailDomain} in Resend (Google DNS), then SMTP_FROM=Explore <onboarding@${mailDomain}>.`,
     };
   }
-  return { ready: true, from: `${from.name} <${from.email}>` };
+  return { ready: true, from: `${from.name} <${from.email}>`, mailDomain };
 }
 
 /** @returns {{ id: string }} */

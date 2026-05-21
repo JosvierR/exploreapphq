@@ -23,6 +23,7 @@ export type WaitlistRow = {
 export type EmailStatus = {
   ready: boolean;
   from: string;
+  mailDomain?: string;
   reason?: string;
 };
 

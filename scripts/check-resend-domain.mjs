@@ -48,14 +48,28 @@ if (!res.ok) {
   process.exit(1);
 }
 
+const expectedHost = (() => {
+  try {
+    const u = process.env.SITE_URL || "";
+    return new URL(u.startsWith("http") ? u : `https://${u}`).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+})();
+
 const list = data?.data ?? data ?? [];
 if (!Array.isArray(list) || list.length === 0) {
-  console.log("Sin dominios en Resend. Añade exploreapphq.com en https://resend.com/domains");
+  console.log("Sin dominios en Resend. Anade tu dominio en https://resend.com/domains");
   process.exit(2);
 }
 
 for (const d of list) {
   console.log(`${d.name}: ${d.status}`);
 }
-const ok = list.some((d) => d.name === "exploreapphq.com" && d.status === "verified");
+
+const target = expectedHost || list[0]?.name;
+const ok = target && list.some((d) => d.name === target && d.status === "verified");
+if (!ok && expectedHost) {
+  console.log(`SITE_URL usa ${expectedHost} — debe estar Verified en Resend.`);
+}
 process.exit(ok ? 0 : 2);

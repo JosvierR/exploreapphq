@@ -128,16 +128,16 @@ export function WaitlistAdminPage() {
               <a href="https://resend.com/domains" target="_blank" rel="noreferrer">
                 Resend → Domains
               </a>{" "}
-              → Add <strong>exploreapphq.com</strong> → copy DNS records to your DNS host
+              → Add <strong>{emailStatus.mailDomain ?? "exploreapphq.com"}</strong> → DNS en Google
+              Admin → Dominios
             </li>
             <li>Wait until status is <strong>Verified</strong></li>
             <li>
-              Netlify → Environment variables →{" "}
-              <code>SMTP_FROM=Explore &lt;onboarding@exploreapphq.com&gt;</code> (or{" "}
-              <code>noreply@exploreapphq.com</code>)
+              Netlify → <code>SMTP_FROM=Explore &lt;onboarding@
+              {emailStatus.mailDomain ?? "exploreapphq.com"}&gt;</code>
             </li>
             <li>
-              <strong>Trigger deploy</strong> → Refresh this page → Send launch emails
+              <strong>Trigger deploy</strong> → Refresh → Send launch emails
             </li>
           </ol>
         </div>
@@ -267,11 +267,9 @@ export function WaitlistAdminPage() {
       <p className="admin-waitlist__hint">
         <strong>Local (Mailpit):</strong> <code>npm run dev:mail</code> → <code>npm run dev:all</code> →
         open <a href="http://localhost:8025">localhost:8025</a> — all test emails appear there (no real
-        inbox). <strong>Production (Netlify):</strong> use Resend with verified domain{" "}
-        <a href="https://resend.com/domains" target="_blank" rel="noreferrer">
-          exploreapphq.com
-        </a>
-        ; <code>onboarding@resend.dev</code> only delivers to your Resend account email.
+        inbox).         <strong>Production:</strong> guía{" "}
+        <code>docs/PASOS_PRODUCCION_COMPLETO.md</code> — Resend Verified + importar{" "}
+        <code>netlify.env</code>.
       </p>
     </div>
   );

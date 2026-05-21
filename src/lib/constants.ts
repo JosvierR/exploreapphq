@@ -1,7 +1,9 @@
+const defaultSiteUrl = "https://sunny-dolphin-b73804.netlify.app";
+
 export const SITE = {
   name: "Explore",
   legalName: "Explore Atlas LLC",
-  url: "https://exploreapphq.com",
+  url: (import.meta.env.VITE_SITE_URL || defaultSiteUrl).replace(/\/$/, ""),
   email: "josvierrod@exploreapphq.com",
   address: "4200 Hillcrest Dr, Apt 815, Hollywood, FL 33021, USA",
   duns: "119546449",
