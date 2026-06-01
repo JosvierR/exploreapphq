@@ -1,5 +1,5 @@
 import { buildWaitlistWelcomeEmail } from "../../server/emails/waitlistWelcome.mjs";
-import { saveWaitlistEntry } from "./lib/saveWaitlistEntry.mjs";
+import { saveWaitlistEntry, markWelcomeSmsSent } from "./lib/saveWaitlistEntry.mjs";
 import { sendEmailViaResend } from "./lib/resendSend.mjs";
 import { sendSms, isSmsConfigured } from "./lib/sendSms.mjs";
 import { buildContact } from "./lib/contact.mjs";
@@ -28,7 +28,11 @@ async function sendWelcomeEmail(email) {
 }
 
 async function sendWelcomeSms(phone) {
-  if (!phone || !isSmsConfigured()) return;
+  if (!phone) return;
+  if (!isSmsConfigured()) {
+    console.warn("[waitlist] SMS skipped — Twilio env vars missing on Netlify");
+    return;
+  }
   const body = SEQUENCE[0].sms;
   await sendSms({ to: phone, body });
 }
@@ -54,9 +58,9 @@ export default async (request) => {
   }
 
   try {
-    const { created, addedEmail } = await saveWaitlistEntry(contact);
+    const { created, addedEmail, needsWelcomeSms, docRef } = await saveWaitlistEntry(contact);
 
-    // Welcome messages only for brand-new signups (or when an email is newly added).
+    // Welcome email when newly created or email backfilled.
     if (created || addedEmail) {
       try {
         await sendWelcomeEmail(contact.email);
@@ -64,9 +68,10 @@ export default async (request) => {
         console.error("[waitlist] welcome email failed:", mailErr);
       }
     }
-    if (created) {
+    if (needsWelcomeSms && contact.phone) {
       try {
         await sendWelcomeSms(contact.phone);
+        await markWelcomeSmsSent(docRef);
       } catch (smsErr) {
         console.error("[waitlist] welcome SMS failed:", smsErr);
       }
