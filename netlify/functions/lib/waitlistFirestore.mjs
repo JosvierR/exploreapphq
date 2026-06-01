@@ -15,9 +15,11 @@ export async function listWaitlistFromFirestore() {
       : data.launchNotifiedAt || null;
     return {
       id: doc.id,
-      email: data.email || doc.id,
+      phone: data.phone || "",
+      email: data.email || (String(doc.id).includes("@") ? doc.id : ""),
       createdAt,
       launchNotifiedAt,
+      seqStep: typeof data.seqStep === "number" ? data.seqStep : 0,
       storage: "firestore",
     };
   });
@@ -42,8 +44,46 @@ export async function listPendingLaunchEmails() {
 
 export async function markLaunchNotified(email) {
   const db = getFirestoreAdmin();
-  await db.collection("waitlist").doc(email).set(
-    { launchNotifiedAt: FieldValue.serverTimestamp() },
+  // Old data is keyed by email; new data by phone-digits. Try by id first, then query.
+  const ref = db.collection("waitlist").doc(email);
+  const snap = await ref.get();
+  if (snap.exists) {
+    await ref.set({ launchNotifiedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return;
+  }
+  const q = await db.collection("waitlist").where("email", "==", email).limit(1).get();
+  if (!q.empty) {
+    await q.docs[0].ref.set({ launchNotifiedAt: FieldValue.serverTimestamp() }, { merge: true });
+  }
+}
+
+/** All contacts with the fields needed to drive the nurture sequence. */
+export async function listSequenceContacts() {
+  const db = getFirestoreAdmin();
+  const snap = await db.collection("waitlist").get();
+  return snap.docs.map((doc) => {
+    const d = doc.data();
+    const createdAt = d.createdAt?.toDate?.() ? d.createdAt.toDate() : d.createdAt ? new Date(d.createdAt) : null;
+    return {
+      id: doc.id,
+      phone: d.phone || "",
+      email: d.email || "",
+      createdAt,
+      seqStep: typeof d.seqStep === "number" ? d.seqStep : 0,
+      consentSms: d.consentSms !== false,
+      unsubscribed: d.unsubscribed === true,
+    };
+  });
+}
+
+/** Record that a sequence step was delivered to a contact. */
+export async function advanceSeqStep(id, stepIndex) {
+  const db = getFirestoreAdmin();
+  await db.collection("waitlist").doc(id).set(
+    {
+      seqStep: stepIndex,
+      lastSeqAt: FieldValue.serverTimestamp(),
+    },
     { merge: true },
   );
 }

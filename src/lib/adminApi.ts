@@ -12,9 +12,11 @@ export type WaitlistStats = {
 
 export type WaitlistRow = {
   id?: string | number;
+  phone?: string;
   email: string;
   createdAt: string | null;
   launchNotifiedAt?: string | null;
+  seqStep?: number;
   created_at?: string;
   launch_notified_at?: string | null;
   storage?: string;
@@ -24,6 +26,12 @@ export type EmailStatus = {
   ready: boolean;
   from: string;
   mailDomain?: string;
+  reason?: string;
+};
+
+export type SmsStatus = {
+  ready: boolean;
+  from?: string;
   reason?: string;
 };
 
@@ -61,6 +69,7 @@ type AdminJson = {
   warnings?: string[];
   message?: string;
   emailStatus?: EmailStatus;
+  smsStatus?: SmsStatus;
 };
 
 function waitlistApiPaths(): readonly string[] {
@@ -135,36 +144,42 @@ async function adminPostNotify(dryRun: boolean): Promise<AdminJson> {
   );
 }
 
-async function fetchEmailStatusFromApi(): Promise<EmailStatus | undefined> {
+async function fetchStatusesFromApi(): Promise<{
+  emailStatus?: EmailStatus;
+  smsStatus?: SmsStatus;
+}> {
   for (const path of waitlistApiPaths()) {
     try {
       const data = await adminFetch(path);
-      if (data.emailStatus) return data.emailStatus;
+      if (data.emailStatus || data.smsStatus) {
+        return { emailStatus: data.emailStatus, smsStatus: data.smsStatus };
+      }
     } catch {
       /* try next */
     }
   }
-  return undefined;
+  return {};
 }
 
 function normalizeRow(row: WaitlistRow) {
   return {
-    email: row.email,
+    id: row.id,
+    phone: row.phone ?? "",
+    email: row.email ?? "",
     createdAt: row.createdAt ?? row.created_at ?? null,
     launchNotifiedAt: row.launchNotifiedAt ?? row.launch_notified_at ?? null,
+    seqStep: row.seqStep ?? 0,
     storage: row.storage,
   };
 }
 
 export async function fetchAdminWaitlist() {
-  let emailStatus: EmailStatus | undefined;
-
   if (isFirebaseConfigured() && getFirebaseAuth().currentUser) {
     try {
       const direct = await fetchWaitlistFromFirestoreClient();
       if (direct.rows.length > 0) {
-        emailStatus = await fetchEmailStatusFromApi();
-        return { ...direct, emailStatus, source: "firestore (admin login)" };
+        const statuses = await fetchStatusesFromApi();
+        return { ...direct, ...statuses, source: "firestore (admin login)" };
       }
     } catch (err) {
       const code =
@@ -186,6 +201,7 @@ export async function fetchAdminWaitlist() {
         stats: data.stats ?? { total: rows.length, pendingLaunch: 0, notified: 0 },
         rows,
         emailStatus: data.emailStatus,
+        smsStatus: data.smsStatus,
         source: (data as { source?: string }).source ?? "api",
       };
     } catch (err) {
@@ -195,8 +211,8 @@ export async function fetchAdminWaitlist() {
 
   if (isFirebaseConfigured() && getFirebaseAuth().currentUser) {
     const direct = await fetchWaitlistFromFirestoreClient();
-    emailStatus = await fetchEmailStatusFromApi();
-    return { ...direct, emailStatus, source: "firestore (fallback)" };
+    const statuses = await fetchStatusesFromApi();
+    return { ...direct, ...statuses, source: "firestore (fallback)" };
   }
 
   throw new Error("Could not load waitlist from API or Firestore.");

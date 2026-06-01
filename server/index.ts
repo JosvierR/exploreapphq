@@ -37,8 +37,15 @@ app.get("/api/health", (_req, res) => {
 app.post("/api/waitlist/signup", async (req, res) => {
   try {
     const email = normalizeEmail(req.body?.email);
+    const phone = typeof req.body?.phone === "string" ? req.body.phone.trim() : "";
+
+    if (!email && !phone) {
+      return res.status(400).json({ error: "A phone number or email is required." });
+    }
+
+    // Phone-only signup: Firestore (client) is the source of truth in dev; nothing to email.
     if (!email) {
-      return res.status(400).json({ error: "Invalid email address." });
+      return res.json({ ok: true, created: true, message: "You're on the list." });
     }
 
     const { created } = addToWaitlist(email);

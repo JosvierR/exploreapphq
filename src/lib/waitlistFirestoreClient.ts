@@ -20,10 +20,14 @@ export async function fetchWaitlistFromFirestoreClient(): Promise<{
   const snap = await getDocs(collection(getFirestoreDb(), "waitlist"));
   const rows: WaitlistRow[] = snap.docs.map((docSnap) => {
     const data = docSnap.data();
+    const id = docSnap.id;
     return {
-      email: (data.email as string) || docSnap.id,
+      id,
+      phone: (data.phone as string) || "",
+      email: (data.email as string) || (id.includes("@") ? id : ""),
       createdAt: toIso(data.createdAt),
       launchNotifiedAt: toIso(data.launchNotifiedAt),
+      seqStep: typeof data.seqStep === "number" ? data.seqStep : 0,
       storage: "firestore",
     };
   });
@@ -41,7 +45,7 @@ export async function fetchWaitlistFromFirestoreClient(): Promise<{
 
 export async function listPendingEmailsFromClient(): Promise<string[]> {
   const { rows } = await fetchWaitlistFromFirestoreClient();
-  return rows.filter((r) => !r.launchNotifiedAt).map((r) => r.email);
+  return rows.filter((r) => !r.launchNotifiedAt && r.email).map((r) => r.email);
 }
 
 export async function markLaunchNotifiedClient(email: string) {

@@ -7,6 +7,7 @@ import {
   sendLaunchNotify,
   type WaitlistRow,
   type EmailStatus,
+  type SmsStatus,
   type WaitlistStats,
 } from "@/lib/adminApi";
 import "@/styles/admin-waitlist.css";
@@ -23,6 +24,7 @@ export function WaitlistAdminPage() {
   const [result, setResult] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [emailStatus, setEmailStatus] = useState<EmailStatus | null>(null);
+  const [smsStatus, setSmsStatus] = useState<SmsStatus | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -33,6 +35,7 @@ export function WaitlistAdminPage() {
       setRows(data.rows);
       setSource(data.source ?? "");
       setEmailStatus(data.emailStatus ?? null);
+      setSmsStatus(data.smsStatus ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load waitlist.");
       setStats(null);
@@ -143,6 +146,18 @@ export function WaitlistAdminPage() {
         </div>
       )}
 
+      {smsStatus && (
+        <p
+          className={smsStatus.ready ? "admin-waitlist__success" : "admin-waitlist__warn"}
+          role="status"
+        >
+          <strong>SMS:</strong>{" "}
+          {smsStatus.ready
+            ? `Ready (Twilio ${smsStatus.from ?? ""}). Welcome texts + sequence will send.`
+            : smsStatus.reason ?? "Not configured."}
+        </p>
+      )}
+
       {stats && (
         <div className="admin-waitlist__stats">
           <div className="admin-stat">
@@ -234,20 +249,22 @@ export function WaitlistAdminPage() {
           <table className="admin-table">
             <thead>
               <tr>
+                <th>Phone</th>
                 <th>Email</th>
                 <th>Joined</th>
-                <th>Storage</th>
+                <th>Sequence</th>
                 <th>Launch email</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.email}>
-                  <td>{row.email}</td>
+                <tr key={String(row.id ?? row.phone ?? row.email)}>
+                  <td>{row.phone || "—"}</td>
+                  <td>{row.email || "—"}</td>
                   <td>{row.createdAt ? new Date(row.createdAt).toLocaleString() : "—"}</td>
                   <td>
                     <span className="admin-badge admin-badge--storage">
-                      {(row as WaitlistRow & { storage?: string }).storage ?? "—"}
+                      Step {row.seqStep ?? 0}
                     </span>
                   </td>
                   <td>

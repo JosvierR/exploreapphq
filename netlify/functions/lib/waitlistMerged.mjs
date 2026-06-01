@@ -19,26 +19,27 @@ export async function listWaitlistMerged() {
   const blobRows = await listWaitlistFromBlobs();
   if (blobRows.length) sources.push("netlify-blobs");
 
-  const byEmail = new Map();
+  const byId = new Map();
+  const keyOf = (row) => String(row.id || row.phone || row.email || "").toLowerCase();
 
   for (const row of firestoreRows) {
-    byEmail.set(row.email.toLowerCase(), row);
+    byId.set(keyOf(row), row);
   }
 
   for (const row of blobRows) {
-    const key = row.email.toLowerCase();
-    if (!byEmail.has(key)) {
-      byEmail.set(key, row);
+    const key = keyOf(row);
+    if (!byId.has(key)) {
+      byId.set(key, row);
     } else {
-      const existing = byEmail.get(key);
-      if (!existing.createdAt && row.createdAt) {
-        existing.createdAt = row.createdAt;
-      }
+      const existing = byId.get(key);
+      if (!existing.createdAt && row.createdAt) existing.createdAt = row.createdAt;
+      if (!existing.phone && row.phone) existing.phone = row.phone;
+      if (!existing.email && row.email) existing.email = row.email;
       existing.storage = "firestore+blobs";
     }
   }
 
-  const rows = [...byEmail.values()].sort((a, b) =>
+  const rows = [...byId.values()].sort((a, b) =>
     (b.createdAt || "").localeCompare(a.createdAt || ""),
   );
 
@@ -54,5 +55,7 @@ export async function listWaitlistMerged() {
 
 export async function listPendingLaunchEmailsMerged() {
   const { rows } = await listWaitlistMerged();
-  return rows.filter((r) => !r.launchNotifiedAt).map((r) => r.email);
+  return rows
+    .filter((r) => !r.launchNotifiedAt && r.email)
+    .map((r) => r.email);
 }

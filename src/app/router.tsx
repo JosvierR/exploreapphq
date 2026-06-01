@@ -8,11 +8,13 @@ import { HomePage } from "@/pages/marketing/HomePage";
 import { TermsPage } from "@/pages/marketing/TermsPage";
 import { PrivacyPage } from "@/pages/marketing/PrivacyPage";
 import { ThanksPage } from "@/pages/marketing/ThanksPage";
+import { FeedbackPage } from "@/pages/marketing/FeedbackPage";
 import { NotFoundPage } from "@/pages/marketing/NotFoundPage";
 import { WaitlistAdminPage } from "@/pages/admin/WaitlistAdminPage";
 
 export const router = createBrowserRouter([
   { path: "/access", element: <AccessPage /> },
+  { path: "/feedback", element: <FeedbackPage /> },
   { path: "/team", element: <TeamLoginPage /> },
   {
     element: (

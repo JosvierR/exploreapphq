@@ -9,17 +9,24 @@ export async function listWaitlistFromBlobs() {
     const rows = [];
 
     for (const blob of blobs) {
-      const email = blob.key ?? blob.pathname ?? blob.name;
-      if (!email || email.includes("/")) continue;
+      const key = blob.key ?? blob.pathname ?? blob.name;
+      if (!key || key.includes("/")) continue;
       let createdAt = blob.uploadedAt ?? null;
+      let phone = "";
+      let email = "";
       try {
-        const data = await store.get(email, { type: "json" });
+        const data = await store.get(key, { type: "json" });
         if (data?.createdAt) createdAt = data.createdAt;
+        phone = data?.phone ?? "";
+        email = data?.email ?? "";
       } catch {
         /* use uploadedAt */
       }
+      // Legacy blobs were keyed by email; new ones by phone-digits.
+      if (!email && key.includes("@")) email = key;
       rows.push({
-        id: email,
+        id: key,
+        phone,
         email,
         createdAt,
         launchNotifiedAt: null,

@@ -1,14 +1,20 @@
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { apiUrl } from "@/lib/api";
 import { getFirestoreDb, isFirebaseConfigured } from "@/lib/firebase";
+import { phoneDocId } from "@/lib/phone";
 
 const WAITLIST_PATHS = [
   "/.netlify/functions/waitlist-signup",
   "/api/waitlist/signup",
 ] as const;
 
+export type WaitlistInput = {
+  phone?: string;
+  email?: string;
+};
+
 async function postWaitlistSignup(
-  email: string,
+  payload: WaitlistInput,
   options?: { optional?: boolean },
 ): Promise<{ created: boolean }> {
   let lastError = "Could not complete signup. Please try again.";
@@ -19,7 +25,7 @@ async function postWaitlistSignup(
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify(payload),
       });
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
@@ -42,26 +48,37 @@ async function postWaitlistSignup(
   throw new Error(lastError);
 }
 
-async function saveToFirestore(email: string): Promise<boolean> {
-  const ref = doc(getFirestoreDb(), "waitlist", email);
+async function saveToFirestore(input: Required<Pick<WaitlistInput, "phone">> & WaitlistInput) {
+  const id = phoneDocId(input.phone);
+  const ref = doc(getFirestoreDb(), "waitlist", id);
   const existing = await getDoc(ref);
   if (existing.exists()) return false;
   await setDoc(ref, {
-    email,
+    phone: input.phone,
+    email: input.email ?? "",
     createdAt: serverTimestamp(),
+    source: "web",
+    consentSms: true,
+    seqStep: 0,
   });
   return true;
 }
 
-/** Join waitlist: Firestore (if configured) + Netlify Function / API for storage + email. */
-export async function joinWaitlistByEmail(email: string): Promise<{ created: boolean }> {
-  const normalized = email.trim().toLowerCase();
+/** Join the waitlist with a phone (primary) and optional email. */
+export async function joinWaitlist(input: WaitlistInput): Promise<{ created: boolean }> {
+  const phone = input.phone?.trim();
+  const email = input.email?.trim().toLowerCase();
+
+  if (!phone) {
+    throw new Error("A valid phone number is required.");
+  }
+
   let created = true;
   let savedInFirestore = false;
 
   if (isFirebaseConfigured()) {
     try {
-      created = await saveToFirestore(normalized);
+      created = await saveToFirestore({ phone, email });
       savedInFirestore = true;
     } catch (err) {
       const code =
@@ -74,12 +91,17 @@ export async function joinWaitlistByEmail(email: string): Promise<{ created: boo
     }
   }
 
-  if (isFirebaseConfigured() && !created) {
+  if (isFirebaseConfigured() && savedInFirestore && !created) {
+    // Already on the list — still ping server so a newly-added email/SMS goes out.
+    await postWaitlistSignup({ phone, email }, { optional: true });
     return { created: false };
   }
 
-  const server = await postWaitlistSignup(normalized, {
-    optional: savedInFirestore,
-  });
-  return { created: isFirebaseConfigured() ? created : server.created };
+  const server = await postWaitlistSignup({ phone, email }, { optional: savedInFirestore });
+  return { created: savedInFirestore ? created : server.created };
+}
+
+/** @deprecated legacy email-only entry point kept for compatibility. */
+export async function joinWaitlistByEmail(email: string): Promise<{ created: boolean }> {
+  return postWaitlistSignup({ email: email.trim().toLowerCase() });
 }

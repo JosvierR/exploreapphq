@@ -68,6 +68,31 @@
   box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
 }
 
+.access-form input[aria-invalid="true"] {
+  border-color: rgba(248, 113, 113, 0.6);
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.18);
+}
+
+.access-optional {
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 500;
+}
+
+.access-success__cta {
+  margin-top: 1.25rem;
+  font-size: 0.9rem;
+}
+
+.access-success__cta a {
+  color: #5ac8fa;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.access-success__cta a:hover {
+  text-decoration: underline;
+}
+
 .access-submit {
   width: 100%;
   margin-top: 1.25rem;

@@ -1,8 +1,9 @@
 import { buildWaitlistWelcomeEmail } from "../../server/emails/waitlistWelcome.mjs";
 import { saveWaitlistEntry } from "./lib/saveWaitlistEntry.mjs";
 import { sendEmailViaResend } from "./lib/resendSend.mjs";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { sendSms, isSmsConfigured } from "./lib/sendSms.mjs";
+import { buildContact } from "./lib/contact.mjs";
+import { SEQUENCE } from "./lib/sequences.mjs";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -20,21 +21,22 @@ function emailLinks() {
   };
 }
 
-async function sendWelcome(email) {
-  if (!process.env.SMTP_PASS) {
-    console.warn("[waitlist] SMTP_PASS (Resend API key) not set — skip email");
-    return;
-  }
-
+async function sendWelcomeEmail(email) {
+  if (!email || !process.env.SMTP_PASS) return;
   const { subject, html, text } = buildWaitlistWelcomeEmail(email, emailLinks());
   await sendEmailViaResend({ to: email, subject, html, text, allowSandbox: true });
+}
+
+async function sendWelcomeSms(phone) {
+  if (!phone || !isSmsConfigured()) return;
+  const body = SEQUENCE[0].sms;
+  await sendSms({ to: phone, body });
 }
 
 export default async (request) => {
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: cors });
   }
-
   if (request.method !== "POST") {
     return Response.json({ error: "Method not allowed" }, { status: 405, headers: cors });
   }
@@ -46,17 +48,28 @@ export default async (request) => {
     return Response.json({ error: "Invalid JSON" }, { status: 400, headers: cors });
   }
 
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-  if (!EMAIL_RE.test(email)) {
-    return Response.json({ error: "Invalid email address." }, { status: 400, headers: cors });
+  const { ok, contact, error } = buildContact(body);
+  if (!ok) {
+    return Response.json({ error }, { status: 400, headers: cors });
   }
 
   try {
-    const { created } = await saveWaitlistEntry(email);
-    try {
-      await sendWelcome(email);
-    } catch (mailErr) {
-      console.error("[waitlist] email failed:", mailErr);
+    const { created, addedEmail } = await saveWaitlistEntry(contact);
+
+    // Welcome messages only for brand-new signups (or when an email is newly added).
+    if (created || addedEmail) {
+      try {
+        await sendWelcomeEmail(contact.email);
+      } catch (mailErr) {
+        console.error("[waitlist] welcome email failed:", mailErr);
+      }
+    }
+    if (created) {
+      try {
+        await sendWelcomeSms(contact.phone);
+      } catch (smsErr) {
+        console.error("[waitlist] welcome SMS failed:", smsErr);
+      }
     }
 
     return Response.json(

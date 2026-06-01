@@ -3,11 +3,11 @@ import {
   signOut,
   type User,
 } from "firebase/auth";
-import { joinWaitlistByEmail as joinWaitlist } from "@/lib/waitlistSignup";
+import { joinWaitlist, joinWaitlistByEmail } from "@/lib/waitlistSignup";
 import { isAdminEmail } from "@/lib/admin";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase";
 
-export { joinWaitlist as joinWaitlistByEmail };
+export { joinWaitlist, joinWaitlistByEmail };
 
 export function mapFirebaseAuthError(code: string): string {
   switch (code) {

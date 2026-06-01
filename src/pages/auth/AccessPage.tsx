@@ -1,14 +1,17 @@
 import { FormEvent, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { joinWaitlistByEmail, mapFirebaseAuthError } from "@/features/auth/firebaseAuth";
+import { joinWaitlist } from "@/lib/waitlistSignup";
+import { mapFirebaseAuthError } from "@/features/auth/firebaseAuth";
+import { isValidPhone, normalizePhone } from "@/lib/phone";
 import "@/styles/access.css";
 
 export function AccessPage() {
   const { isAdmin } = useAuth();
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [success, setSuccess] = useState<{ message: string; email: string } | null>(null);
+  const [success, setSuccess] = useState<{ message: string; label: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -20,20 +23,31 @@ export function AccessPage() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
-    setLoading(true);
 
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) {
+      setError("Enter a valid phone number with country code, e.g. +1 809 555 1234.");
+      return;
+    }
+    const normalizedEmail = email.trim().toLowerCase();
+
+    setLoading(true);
     try {
-      const normalized = email.trim().toLowerCase();
-      const { created } = await joinWaitlistByEmail(normalized);
-      setSuccess({
-        email: normalized,
-        message: created
-          ? "You're on the list. Check your inbox — we just sent you a welcome email."
-          : "You're already on the list. Check your inbox for our last note, or wait for the launch email.",
+      const { created } = await joinWaitlist({
+        phone: normalizedPhone,
+        email: normalizedEmail || undefined,
       });
+      setSuccess({
+        label: normalizedPhone,
+        message: created
+          ? "You're on the list. We'll text you the moment Explore is ready to download."
+          : "You're already on the list. Sit tight — we'll text you when Explore launches.",
+      });
+      setPhone("");
       setEmail("");
     } catch (err: unknown) {
-      const code = err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
+      const code =
+        err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
       if (code.startsWith("auth/")) {
         setError(mapFirebaseAuthError(code));
       } else if (err instanceof Error) {
@@ -56,7 +70,7 @@ export function AccessPage() {
         <p className="access-eyebrow">Early access</p>
         <h1>Be first to explore</h1>
         <p className="access-lead">
-          Discover real places through videos. Join the list and we'll let you know the moment you
+          Discover real places through videos. Drop your number and we'll text you the moment you
           can download Explore.
         </p>
 
@@ -74,21 +88,39 @@ export function AccessPage() {
             </span>
             <p className="access-success__title">You're in</p>
             <p className="access-success__message">{success.message}</p>
-            <p className="access-success__email">{success.email}</p>
+            <p className="access-success__email">{success.label}</p>
             <ul className="access-success__steps">
               <li>Watch real videos from real places</li>
               <li>Save spots and build routes</li>
-              <li>We'll email you when the app is ready</li>
+              <li>We'll text you when the app is ready</li>
             </ul>
+            <p className="access-success__cta">
+              Have an idea?{" "}
+              <Link to="/feedback">Tell us what Explore should do →</Link>
+            </p>
           </div>
         ) : (
           <form className="access-form" onSubmit={handleSubmit}>
-            <label htmlFor="email">Your email</label>
+            <label htmlFor="phone">Your phone number</label>
+            <input
+              id="phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              required
+              placeholder="+1 809 555 1234"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              aria-invalid={phone.length > 0 && !isValidPhone(phone)}
+            />
+
+            <label htmlFor="email">
+              Email <span className="access-optional">(optional)</span>
+            </label>
             <input
               id="email"
               type="email"
               autoComplete="email"
-              required
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -104,7 +136,10 @@ export function AccessPage() {
               {loading ? "Joining…" : "Get early access"}
             </button>
 
-            <p className="access-footnote">No spam — just one email when the app is ready.</p>
+            <p className="access-footnote">
+              We'll only text about the launch. Message &amp; data rates may apply. Reply STOP to opt
+              out.
+            </p>
           </form>
         )}
       </div>

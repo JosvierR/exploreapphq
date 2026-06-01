@@ -8,13 +8,27 @@ service cloud.firestore {
         ];
     }
 
-    match /waitlist/{email} {
+    match /waitlist/{id} {
       allow read: if isTeamAdmin();
-      allow create: if email == request.resource.data.email
-        && request.resource.data.email.matches('^[^@]+@[^@]+\\.[^@]+$')
-        && request.resource.data.keys().hasOnly(['email', 'createdAt']);
+
+      // Public signup: phone-first, email optional. Only these fields, set by the client.
+      allow create: if request.resource.data.keys().hasOnly(
+            ['phone', 'email', 'createdAt', 'source', 'consentSms', 'seqStep']
+          )
+        && request.resource.data.phone is string
+        && request.resource.data.phone.size() >= 8
+        && request.resource.data.createdAt == request.time;
+
+      // Returning visitor adding an email to an existing doc (no phone change).
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email'])
+        && request.resource.data.email is string;
+
+      // Admin can mark launch/sequence progress.
       allow update: if isTeamAdmin()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['launchNotifiedAt']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+            ['launchNotifiedAt', 'seqStep', 'lastSeqAt', 'unsubscribed', 'email']
+          );
+
       allow delete: if false;
     }
   }

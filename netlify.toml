@@ -7,7 +7,7 @@
   # VITE_* and public URLs are embedded in the client bundle by design.
   # Netlify secret scanning otherwise fails the build when values match env vars.
   [build.environment]
-    SECRETS_SCAN_OMIT_KEYS = "APP_STORE_URL,PLAY_STORE_URL,SITE_URL,SMTP_HOST,SMTP_PORT,SMTP_SECURE,SMTP_USER,SMTP_FROM,VITE_FIREBASE_API_KEY,VITE_FIREBASE_AUTH_DOMAIN,VITE_FIREBASE_PROJECT_ID,VITE_FIREBASE_STORAGE_BUCKET,VITE_FIREBASE_MESSAGING_SENDER_ID,VITE_FIREBASE_APP_ID,VITE_ADMIN_EMAILS,FIREBASE_SERVICE_ACCOUNT_JSON"
+    SECRETS_SCAN_OMIT_KEYS = "APP_STORE_URL,PLAY_STORE_URL,SITE_URL,VITE_SITE_URL,VITE_FEEDBACK_URL,SMTP_HOST,SMTP_PORT,SMTP_SECURE,SMTP_USER,SMTP_FROM,VITE_FIREBASE_API_KEY,VITE_FIREBASE_AUTH_DOMAIN,VITE_FIREBASE_PROJECT_ID,VITE_FIREBASE_STORAGE_BUCKET,VITE_FIREBASE_MESSAGING_SENDER_ID,VITE_FIREBASE_APP_ID,VITE_ADMIN_EMAILS,FIREBASE_SERVICE_ACCOUNT_JSON"
     SECRETS_SCAN_OMIT_PATHS = "dist/**,docs/**,netlify.env.example,.env.example,.firebaserc,assets/**,server/**"
 
 [functions]
@@ -17,6 +17,7 @@
     "netlify/functions/**",
     "server/emails/waitlistWelcome.mjs",
     "server/emails/appLaunch.mjs",
+    "server/emails/sequence.mjs",
   ]
   external_node_modules = ["firebase-admin"]
 
