@@ -11,7 +11,11 @@ export function AccessPage() {
   const { isAdmin } = useAuth();
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [success, setSuccess] = useState<{ message: string; label: string } | null>(null);
+  const [success, setSuccess] = useState<{
+    message: string;
+    label: string;
+    smsWarning?: string | null;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -33,15 +37,30 @@ export function AccessPage() {
 
     setLoading(true);
     try {
-      const { created } = await joinWaitlist({
+      const result = await joinWaitlist({
         phone: normalizedPhone,
         email: normalizedEmail || undefined,
       });
+
+      let smsWarning: string | null = null;
+      if (!result.welcomeSmsSent) {
+        if (result.smsError) {
+          smsWarning = result.smsError;
+        } else if (!result.created) {
+          smsWarning =
+            "You're on the list, but the welcome text was already sent. Add this exact number in Twilio → Verified Caller IDs (trial accounts).";
+        } else {
+          smsWarning =
+            "Saved, but we could not send the welcome text. On Twilio trial, verify this exact number under Verified Caller IDs.";
+        }
+      }
+
       setSuccess({
         label: normalizedPhone,
-        message: created
+        message: result.created
           ? "You're on the list. We'll text you the moment Explore is ready to download."
           : "You're already on the list. Sit tight — we'll text you when Explore launches.",
+        smsWarning,
       });
       setPhone("");
       setEmail("");
@@ -88,6 +107,11 @@ export function AccessPage() {
             </span>
             <p className="access-success__title">You're in</p>
             <p className="access-success__message">{success.message}</p>
+            {success.smsWarning && (
+              <p className="access-error access-success__sms-warn" role="alert">
+                {success.smsWarning}
+              </p>
+            )}
             <p className="access-success__email">{success.label}</p>
             <ul className="access-success__steps">
               <li>Watch real videos from real places</li>

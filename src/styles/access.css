@@ -93,6 +93,13 @@
   text-decoration: underline;
 }
 
+.access-success__sms-warn {
+  margin: 0.75rem 0 0;
+  text-align: left;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
 .access-submit {
   width: 100%;
   margin-top: 1.25rem;

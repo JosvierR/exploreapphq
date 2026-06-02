@@ -13,10 +13,16 @@ export type WaitlistInput = {
   email?: string;
 };
 
+export type JoinWaitlistResult = {
+  created: boolean;
+  welcomeSmsSent?: boolean;
+  smsError?: string | null;
+};
+
 async function postWaitlistSignup(
   payload: WaitlistInput,
   options?: { optional?: boolean },
-): Promise<{ created: boolean }> {
+): Promise<JoinWaitlistResult> {
   let lastError = "Could not complete signup. Please try again.";
 
   for (const path of WAITLIST_PATHS) {
@@ -30,9 +36,15 @@ async function postWaitlistSignup(
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
         created?: boolean;
+        welcomeSmsSent?: boolean;
+        smsError?: string | null;
       };
       if (res.ok) {
-        return { created: data.created !== false };
+        return {
+          created: data.created !== false,
+          welcomeSmsSent: data.welcomeSmsSent,
+          smsError: data.smsError ?? null,
+        };
       }
       lastError = data.error ?? lastError;
     } catch {
@@ -65,7 +77,7 @@ async function saveToFirestore(input: Required<Pick<WaitlistInput, "phone">> & W
 }
 
 /** Join the waitlist with a phone (primary) and optional email. */
-export async function joinWaitlist(input: WaitlistInput): Promise<{ created: boolean }> {
+export async function joinWaitlist(input: WaitlistInput): Promise<JoinWaitlistResult> {
   const phone = input.phone?.trim();
   const email = input.email?.trim().toLowerCase();
 
@@ -92,17 +104,20 @@ export async function joinWaitlist(input: WaitlistInput): Promise<{ created: boo
   }
 
   if (isFirebaseConfigured() && savedInFirestore && !created) {
-    // Already on the list — still ping server so a newly-added email/SMS goes out.
-    await postWaitlistSignup({ phone, email }, { optional: true });
-    return { created: false };
+    const server = await postWaitlistSignup({ phone, email }, { optional: true });
+    return { created: false, welcomeSmsSent: server.welcomeSmsSent, smsError: server.smsError };
   }
 
-  // New signups must reach the server (Twilio SMS + Resend). Only skip hard-fail on retry when already on the list.
+  // New signups must reach the server (Twilio SMS + Resend).
   const server = await postWaitlistSignup(
     { phone, email },
     { optional: savedInFirestore && !created },
   );
-  return { created: savedInFirestore ? created : server.created };
+  return {
+    created: savedInFirestore ? created : server.created,
+    welcomeSmsSent: server.welcomeSmsSent,
+    smsError: server.smsError,
+  };
 }
 
 /** @deprecated legacy email-only entry point kept for compatibility. */

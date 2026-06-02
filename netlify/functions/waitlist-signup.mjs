@@ -69,14 +69,20 @@ export default async (request) => {
       }
     }
     let welcomeSmsSent = false;
+    let smsError = null;
     if (needsWelcomeSms && contact.phone) {
       try {
         await sendWelcomeSms(contact.phone);
         await markWelcomeSmsSent(docRef);
         welcomeSmsSent = true;
       } catch (smsErr) {
+        smsError = smsErr instanceof Error ? smsErr.message : "SMS send failed";
         console.error("[waitlist] welcome SMS failed:", smsErr);
       }
+    } else if (contact.phone && !needsWelcomeSms) {
+      smsError = "Welcome SMS already sent for this number.";
+    } else if (contact.phone && !isSmsConfigured()) {
+      smsError = "Twilio is not configured on the server (check TWILIO_* in Netlify).";
     }
 
     return Response.json(
@@ -84,6 +90,7 @@ export default async (request) => {
         ok: true,
         created,
         welcomeSmsSent,
+        smsError,
         smsConfigured: isSmsConfigured(),
         message: created ? "You're on the list." : "You're already on the list.",
       },
