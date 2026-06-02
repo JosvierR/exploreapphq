@@ -5,6 +5,8 @@ import {
   fetchAdminWaitlist,
   previewLaunchNotify,
   sendLaunchNotify,
+  previewBroadcast,
+  sendBroadcast,
   type WaitlistRow,
   type EmailStatus,
   type SmsStatus,
@@ -25,6 +27,11 @@ export function WaitlistAdminPage() {
   const [info, setInfo] = useState<string | null>(null);
   const [emailStatus, setEmailStatus] = useState<EmailStatus | null>(null);
   const [smsStatus, setSmsStatus] = useState<SmsStatus | null>(null);
+  const [broadcastSms, setBroadcastSms] = useState("");
+  const [broadcastEmailSubject, setBroadcastEmailSubject] = useState("");
+  const [broadcastEmailBody, setBroadcastEmailBody] = useState("");
+  const [broadcastPreview, setBroadcastPreview] = useState<string | null>(null);
+  const [broadcastResult, setBroadcastResult] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,6 +66,55 @@ export function WaitlistAdminPage() {
       setPreview(data.emails ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Preview failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleBroadcastPreview() {
+    setBusy(true);
+    setBroadcastPreview(null);
+    setBroadcastResult(null);
+    setError(null);
+    try {
+      const data = await previewBroadcast({
+        smsBody: broadcastSms.trim() || undefined,
+        emailSubject: broadcastEmailSubject.trim() || undefined,
+        emailBody: broadcastEmailBody.trim() || undefined,
+      });
+      setBroadcastPreview(
+        `Would send: ${data.smsRecipients ?? 0} SMS · ${data.emailRecipients ?? 0} email(s)`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Preview failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleBroadcastSend() {
+    if (!broadcastSms.trim() && !broadcastEmailSubject.trim()) {
+      setError("Write an SMS and/or email before sending.");
+      return;
+    }
+    const ok = window.confirm(
+      "Send this message to everyone on the waitlist? This cannot be undone.",
+    );
+    if (!ok) return;
+
+    setBusy(true);
+    setError(null);
+    setBroadcastResult(null);
+    try {
+      const data = await sendBroadcast({
+        smsBody: broadcastSms.trim() || undefined,
+        emailSubject: broadcastEmailSubject.trim() || undefined,
+        emailBody: broadcastEmailBody.trim() || undefined,
+      });
+      setBroadcastResult(data.message ?? "Broadcast sent.");
+      setBroadcastPreview(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Broadcast failed.");
     } finally {
       setBusy(false);
     }
@@ -235,6 +291,68 @@ export function WaitlistAdminPage() {
           </ul>
         </div>
       )}
+
+      <section className="admin-waitlist__broadcast">
+        <h2>Broadcast to waitlist</h2>
+        <p className="admin-waitlist__muted">
+          Send a custom SMS and/or email to everyone on the list (phones with consent, all emails).
+        </p>
+        <label className="admin-broadcast-field">
+          <span>SMS message (Twilio)</span>
+          <textarea
+            rows={3}
+            placeholder="Short text for phones on the list…"
+            value={broadcastSms}
+            onChange={(e) => setBroadcastSms(e.target.value)}
+          />
+        </label>
+        <label className="admin-broadcast-field">
+          <span>Email subject</span>
+          <input
+            type="text"
+            placeholder="Explore update"
+            value={broadcastEmailSubject}
+            onChange={(e) => setBroadcastEmailSubject(e.target.value)}
+          />
+        </label>
+        <label className="admin-broadcast-field">
+          <span>Email body</span>
+          <textarea
+            rows={4}
+            placeholder="Write your message…"
+            value={broadcastEmailBody}
+            onChange={(e) => setBroadcastEmailBody(e.target.value)}
+          />
+        </label>
+        <div className="admin-waitlist__actions">
+          <button
+            type="button"
+            className="admin-btn admin-btn--secondary"
+            disabled={busy}
+            onClick={() => void handleBroadcastPreview()}
+          >
+            Preview count
+          </button>
+          <button
+            type="button"
+            className="admin-btn admin-btn--primary"
+            disabled={busy || (emailStatus != null && !emailStatus.ready && Boolean(broadcastEmailSubject))}
+            onClick={() => void handleBroadcastSend()}
+          >
+            Send broadcast
+          </button>
+        </div>
+        {broadcastPreview && (
+          <p className="admin-waitlist__warn" role="status">
+            {broadcastPreview}
+          </p>
+        )}
+        {broadcastResult && (
+          <p className="admin-waitlist__success" role="status">
+            {broadcastResult}
+          </p>
+        )}
+      </section>
 
       <section className="admin-waitlist__table-wrap">
         <h2>Registrations</h2>

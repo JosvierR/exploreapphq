@@ -40,6 +40,18 @@
   status = 200
   force = true
 
+[[redirects]]
+  from = "/api/feedback/submit"
+  to = "/.netlify/functions/feedback-submit"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/admin/broadcast"
+  to = "/.netlify/functions/admin-broadcast"
+  status = 200
+  force = true
+
 # Optional: proxy other API routes to Railway/Render
 # [[redirects]]
 #   from = "/api/*"

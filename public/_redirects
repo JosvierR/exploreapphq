@@ -1,4 +1,6 @@
 /api/waitlist/signup /.netlify/functions/waitlist-signup 200
+/api/feedback/submit /.netlify/functions/feedback-submit 200
 /api/admin/waitlist /.netlify/functions/admin-waitlist 200
 /api/admin/waitlist/notify-launch /.netlify/functions/admin-notify-launch 200
+/api/admin/broadcast /.netlify/functions/admin-broadcast 200
 /* /index.html 200

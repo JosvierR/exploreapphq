@@ -20,6 +20,8 @@ export async function listWaitlistFromFirestore() {
       createdAt,
       launchNotifiedAt,
       seqStep: typeof data.seqStep === "number" ? data.seqStep : 0,
+      consentSms: data.consentSms !== false,
+      unsubscribed: data.unsubscribed === true,
       storage: "firestore",
     };
   });
@@ -39,7 +41,9 @@ export async function listWaitlistFromFirestore() {
 
 export async function listPendingLaunchEmails() {
   const { rows } = await listWaitlistFromFirestore();
-  return rows.filter((r) => !r.launchNotifiedAt).map((r) => r.email);
+  return rows
+    .filter((r) => !r.launchNotifiedAt && r.email && r.email.includes("@"))
+    .map((r) => r.email);
 }
 
 export async function markLaunchNotified(email) {

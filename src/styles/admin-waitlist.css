@@ -314,6 +314,44 @@
   overflow-y: auto;
 }
 
+.admin-waitlist__broadcast {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.admin-waitlist__broadcast h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+}
+
+.admin-broadcast-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.admin-broadcast-field span {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.admin-broadcast-field input,
+.admin-broadcast-field textarea {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+
 .admin-waitlist__table-wrap {
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.08);

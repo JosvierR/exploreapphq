@@ -230,3 +230,62 @@ export async function previewLaunchNotify() {
 export async function sendLaunchNotify() {
   return adminPostNotify(false);
 }
+
+export type BroadcastPayload = {
+  smsBody?: string;
+  emailSubject?: string;
+  emailBody?: string;
+  dryRun?: boolean;
+};
+
+export type BroadcastResult = {
+  dryRun?: boolean;
+  smsRecipients?: number;
+  emailRecipients?: number;
+  smsSent?: number;
+  emailSent?: number;
+  smsFailed?: { to: string; error: string }[];
+  emailFailed?: { to: string; error: string }[];
+  smsError?: string;
+  emailError?: string;
+  message?: string;
+  error?: string;
+};
+
+const broadcastPaths = (): readonly string[] => [
+  "/.netlify/functions/admin-broadcast",
+  "/api/admin/broadcast",
+];
+
+export async function previewBroadcast(payload: BroadcastPayload): Promise<BroadcastResult> {
+  return adminPostBroadcast({ ...payload, dryRun: true });
+}
+
+export async function sendBroadcast(payload: BroadcastPayload): Promise<BroadcastResult> {
+  return adminPostBroadcast({ ...payload, dryRun: false });
+}
+
+async function adminPostBroadcast(payload: BroadcastPayload): Promise<BroadcastResult> {
+  const token = await getAdminToken();
+  let lastError = "Could not reach broadcast service.";
+
+  for (const path of broadcastPaths()) {
+    try {
+      const res = await fetch(path, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json()) as BroadcastResult;
+      if (res.ok) return data;
+      lastError = data.error ?? lastError;
+      if (res.status !== 404) throw new Error(lastError);
+    } catch (err) {
+      if (err instanceof Error && err.message !== lastError) throw err;
+    }
+  }
+  throw new Error(lastError);
+}
