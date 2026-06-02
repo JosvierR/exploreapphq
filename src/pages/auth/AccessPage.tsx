@@ -46,9 +46,12 @@ export function AccessPage() {
       if (!result.welcomeSmsSent) {
         if (result.smsError) {
           smsWarning = result.smsError;
+        } else if (result.smsConfigured === false) {
+          smsWarning =
+            "Saved, but SMS is off on the server. In Netlify → Environment variables, add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM, then redeploy.";
         } else {
           smsWarning =
-            "Saved, but the welcome text did not send. Twilio trial: add this exact number under Verified Caller IDs (+18296592975).";
+            "Saved, but the welcome text did not send. On Twilio trial, verify this exact number under Verified Caller IDs.";
         }
       }
 

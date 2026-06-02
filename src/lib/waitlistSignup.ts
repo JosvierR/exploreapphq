@@ -1,7 +1,4 @@
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { apiUrl } from "@/lib/api";
-import { getFirestoreDb, isFirebaseConfigured } from "@/lib/firebase";
-import { phoneDocId } from "@/lib/phone";
 
 const WAITLIST_PATHS = [
   "/.netlify/functions/waitlist-signup",
@@ -17,6 +14,7 @@ export type JoinWaitlistResult = {
   created: boolean;
   welcomeSmsSent?: boolean;
   smsError?: string | null;
+  smsConfigured?: boolean;
 };
 
 async function postWaitlistSignup(payload: WaitlistInput): Promise<JoinWaitlistResult> {
@@ -51,6 +49,7 @@ async function postWaitlistSignup(payload: WaitlistInput): Promise<JoinWaitlistR
           created: data.created !== false,
           welcomeSmsSent: data.welcomeSmsSent === true,
           smsError: data.smsError ?? null,
+          smsConfigured: data.smsConfigured === true,
         };
       }
       lastError = data.error ?? lastError;
@@ -62,26 +61,9 @@ async function postWaitlistSignup(payload: WaitlistInput): Promise<JoinWaitlistR
   throw new Error(lastError);
 }
 
-/** Mirror server data in Firestore for admin panel (merge, never blocks SMS). */
-async function mirrorToFirestoreClient(input: Required<Pick<WaitlistInput, "phone">> & WaitlistInput) {
-  const ref = doc(getFirestoreDb(), "waitlist", phoneDocId(input.phone));
-  await setDoc(
-    ref,
-    {
-      phone: input.phone,
-      email: input.email ?? "",
-      source: "web",
-      consentSms: true,
-      seqStep: 0,
-      createdAt: serverTimestamp(),
-    },
-    { merge: true },
-  );
-}
-
 /**
- * Join waitlist: server first (Twilio SMS + Resend + Firestore admin),
- * then optional client mirror for /admin UI.
+ * Join waitlist via Netlify function (Firestore admin + Resend + Twilio).
+ * Client does not write Firestore — avoids permission errors and duplicate docs.
  */
 export async function joinWaitlist(input: WaitlistInput): Promise<JoinWaitlistResult> {
   const phone = input.phone?.trim();
@@ -91,17 +73,7 @@ export async function joinWaitlist(input: WaitlistInput): Promise<JoinWaitlistRe
     throw new Error("A valid phone number is required.");
   }
 
-  const server = await postWaitlistSignup({ phone, email });
-
-  if (isFirebaseConfigured()) {
-    try {
-      await mirrorToFirestoreClient({ phone, email });
-    } catch (err) {
-      console.warn("[waitlist] Firestore mirror failed:", err);
-    }
-  }
-
-  return server;
+  return postWaitlistSignup({ phone, email });
 }
 
 /** @deprecated legacy email-only entry point */

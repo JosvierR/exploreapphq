@@ -29,10 +29,6 @@ async function sendWelcomeEmail(email) {
 
 async function sendWelcomeSms(phone) {
   if (!phone) return;
-  if (!isSmsConfigured()) {
-    console.warn("[waitlist] SMS skipped — Twilio env vars missing on Netlify");
-    return;
-  }
   const body = SEQUENCE[0].sms;
   await sendSms({ to: phone, body });
 }
@@ -81,8 +77,6 @@ export default async (request) => {
       }
     } else if (contact.phone && !needsWelcomeSms) {
       smsError = "Welcome SMS already sent for this number.";
-    } else if (contact.phone && !isSmsConfigured()) {
-      smsError = "Twilio is not configured on the server (check TWILIO_* in Netlify).";
     }
 
     return Response.json(
