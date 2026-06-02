@@ -65,6 +65,7 @@ export default async (request) => {
       }
     }
     let welcomeSmsSent = false;
+    let alreadyWelcomed = false;
     let smsError = null;
     if (needsWelcomeSms && contact.phone) {
       try {
@@ -76,7 +77,9 @@ export default async (request) => {
         console.error("[waitlist] welcome SMS failed:", smsErr);
       }
     } else if (contact.phone && !needsWelcomeSms) {
-      smsError = "Welcome SMS already sent for this number.";
+      // Re-signup: welcome text already went out — treat as success (no red warning in UI).
+      welcomeSmsSent = true;
+      alreadyWelcomed = true;
     }
 
     return Response.json(
@@ -84,6 +87,7 @@ export default async (request) => {
         ok: true,
         created,
         welcomeSmsSent,
+        alreadyWelcomed,
         smsError,
         smsConfigured: isSmsConfigured(),
         message: created ? "You're on the list." : "You're already on the list.",

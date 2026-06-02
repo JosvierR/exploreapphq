@@ -43,6 +43,7 @@ export function AccessPage() {
       });
 
       let smsWarning: string | null = null;
+      const alreadyWelcomed = result.alreadyWelcomed === true;
       if (!result.welcomeSmsSent) {
         if (result.smsError) {
           smsWarning = result.smsError;
@@ -57,9 +58,11 @@ export function AccessPage() {
 
       setSuccess({
         label: normalizedPhone,
-        message: result.created
-          ? "You're on the list. We'll text you the moment Explore is ready to download."
-          : "You're already on the list. Sit tight — we'll text you when Explore launches.",
+        message: alreadyWelcomed
+          ? "You're already on the list — we texted you earlier. Check your messages for Explore."
+          : result.created
+            ? "You're on the list. We'll text you the moment Explore is ready to download."
+            : "You're already on the list. Sit tight — we'll text you when Explore launches.",
         smsWarning,
       });
       setPhone("");
