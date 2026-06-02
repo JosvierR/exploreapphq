@@ -4,7 +4,7 @@ import path from "path";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const siteUrl = (env.VITE_SITE_URL || "https://exploreapphq.com").replace(/\/$/, "");
+  const siteUrl = (env.VITE_SITE_URL || "https://sunny-dolphin-b73804.netlify.app").replace(/\/$/, "");
 
   return {
   plugins: [

@@ -63,7 +63,7 @@ export function AccessPage() {
       if (normalizedEmail && !result.welcomeEmailSent) {
         if (result.emailError) {
           emailWarning = result.emailError;
-        } else if (result.addedEmail === false && !result.created) {
+        } else if (result.emailAlreadySent) {
           emailWarning =
             "Your email is already on file — we won't send a duplicate welcome email. Check Promotions/Spam for Explore.";
         } else {

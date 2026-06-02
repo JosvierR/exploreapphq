@@ -1,4 +1,4 @@
-const defaultSiteUrl = "https://exploreapphq.com";
+const defaultSiteUrl = "https://sunny-dolphin-b73804.netlify.app";
 
 export const SITE = {
   name: "Explore",

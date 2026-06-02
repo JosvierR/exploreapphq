@@ -47,13 +47,6 @@
 #   status = 200
 #   force = true
 
-# Redirect Netlify subdomain → custom domain (when exploreapphq.com is primary)
-[[redirects]]
-  from = "https://sunny-dolphin-b73804.netlify.app/*"
-  to = "https://exploreapphq.com/:splat"
-  status = 301
-  force = true
-
 # SPA — must be last
 [[redirects]]
   from = "/*"

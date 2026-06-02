@@ -90,6 +90,13 @@ export async function markWelcomeEmailSent(docRef) {
   await docRef.set({ welcomeEmailAt: FieldValue.serverTimestamp() }, { merge: true });
 }
 
+export async function getWelcomeEmailStatus(docRef) {
+  if (!docRef) return { hasWelcomeEmailAt: false };
+  const snap = await docRef.get();
+  const data = snap.data() || {};
+  return { hasWelcomeEmailAt: Boolean(data.welcomeEmailAt) };
+}
+
 /** Mark welcome SMS as delivered so we don't resend on retry. */
 export async function markWelcomeSmsSent(docRef) {
   if (!docRef) return;

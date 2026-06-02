@@ -1,5 +1,10 @@
 import { buildWaitlistWelcomeEmail } from "../../server/emails/waitlistWelcome.mjs";
-import { saveWaitlistEntry, markWelcomeSmsSent, markWelcomeEmailSent } from "./lib/saveWaitlistEntry.mjs";
+import {
+  saveWaitlistEntry,
+  markWelcomeSmsSent,
+  markWelcomeEmailSent,
+  getWelcomeEmailStatus,
+} from "./lib/saveWaitlistEntry.mjs";
 import { sendEmailViaResend } from "./lib/resendSend.mjs";
 import { sendSms, isSmsConfigured } from "./lib/sendSms.mjs";
 import { buildContact } from "./lib/contact.mjs";
@@ -69,6 +74,7 @@ export default async (request) => {
         console.error("[waitlist] welcome email failed:", mailErr);
       }
     }
+    const { hasWelcomeEmailAt } = await getWelcomeEmailStatus(docRef);
 
     let welcomeSmsSent = false;
     let alreadyWelcomed = false;
@@ -94,6 +100,7 @@ export default async (request) => {
         created,
         addedEmail,
         welcomeEmailSent,
+        emailAlreadySent: hasWelcomeEmailAt,
         emailError,
         welcomeSmsSent,
         alreadyWelcomed,
