@@ -70,7 +70,21 @@ export async function sendSms({ to, body }) {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data?.message || `Twilio rejected the SMS (${res.status}).`);
+    const raw = data?.message || `Twilio rejected the SMS (${res.status}).`;
+    if (res.status === 401 || raw === "Authenticate") {
+      throw new Error(
+        "Twilio auth failed. In Netlify, set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN to the values in Twilio Console → Account → API keys & tokens, then redeploy.",
+      );
+    }
+    if (raw.includes("not a valid phone number") || data?.code === 21211) {
+      throw new Error("Invalid phone number format. Use country code, e.g. +18295551234.");
+    }
+    if (raw.includes("not verified") || data?.code === 21608) {
+      throw new Error(
+        "Twilio trial: verify this exact number under Phone Numbers → Verified Caller IDs, then try again.",
+      );
+    }
+    throw new Error(raw);
   }
   return { sid: data.sid };
 }

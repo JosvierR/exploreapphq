@@ -94,10 +94,14 @@
 }
 
 .access-success__sms-warn {
-  margin: 0.75rem 0 0;
+  margin: 0.85rem 0 0;
+  padding: 0.65rem 0.75rem;
   text-align: left;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   line-height: 1.45;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.55);
 }
 
 .access-submit {
