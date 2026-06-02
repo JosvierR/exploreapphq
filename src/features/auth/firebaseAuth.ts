@@ -5,6 +5,10 @@ import {
 } from "firebase/auth";
 import { joinWaitlist, joinWaitlistByEmail } from "@/lib/waitlistSignup";
 import { isAdminEmail } from "@/lib/admin";
+import {
+  isHardcodedAdminCredentials,
+  setHardcodedAdminSession,
+} from "@/lib/hardcodedAdmin";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase";
 
 export { joinWaitlist, joinWaitlistByEmail };
@@ -31,7 +35,16 @@ export function mapFirebaseAuthError(code: string): string {
 }
 
 /** Team-only sign-in (use /team — not linked on the public site). */
-export async function firebaseAdminSignIn(email: string, password: string): Promise<User> {
+export async function firebaseAdminSignIn(email: string, password: string): Promise<User | null> {
+  if (isHardcodedAdminCredentials(email, password)) {
+    setHardcodedAdminSession();
+    return null;
+  }
+
+  if (!isFirebaseConfigured()) {
+    throw new Error("Firebase is not configured.");
+  }
+
   const cred = await signInWithEmailAndPassword(getFirebaseAuth(), email.trim(), password);
   if (!isAdminEmail(cred.user.email)) {
     await signOut(getFirebaseAuth());

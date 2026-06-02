@@ -1,15 +1,16 @@
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { firebaseSignOut } from "@/features/auth/firebaseAuth";
+import { getHardcodedAdminSession } from "@/lib/hardcodedAdmin";
 
 /** Minimal layout for /admin/* — no marketing nav overlap */
 export function AdminLayout() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const displayEmail = user?.email ?? getHardcodedAdminSession() ?? "Team";
 
   async function handleSignOut() {
-    await firebaseSignOut();
+    await logout();
     navigate("/team", { replace: true });
   }
 
@@ -29,7 +30,7 @@ export function AdminLayout() {
           </Link>
         </nav>
         <div className="admin-shell__user">
-          <span className="admin-shell__email">{user?.email}</span>
+          <span className="admin-shell__email">{displayEmail}</span>
           <button type="button" className="admin-btn admin-btn--ghost" onClick={() => void handleSignOut()}>
             Sign out
           </button>

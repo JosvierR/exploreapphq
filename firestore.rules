@@ -4,6 +4,7 @@ service cloud.firestore {
     function isTeamAdmin() {
       return request.auth != null
         && request.auth.token.email in [
+          "admin@example.com",
           "josvierrod@exploreapphq.com",
         ];
     }

@@ -3,7 +3,6 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { firebaseAdminSignIn, mapFirebaseAuthError } from "@/features/auth/firebaseAuth";
-import { isFirebaseConfigured } from "@/lib/firebase";
 import "@/styles/access.css";
 
 /** Hidden team login — not linked from the public site. */
@@ -17,23 +16,6 @@ export function TeamLoginPage() {
 
   if (isAdmin) {
     return <Navigate to="/admin/waitlist" replace />;
-  }
-
-  if (!isFirebaseConfigured()) {
-    return (
-      <div className="access-page">
-        <div className="access-card">
-          <div className="access-brand">
-            <BrandLogo />
-          </div>
-          <h1>Firebase required</h1>
-          <p className="access-lead">
-            Add <code>VITE_FIREBASE_*</code> and <code>VITE_ADMIN_EMAILS</code> to{" "}
-            <code>.env</code>, then create the admin user in Firebase Console → Authentication.
-          </p>
-        </div>
-      </div>
-    );
   }
 
   async function handleSubmit(e: FormEvent) {

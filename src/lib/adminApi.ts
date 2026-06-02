@@ -1,3 +1,4 @@
+import { getHardcodedAdminSession, hardcodedAdminToken } from "@/lib/hardcodedAdmin";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase";
 import {
   fetchWaitlistFromFirestoreClient,
@@ -46,6 +47,9 @@ function notifyEndpoints(): readonly string[] {
 }
 
 async function getAdminToken(): Promise<string> {
+  if (getHardcodedAdminSession()) {
+    return hardcodedAdminToken();
+  }
   if (!isFirebaseConfigured()) {
     throw new Error("Firebase is not configured.");
   }

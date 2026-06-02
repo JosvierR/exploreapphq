@@ -15,7 +15,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAdmin) {
-    return <Navigate to="/access" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/team" replace state={{ from: location.pathname }} />;
   }
 
   return children;
