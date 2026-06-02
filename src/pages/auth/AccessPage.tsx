@@ -46,12 +46,9 @@ export function AccessPage() {
       if (!result.welcomeSmsSent) {
         if (result.smsError) {
           smsWarning = result.smsError;
-        } else if (!result.created) {
-          smsWarning =
-            "You're on the list, but the welcome text was already sent. Add this exact number in Twilio → Verified Caller IDs (trial accounts).";
         } else {
           smsWarning =
-            "Saved, but we could not send the welcome text. On Twilio trial, verify this exact number under Verified Caller IDs.";
+            "Saved, but the welcome text did not send. Twilio trial: add this exact number under Verified Caller IDs (+18296592975).";
         }
       }
 

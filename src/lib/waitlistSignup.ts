@@ -1,4 +1,4 @@
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { apiUrl } from "@/lib/api";
 import { getFirestoreDb, isFirebaseConfigured } from "@/lib/firebase";
 import { phoneDocId } from "@/lib/phone";
@@ -19,11 +19,8 @@ export type JoinWaitlistResult = {
   smsError?: string | null;
 };
 
-async function postWaitlistSignup(
-  payload: WaitlistInput,
-  options?: { optional?: boolean },
-): Promise<JoinWaitlistResult> {
-  let lastError = "Could not complete signup. Please try again.";
+async function postWaitlistSignup(payload: WaitlistInput): Promise<JoinWaitlistResult> {
+  let lastError = "Could not reach the signup service. Try again in a moment.";
 
   for (const path of WAITLIST_PATHS) {
     const url = path.startsWith("/.") ? path : apiUrl(path);
@@ -33,50 +30,59 @@ async function postWaitlistSignup(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = (await res.json().catch(() => ({}))) as {
+
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        lastError =
+          "Signup API returned an invalid response. Redeploy Netlify or check Functions → waitlist-signup.";
+        continue;
+      }
+
+      const data = (await res.json()) as {
         error?: string;
         created?: boolean;
         welcomeSmsSent?: boolean;
         smsError?: string | null;
+        smsConfigured?: boolean;
       };
+
       if (res.ok) {
         return {
           created: data.created !== false,
-          welcomeSmsSent: data.welcomeSmsSent,
+          welcomeSmsSent: data.welcomeSmsSent === true,
           smsError: data.smsError ?? null,
         };
       }
       lastError = data.error ?? lastError;
-    } catch {
-      /* try next endpoint */
+    } catch (err) {
+      if (err instanceof Error) lastError = err.message;
     }
-  }
-
-  if (options?.optional) {
-    console.warn("[waitlist] server backup failed:", lastError);
-    return { created: true };
   }
 
   throw new Error(lastError);
 }
 
-async function saveToFirestore(input: Required<Pick<WaitlistInput, "phone">> & WaitlistInput) {
-  const id = phoneDocId(input.phone);
-  const ref = doc(getFirestoreDb(), "waitlist", id);
-  const existing = await getDoc(ref);
-  if (existing.exists()) return false;
-  await setDoc(ref, {
-    phone: input.phone,
-    email: input.email ?? "",
-    createdAt: serverTimestamp(),
-    source: "web",
-    consentSms: true,
-    seqStep: 0,
-  });
-  return true;
+/** Mirror server data in Firestore for admin panel (merge, never blocks SMS). */
+async function mirrorToFirestoreClient(input: Required<Pick<WaitlistInput, "phone">> & WaitlistInput) {
+  const ref = doc(getFirestoreDb(), "waitlist", phoneDocId(input.phone));
+  await setDoc(
+    ref,
+    {
+      phone: input.phone,
+      email: input.email ?? "",
+      source: "web",
+      consentSms: true,
+      seqStep: 0,
+      createdAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
 }
 
-/** Join the waitlist with a phone (primary) and optional email. */
+/**
+ * Join waitlist: server first (Twilio SMS + Resend + Firestore admin),
+ * then optional client mirror for /admin UI.
+ */
 export async function joinWaitlist(input: WaitlistInput): Promise<JoinWaitlistResult> {
   const phone = input.phone?.trim();
   const email = input.email?.trim().toLowerCase();
@@ -85,42 +91,20 @@ export async function joinWaitlist(input: WaitlistInput): Promise<JoinWaitlistRe
     throw new Error("A valid phone number is required.");
   }
 
-  let created = true;
-  let savedInFirestore = false;
+  const server = await postWaitlistSignup({ phone, email });
 
   if (isFirebaseConfigured()) {
     try {
-      created = await saveToFirestore({ phone, email });
-      savedInFirestore = true;
+      await mirrorToFirestoreClient({ phone, email });
     } catch (err) {
-      const code =
-        err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
-      if (code === "permission-denied") {
-        console.warn("[waitlist] Firestore rules blocked write — using server backup");
-      } else {
-        throw err;
-      }
+      console.warn("[waitlist] Firestore mirror failed:", err);
     }
   }
 
-  if (isFirebaseConfigured() && savedInFirestore && !created) {
-    const server = await postWaitlistSignup({ phone, email }, { optional: true });
-    return { created: false, welcomeSmsSent: server.welcomeSmsSent, smsError: server.smsError };
-  }
-
-  // New signups must reach the server (Twilio SMS + Resend).
-  const server = await postWaitlistSignup(
-    { phone, email },
-    { optional: savedInFirestore && !created },
-  );
-  return {
-    created: savedInFirestore ? created : server.created,
-    welcomeSmsSent: server.welcomeSmsSent,
-    smsError: server.smsError,
-  };
+  return server;
 }
 
-/** @deprecated legacy email-only entry point kept for compatibility. */
-export async function joinWaitlistByEmail(email: string): Promise<{ created: boolean }> {
+/** @deprecated legacy email-only entry point */
+export async function joinWaitlistByEmail(email: string): Promise<JoinWaitlistResult> {
   return postWaitlistSignup({ email: email.trim().toLowerCase() });
 }
