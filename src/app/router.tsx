@@ -14,7 +14,7 @@ import { WaitlistAdminPage } from "@/pages/admin/WaitlistAdminPage";
 
 export const router = createBrowserRouter([
   { path: "/access", element: <AccessPage /> },
-  { path: "/feedback", element: <FeedbackPage /> },
+  { path: "/feedback/*", element: <FeedbackPage /> },
   { path: "/team", element: <TeamLoginPage /> },
   {
     element: (

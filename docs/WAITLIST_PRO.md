@@ -65,17 +65,15 @@ Para editar el copy o los tiempos, ajusta `sequences.mjs` y redeploy.
 
 ---
 
-## 4. Feedback board (Canny / UserJot)
+## 4. Feedback board (Canny)
 
-Página pública en **`/feedback`**.
+Página pública en **`/feedback`**. Guía completa: [CANNY_FEEDBACK.md](./CANNY_FEEDBACK.md).
 
-1. Crea un board gratis en [Canny](https://canny.io) o [UserJot](https://userjot.com).
-2. Copia la URL pública del board.
-3. Netlify → variable **`VITE_FEEDBACK_URL`** = esa URL.
-4. Trigger deploy. El board se embebe en `/feedback`.
+1. Crea board en [Canny](https://canny.io) → copia **Board token** (Install).
+2. Netlify → **`VITE_CANNY_BOARD_TOKEN`** + **`VITE_CANNY_PORTAL_URL`** (ej. `https://explore.canny.io`).
+3. Trigger deploy.
 
-Sin la variable, `/feedback` muestra un placeholder con instrucciones y el email de contacto.
-La pantalla de éxito de `/access` ya enlaza a `/feedback`.
+La pantalla de éxito de `/access` enlaza a `/feedback`.
 
 ---
 

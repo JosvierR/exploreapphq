@@ -11,8 +11,10 @@ interface ImportMetaEnv {
   readonly VITE_API_URL: string;
   readonly VITE_SITE_URL: string;
   readonly VITE_FEEDBACK_URL: string;
+  readonly VITE_CANNY_BOARD_TOKEN: string;
+  readonly VITE_CANNY_PORTAL_URL: string;
 }
 
-interface ImportMetaEnv {
+interface ImportMeta {
   readonly env: ImportMetaEnv;
 }

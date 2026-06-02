@@ -31,6 +31,20 @@
   line-height: 1.6;
 }
 
+.feedback-canny {
+  min-height: 78vh;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  overflow: hidden;
+  background: #0b0f14;
+}
+
+.feedback-setup-note {
+  margin-top: 1rem;
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
 .feedback-embed iframe {
   width: 100%;
   height: 78vh;
