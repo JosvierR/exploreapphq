@@ -1,4 +1,4 @@
-# Corrige TWILIO_* en Netlify (requiere: netlify login una vez)
+# Corrige TWILIO_* en Netlify (requiere: npx netlify-cli login)
 # Uso: .\scripts\fix-twilio-netlify.ps1
 
 $ErrorActionPreference = "Stop"
@@ -22,15 +22,25 @@ if ($vars.Count -lt 3) {
   Write-Error "netlify.env debe tener TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM"
 }
 
-$site = "sunny-dolphin-b73804"
-Write-Host "Sitio: $site"
-Write-Host "SID (ultimos 8): ...$($vars['TWILIO_ACCOUNT_SID'].Substring($vars['TWILIO_ACCOUNT_SID'].Length - 8))"
+# Site UUID (netlify sites:list) — no requiere netlify link
+$site = "f2d952d2-7ea7-48f6-9fe1-2d490e71cdc0"
+$cli = "netlify-cli@26.1.0"
+
+Write-Host "Sitio: sunny-dolphin-b73804 ($site)"
+$sid = $vars['TWILIO_ACCOUNT_SID']
+if ($sid -notmatch 'fda8c3d') {
+  Write-Warning "TWILIO_ACCOUNT_SID debe contener fda8c3d (no fda0). Revisa netlify.env"
+}
+Write-Host "SID (ultimos 8): ...$($sid.Substring($sid.Length - 8))"
 
 foreach ($key in @("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM")) {
   Write-Host "Setting $key ..."
-  npx --yes netlify-cli@latest env:set $key $vars[$key] --site $site --context production --force
+  npx $cli env:set $key $vars[$key] --site $site --force | Out-Host
 }
 
 Write-Host ""
-Write-Host "Listo. Ahora en Netlify: Deploys -> Trigger deploy -> Deploy site"
+Write-Host "Redeploy (elige una):"
+Write-Host "  npx $cli deploy --prod --build --site $site"
+Write-Host "  o Netlify UI -> Deploys -> Trigger deploy"
+Write-Host ""
 Write-Host "Luego borra welcomeSmsAt en Firestore y prueba /access"
