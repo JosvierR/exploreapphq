@@ -84,6 +84,11 @@ export async function sendSms({ to, body }) {
         "Twilio trial: verify this exact number under Phone Numbers → Verified Caller IDs, then try again.",
       );
     }
+    if (data?.code === 21408 || raw.includes("region indicated by the 'To' number")) {
+      throw new Error(
+        "Twilio cannot SMS this country yet. In Twilio Console → Messaging → Geo permissions, enable Dominican Republic (+1 829/849), then try again.",
+      );
+    }
     throw new Error(raw);
   }
   return { sid: data.sid };
