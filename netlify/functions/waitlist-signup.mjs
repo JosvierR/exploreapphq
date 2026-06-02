@@ -68,10 +68,12 @@ export default async (request) => {
         console.error("[waitlist] welcome email failed:", mailErr);
       }
     }
+    let welcomeSmsSent = false;
     if (needsWelcomeSms && contact.phone) {
       try {
         await sendWelcomeSms(contact.phone);
         await markWelcomeSmsSent(docRef);
+        welcomeSmsSent = true;
       } catch (smsErr) {
         console.error("[waitlist] welcome SMS failed:", smsErr);
       }
@@ -81,6 +83,8 @@ export default async (request) => {
       {
         ok: true,
         created,
+        welcomeSmsSent,
+        smsConfigured: isSmsConfigured(),
         message: created ? "You're on the list." : "You're already on the list.",
       },
       { status: 200, headers: cors },

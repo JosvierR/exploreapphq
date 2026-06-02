@@ -97,7 +97,11 @@ export async function joinWaitlist(input: WaitlistInput): Promise<{ created: boo
     return { created: false };
   }
 
-  const server = await postWaitlistSignup({ phone, email }, { optional: savedInFirestore });
+  // New signups must reach the server (Twilio SMS + Resend). Only skip hard-fail on retry when already on the list.
+  const server = await postWaitlistSignup(
+    { phone, email },
+    { optional: savedInFirestore && !created },
+  );
   return { created: savedInFirestore ? created : server.created };
 }
 
