@@ -14,7 +14,10 @@ export function AccessPage() {
   const [success, setSuccess] = useState<{
     message: string;
     label: string;
+    email?: string;
     smsWarning?: string | null;
+    emailWarning?: string | null;
+    emailSent?: boolean;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -56,14 +59,33 @@ export function AccessPage() {
         }
       }
 
+      let emailWarning: string | null = null;
+      if (normalizedEmail && !result.welcomeEmailSent) {
+        if (result.emailError) {
+          emailWarning = result.emailError;
+        } else if (result.addedEmail === false && !result.created) {
+          emailWarning =
+            "Your email is already on file — we won't send a duplicate welcome email. Check Promotions/Spam for Explore.";
+        } else {
+          emailWarning = "Saved, but the welcome email did not send. Check Promotions/Spam or try again.";
+        }
+      }
+
       setSuccess({
         label: normalizedPhone,
+        email: normalizedEmail || undefined,
+        emailSent: result.welcomeEmailSent === true,
         message: alreadyWelcomed
-          ? "You're already on the list — we texted you earlier. Check your messages for Explore."
+          ? normalizedEmail && result.welcomeEmailSent
+            ? "You're already on the list — we texted you earlier and just sent a welcome email too."
+            : "You're already on the list — we texted you earlier. Check your messages for Explore."
           : result.created
-            ? "You're on the list. We'll text you the moment Explore is ready to download."
+            ? normalizedEmail && result.welcomeEmailSent
+              ? "You're on the list. Check your email and texts for Explore."
+              : "You're on the list. We'll text you the moment Explore is ready to download."
             : "You're already on the list. Sit tight — we'll text you when Explore launches.",
         smsWarning,
+        emailWarning,
       });
       setPhone("");
       setEmail("");
@@ -113,6 +135,16 @@ export function AccessPage() {
             {success.smsWarning && (
               <p className="access-error access-success__sms-warn" role="alert">
                 {success.smsWarning}
+              </p>
+            )}
+            {success.emailWarning && (
+              <p className="access-error access-success__sms-warn" role="alert">
+                {success.emailWarning}
+              </p>
+            )}
+            {success.emailSent && success.email && (
+              <p className="access-success__email-note" role="status">
+                Welcome email sent to {success.email}
               </p>
             )}
             <p className="access-success__email">{success.label}</p>

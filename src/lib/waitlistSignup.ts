@@ -12,6 +12,9 @@ export type WaitlistInput = {
 
 export type JoinWaitlistResult = {
   created: boolean;
+  addedEmail?: boolean;
+  welcomeEmailSent?: boolean;
+  emailError?: string | null;
   welcomeSmsSent?: boolean;
   alreadyWelcomed?: boolean;
   smsError?: string | null;
@@ -40,6 +43,9 @@ async function postWaitlistSignup(payload: WaitlistInput): Promise<JoinWaitlistR
       const data = (await res.json()) as {
         error?: string;
         created?: boolean;
+        addedEmail?: boolean;
+        welcomeEmailSent?: boolean;
+        emailError?: string | null;
         welcomeSmsSent?: boolean;
         alreadyWelcomed?: boolean;
         smsError?: string | null;
@@ -49,6 +55,9 @@ async function postWaitlistSignup(payload: WaitlistInput): Promise<JoinWaitlistR
       if (res.ok) {
         return {
           created: data.created !== false,
+          addedEmail: data.addedEmail === true,
+          welcomeEmailSent: data.welcomeEmailSent === true,
+          emailError: data.emailError ?? null,
           welcomeSmsSent: data.welcomeSmsSent === true,
           alreadyWelcomed: data.alreadyWelcomed === true,
           smsError: data.smsError ?? null,

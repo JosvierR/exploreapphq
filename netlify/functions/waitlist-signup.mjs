@@ -1,5 +1,5 @@
 import { buildWaitlistWelcomeEmail } from "../../server/emails/waitlistWelcome.mjs";
-import { saveWaitlistEntry, markWelcomeSmsSent } from "./lib/saveWaitlistEntry.mjs";
+import { saveWaitlistEntry, markWelcomeSmsSent, markWelcomeEmailSent } from "./lib/saveWaitlistEntry.mjs";
 import { sendEmailViaResend } from "./lib/resendSend.mjs";
 import { sendSms, isSmsConfigured } from "./lib/sendSms.mjs";
 import { buildContact } from "./lib/contact.mjs";
@@ -54,16 +54,22 @@ export default async (request) => {
   }
 
   try {
-    const { created, addedEmail, needsWelcomeSms, docRef } = await saveWaitlistEntry(contact);
+    const { created, addedEmail, needsWelcomeSms, shouldSendWelcomeEmail, docRef } =
+      await saveWaitlistEntry(contact);
 
-    // Welcome email when newly created or email backfilled.
-    if (created || addedEmail) {
+    let welcomeEmailSent = false;
+    let emailError = null;
+    if (shouldSendWelcomeEmail && contact.email) {
       try {
         await sendWelcomeEmail(contact.email);
+        await markWelcomeEmailSent(docRef);
+        welcomeEmailSent = true;
       } catch (mailErr) {
+        emailError = mailErr instanceof Error ? mailErr.message : "Welcome email failed";
         console.error("[waitlist] welcome email failed:", mailErr);
       }
     }
+
     let welcomeSmsSent = false;
     let alreadyWelcomed = false;
     let smsError = null;
@@ -86,6 +92,9 @@ export default async (request) => {
       {
         ok: true,
         created,
+        addedEmail,
+        welcomeEmailSent,
+        emailError,
         welcomeSmsSent,
         alreadyWelcomed,
         smsError,
