@@ -1,13 +1,20 @@
 import "@/styles/feedback.css";
-import { CannyBoard } from "@/components/feedback/CannyBoard";
 
-const CANNY_BOARD_TOKEN = (import.meta.env.VITE_CANNY_BOARD_TOKEN as string | undefined)?.trim();
-const FEEDBACK_URL = (import.meta.env.VITE_FEEDBACK_URL as string | undefined)?.trim();
-/** Optional: https://yourcompany.canny.io — used for “open in new tab” with widget */
 const CANNY_PORTAL_URL = (import.meta.env.VITE_CANNY_PORTAL_URL as string | undefined)?.trim();
+const FEEDBACK_URL = (import.meta.env.VITE_FEEDBACK_URL as string | undefined)?.trim();
+
+/** Public board URL — iframe + “open in tab” (works with ad blockers; widget often breaks). */
+function getBoardUrl(): string | null {
+  if (FEEDBACK_URL) return FEEDBACK_URL;
+  if (CANNY_PORTAL_URL) {
+    const base = CANNY_PORTAL_URL.replace(/\/$/, "");
+    return `${base}/feature-requests`;
+  }
+  return null;
+}
 
 export function FeedbackPage() {
-  const portalUrl = CANNY_PORTAL_URL || FEEDBACK_URL;
+  const boardUrl = getBoardUrl();
 
   return (
     <div className="feedback-page container">
@@ -20,22 +27,27 @@ export function FeedbackPage() {
         </p>
       </header>
 
-      {CANNY_BOARD_TOKEN ? (
-        <CannyBoard boardToken={CANNY_BOARD_TOKEN} portalUrl={portalUrl || undefined} />
-      ) : FEEDBACK_URL ? (
+      {boardUrl ? (
         <div className="feedback-embed">
+          <p className="feedback-open-cta">
+            <a href={boardUrl} target="_blank" rel="noreferrer" className="btn btn-primary">
+              Open feedback board →
+            </a>
+            <span className="feedback-open-hint">
+              Best experience in a new tab (works with Brave / ad blockers).
+            </span>
+          </p>
           <iframe
             title="Explore feedback board"
-            src={FEEDBACK_URL}
+            src={boardUrl}
             loading="lazy"
             allow="clipboard-write"
           />
           <p className="feedback-fallback">
-            Board not loading?{" "}
-            <a href={FEEDBACK_URL} target="_blank" rel="noreferrer">
-              Open it in a new tab
+            Preview not loading?{" "}
+            <a href={boardUrl} target="_blank" rel="noreferrer">
+              Open explore.canny.io/feature-requests
             </a>
-            .
           </p>
         </div>
       ) : (
@@ -49,32 +61,18 @@ export function FeedbackPage() {
             <summary>Connect Canny (5 min)</summary>
             <ol>
               <li>
-                In Canny, finish setup and open your <strong>Portal</strong> (subdomain like{" "}
-                <code>explore.canny.io</code>).
+                Portal: <code>https://explore.canny.io/feature-requests</code>
               </li>
               <li>
-                <strong>Settings → Boards →</strong> your board → <strong>Install</strong> → copy{" "}
-                <strong>Board token</strong>.
+                Netlify → <code>VITE_CANNY_PORTAL_URL=https://explore.canny.io</code> and/or{" "}
+                <code>VITE_FEEDBACK_URL=https://explore.canny.io/feature-requests</code>
               </li>
               <li>
-                Netlify → Environment variables:
-                <ul>
-                  <li>
-                    <code>VITE_CANNY_BOARD_TOKEN</code> = board token
-                  </li>
-                  <li>
-                    <code>VITE_CANNY_PORTAL_URL</code> = portal URL (e.g.{" "}
-                    <code>https://explore.canny.io</code>)
-                  </li>
-                </ul>
-              </li>
-              <li>
-                <strong>Deploys → Trigger deploy</strong>. Reload{" "}
-                <code>/feedback</code>.
+                <strong>Deploys → Trigger deploy</strong>
               </li>
             </ol>
             <p className="feedback-setup-note">
-              Full guide: <code>docs/CANNY_FEEDBACK.md</code> in the repo.
+              Guide: <code>docs/CANNY_FEEDBACK.md</code>
             </p>
           </details>
         </div>

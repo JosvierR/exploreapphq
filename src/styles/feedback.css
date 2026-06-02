@@ -31,6 +31,20 @@
   line-height: 1.6;
 }
 
+.feedback-open-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  text-align: center;
+}
+
+.feedback-open-hint {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
 .feedback-canny {
   min-height: 78vh;
   border: 1px solid rgba(255, 255, 255, 0.12);
