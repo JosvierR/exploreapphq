@@ -94,6 +94,16 @@ Copy `.env.example` to `.env` to customize admin credentials and SMTP.
 3. Vercel → **Environment Variables → Import .env** → paste `vercel.env`.
 4. Deploy. APIs: `/api/waitlist/signup`, `/api/feedback/submit`, `/api/admin/*`.
 5. Firebase → Authorized domains → add `exploreapphq.vercel.app`.
+6. **Analytics** → Enable Web Analytics → redeploy if needed.
+
+## Probar
+
+| Ruta | Uso |
+|------|-----|
+| `/access` | Waitlist |
+| `/feedback` | Ideas |
+| `/team` | Admin: `admin@example.com` / `Admin` |
+| `/admin/waitlist` | Panel + broadcast |
 
 ## Deploy on Netlify (legacy)
 

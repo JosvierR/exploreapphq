@@ -1,5 +1,6 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
+import { VercelAnalytics } from "@/features/analytics/VercelAnalytics";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { MarketingLayout } from "@/components/layout/MarketingLayout";
 import { AccessPage } from "@/pages/auth/AccessPage";
@@ -12,7 +13,19 @@ import { FeedbackPage } from "@/pages/marketing/FeedbackPage";
 import { NotFoundPage } from "@/pages/marketing/NotFoundPage";
 import { WaitlistAdminPage } from "@/pages/admin/WaitlistAdminPage";
 
+function AppRoot() {
+  return (
+    <>
+      <Outlet />
+      <VercelAnalytics />
+    </>
+  );
+}
+
 export const router = createBrowserRouter([
+  {
+    element: <AppRoot />,
+    children: [
   { path: "/access", element: <AccessPage /> },
   { path: "/feedback/*", element: <FeedbackPage /> },
   { path: "/team", element: <TeamLoginPage /> },
@@ -39,4 +52,6 @@ export const router = createBrowserRouter([
     ],
   },
   { path: "*", element: <Navigate to="/access" replace /> },
+    ],
+  },
 ]);

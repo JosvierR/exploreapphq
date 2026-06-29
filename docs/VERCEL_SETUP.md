@@ -32,7 +32,13 @@ Firebase Console → Authentication → Settings → **Authorized domains** → 
 - `exploreapphq.vercel.app`
 - Tu dominio custom si lo conectas
 
-## 5. Probar
+## 5. Web Analytics
+
+1. Vercel → proyecto → **Analytics** → **Enable Web Analytics**
+2. El repo ya incluye `@vercel/analytics` (`src/features/analytics/VercelAnalytics.tsx`)
+3. Redeploy → navega entre `/`, `/access`, `/feedback` → datos en ~30 s
+
+## 6. Probar
 
 | Ruta | Qué |
 |------|-----|
@@ -41,7 +47,7 @@ Firebase Console → Authentication → Settings → **Authorized domains** → 
 | `/team` | Admin: `admin@example.com` / `Admin` |
 | `/admin/waitlist` | Panel + broadcast |
 
-## 6. Dominio custom (exploreapphq.com)
+## 7. Dominio custom (exploreapphq.com)
 
 Vercel → **Domains** → Add → sigue DNS. Luego actualiza `SITE_URL` y `VITE_SITE_URL` y **Redeploy**.
 
