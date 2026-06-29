@@ -32,11 +32,12 @@ Firebase Console → Authentication → Settings → **Authorized domains** → 
 - `exploreapphq.vercel.app`
 - Tu dominio custom si lo conectas
 
-## 5. Web Analytics
+## 5. Web Analytics & Speed Insights
 
 1. Vercel → proyecto → **Analytics** → **Enable Web Analytics**
-2. El repo ya incluye `@vercel/analytics` (`src/features/analytics/VercelAnalytics.tsx`)
-3. Redeploy → navega entre `/`, `/access`, `/feedback` → datos en ~30 s
+2. Vercel → **Speed Insights** → **Enable Speed Insights**
+3. El repo incluye `@vercel/analytics` y `@vercel/speed-insights` (`src/features/analytics/VercelAnalytics.tsx`)
+4. Redeploy → navega el sitio → datos en ~30 s
 
 ## 6. Probar
 
