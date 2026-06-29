@@ -25,7 +25,7 @@ export default async (request) => {
   if (!process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
     return jsonResponse(503, {
       error:
-        "Missing FIREBASE_SERVICE_ACCOUNT_JSON in Netlify. Add the Firebase service account JSON (Secret), redeploy, then refresh.",
+        "Missing FIREBASE_SERVICE_ACCOUNT_JSON. Add it in Vercel Environment Variables (Sensitive), redeploy, then refresh.",
       configMissing: true,
     });
   }

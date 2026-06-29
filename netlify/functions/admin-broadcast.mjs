@@ -39,7 +39,7 @@ export default async (request) => {
 
   if (!process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
     return jsonResponse(503, {
-      error: "Add FIREBASE_SERVICE_ACCOUNT_JSON in Netlify, then redeploy.",
+      error: "Add FIREBASE_SERVICE_ACCOUNT_JSON in Vercel, then redeploy.",
     });
   }
 
@@ -88,7 +88,7 @@ export default async (request) => {
 
   if (sendSmsChannel) {
     if (!isSmsConfigured()) {
-      result.smsError = "Twilio not configured (TWILIO_* in Netlify).";
+      result.smsError = "Twilio not configured (TWILIO_* in Vercel).";
     } else {
       for (const to of phones) {
         try {

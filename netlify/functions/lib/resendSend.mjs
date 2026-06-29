@@ -30,7 +30,7 @@ export function assertResendProductionReady() {
   if (isSandboxFromAddress(from.email)) {
     const d = mailDomainFromEnv();
     throw new Error(
-      `Resend: verify ${d} at https://resend.com/domains — set SMTP_FROM=Explore <onboarding@${d}> in Netlify and redeploy. onboarding@resend.dev cannot email your waitlist.`,
+      `Resend: verify ${d} at https://resend.com/domains — set SMTP_FROM=Explore <onboarding@${d}> in Vercel and redeploy. onboarding@resend.dev cannot email your waitlist.`,
     );
   }
 }
@@ -42,7 +42,7 @@ export function getResendEmailStatus() {
     return {
       ready: false,
       from: `${from.name} <${from.email}>`,
-      reason: "Missing SMTP_PASS (Resend API key re_...) in Netlify environment variables.",
+      reason: "Missing SMTP_PASS (Resend API key re_...) in Vercel environment variables.",
     };
   }
   const mailDomain = mailDomainFromEnv();

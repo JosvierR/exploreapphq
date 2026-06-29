@@ -36,15 +36,9 @@ export type SmsStatus = {
   reason?: string;
 };
 
-function notifyEndpoints(): readonly string[] {
-  const local =
-    typeof window !== "undefined" &&
-    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-  // Local: Express API → Mailpit (port 1025). Production: Netlify Function → Resend.
-  return local
-    ? ["/api/admin/waitlist/notify-launch", "/.netlify/functions/admin-notify-launch"]
-    : ["/.netlify/functions/admin-notify-launch", "/api/admin/waitlist/notify-launch"];
-}
+const NOTIFY_LAUNCH_PATH = "/api/admin/waitlist/notify-launch";
+const WAITLIST_PATH = "/api/admin/waitlist";
+const BROADCAST_PATH = "/api/admin/broadcast";
 
 async function getAdminToken(): Promise<string> {
   if (getHardcodedAdminSession()) {
@@ -77,12 +71,7 @@ type AdminJson = {
 };
 
 function waitlistApiPaths(): readonly string[] {
-  const local =
-    typeof window !== "undefined" &&
-    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-  return local
-    ? ["/api/admin/waitlist", "/.netlify/functions/admin-waitlist"]
-    : ["/.netlify/functions/admin-waitlist", "/api/admin/waitlist"];
+  return [WAITLIST_PATH];
 }
 
 async function adminFetch(path: string, init?: RequestInit): Promise<AdminJson> {
@@ -108,43 +97,30 @@ async function adminFetch(path: string, init?: RequestInit): Promise<AdminJson> 
   return data;
 }
 
-/** POST notify-launch — tries Netlify function URL first (avoids 404 from SPA redirects). */
+/** POST notify-launch */
 async function adminPostNotify(dryRun: boolean): Promise<AdminJson> {
   const token = await getAdminToken();
   const body = JSON.stringify(dryRun ? { dryRun: true } : {});
-  let lastError = "Could not reach launch email service.";
+  const url = dryRun ? `${NOTIFY_LAUNCH_PATH}?dryRun=1` : NOTIFY_LAUNCH_PATH;
 
-  for (const path of notifyEndpoints()) {
-    const url = dryRun ? `${path}?dryRun=1` : path;
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body,
-      });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body,
+  });
 
-      const data = (await res.json().catch(() => ({}))) as AdminJson;
+  const data = (await res.json().catch(() => ({}))) as AdminJson;
 
-      if (res.ok) {
-        return data;
-      }
-
-      lastError = data.error ?? `Request failed (${res.status}).`;
-      if (res.status !== 404 && res.status !== 405) {
-        throw new Error(lastError);
-      }
-    } catch (err) {
-      if (err instanceof Error && err.message !== lastError) {
-        lastError = err.message;
-      }
-    }
+  if (res.ok) {
+    return data;
   }
 
   throw new Error(
-    `${lastError} Add FIREBASE_SERVICE_ACCOUNT_JSON on Netlify and redeploy, or check Functions → admin-notify-launch.`,
+    data.error ??
+      `Could not reach launch email service. Add FIREBASE_SERVICE_ACCOUNT_JSON and redeploy.`,
   );
 }
 
@@ -256,10 +232,7 @@ export type BroadcastResult = {
   error?: string;
 };
 
-const broadcastPaths = (): readonly string[] => [
-  "/.netlify/functions/admin-broadcast",
-  "/api/admin/broadcast",
-];
+const broadcastPaths = (): readonly string[] => [BROADCAST_PATH];
 
 export async function previewBroadcast(payload: BroadcastPayload): Promise<BroadcastResult> {
   return adminPostBroadcast({ ...payload, dryRun: true });

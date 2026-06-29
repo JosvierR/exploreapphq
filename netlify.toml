@@ -1,4 +1,4 @@
-# Explore — Netlify (frontend + waitlist function)
+# Explore — Netlify (legacy). Production host: Vercel (see vercel.json + docs/VERCEL_SETUP.md)
 
 [build]
   command = "npm run build"

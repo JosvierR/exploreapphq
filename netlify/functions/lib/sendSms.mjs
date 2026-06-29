@@ -18,13 +18,13 @@ export function getSmsStatus() {
   if (!sid || !token) {
     return {
       ready: false,
-      reason: "Add TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN in Netlify to enable SMS.",
+      reason: "Add TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN in Vercel to enable SMS.",
     };
   }
   if (!from && !service) {
     return {
       ready: false,
-      reason: "Add TWILIO_FROM (a number) or TWILIO_MESSAGING_SERVICE_SID in Netlify.",
+      reason: "Add TWILIO_FROM (a number) or TWILIO_MESSAGING_SERVICE_SID in Vercel.",
     };
   }
   return { ready: true, from: service ? `service:${service}` : from };
@@ -73,7 +73,7 @@ export async function sendSms({ to, body }) {
     const raw = data?.message || `Twilio rejected the SMS (${res.status}).`;
     if (res.status === 401 || raw === "Authenticate") {
       throw new Error(
-        "Twilio auth failed. In Netlify, set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN to the values in Twilio Console → Account → API keys & tokens, then redeploy.",
+        "Twilio auth failed. In Vercel, set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN to the values in Twilio Console → Account → API keys & tokens, then redeploy.",
       );
     }
     if (raw.includes("not a valid phone number") || data?.code === 21211) {

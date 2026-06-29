@@ -192,7 +192,7 @@ export function WaitlistAdminPage() {
             </li>
             <li>Wait until status is <strong>Verified</strong></li>
             <li>
-              Netlify → <code>SMTP_FROM=Explore &lt;onboarding@
+              Vercel → <code>SMTP_FROM=Explore &lt;onboarding@
               {emailStatus.mailDomain ?? "exploreapphq.com"}&gt;</code>
             </li>
             <li>
@@ -255,7 +255,7 @@ export function WaitlistAdminPage() {
       )}
       {configMissing && (
         <p className="admin-waitlist__warn" role="status">
-          Add <code>FIREBASE_SERVICE_ACCOUNT_JSON</code> in Netlify → Environment variables (marca Secret).
+          Add <code>FIREBASE_SERVICE_ACCOUNT_JSON</code> in Vercel → Environment Variables (Sensitive).
           Pega el JSON de Firebase → Service accounts → Generate key. Luego <strong>Trigger deploy</strong> y Refresh.
         </p>
       )}
@@ -404,7 +404,7 @@ export function WaitlistAdminPage() {
         open <a href="http://localhost:8025">localhost:8025</a> — all test emails appear there (no real
         inbox).         <strong>Production:</strong> guía{" "}
         <code>docs/PASOS_PRODUCCION_COMPLETO.md</code> — Resend Verified + importar{" "}
-        <code>netlify.env</code>.
+        <code>vercel.env</code>.
       </p>
     </div>
   );

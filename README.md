@@ -85,7 +85,17 @@ npm run preview  # Preview production build
 
 Copy `.env.example` to `.env` to customize admin credentials and SMTP.
 
-## Deploy on Netlify
+## Deploy on Vercel (production)
+
+**Full checklist:** [docs/VERCEL_SETUP.md](docs/VERCEL_SETUP.md)
+
+1. Import repo at [vercel.com/new](https://vercel.com/new) (Framework: **Vite**).
+2. Run `npm run vercel:env` (copies `netlify.env` → `vercel.env` with Vercel URL) or use `vercel.env.example`.
+3. Vercel → **Environment Variables → Import .env** → paste `vercel.env`.
+4. Deploy. APIs: `/api/waitlist/signup`, `/api/feedback/submit`, `/api/admin/*`.
+5. Firebase → Authorized domains → add `exploreapphq.vercel.app`.
+
+## Deploy on Netlify (legacy)
 
 Netlify hosts **only the frontend** (`dist/`). The API (`server/`) must run elsewhere (e.g. [Railway](https://railway.app), [Render](https://render.com)).
 

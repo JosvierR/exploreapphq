@@ -28,7 +28,7 @@ export default async (request) => {
   if (!process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
     return jsonResponse(503, {
       error:
-        "Add FIREBASE_SERVICE_ACCOUNT_JSON in Netlify environment variables (Secret), then redeploy.",
+        "Add FIREBASE_SERVICE_ACCOUNT_JSON in Vercel Environment Variables, then redeploy.",
     });
   }
 

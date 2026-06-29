@@ -52,7 +52,7 @@ export function AccessPage() {
           smsWarning = result.smsError;
         } else if (result.smsConfigured === false) {
           smsWarning =
-            "Saved, but SMS is off on the server. In Netlify → Environment variables, add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM, then redeploy.";
+            "Saved, but SMS is off on the server. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM in Vercel environment variables, then redeploy.";
         } else {
           smsWarning =
             "Saved, but the welcome text did not send. On Twilio trial, verify this exact number under Verified Caller IDs.";

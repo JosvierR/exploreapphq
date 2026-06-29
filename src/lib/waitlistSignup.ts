@@ -1,9 +1,6 @@
 import { apiUrl } from "@/lib/api";
 
-const WAITLIST_PATHS = [
-  "/.netlify/functions/waitlist-signup",
-  "/api/waitlist/signup",
-] as const;
+const WAITLIST_PATH = "/api/waitlist/signup";
 
 export type WaitlistInput = {
   phone?: string;
@@ -23,61 +20,56 @@ export type JoinWaitlistResult = {
 };
 
 async function postWaitlistSignup(payload: WaitlistInput): Promise<JoinWaitlistResult> {
-  let lastError = "Could not reach the signup service. Try again in a moment.";
+  const url = apiUrl(WAITLIST_PATH);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-  for (const path of WAITLIST_PATHS) {
-    const url = path.startsWith("/.") ? path : apiUrl(path);
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const contentType = res.headers.get("content-type") ?? "";
-      if (!contentType.includes("application/json")) {
-        lastError =
-          "Signup API returned an invalid response. Redeploy Netlify or check Functions → waitlist-signup.";
-        continue;
-      }
-
-      const data = (await res.json()) as {
-        error?: string;
-        created?: boolean;
-        addedEmail?: boolean;
-        welcomeEmailSent?: boolean;
-        emailAlreadySent?: boolean;
-        emailError?: string | null;
-        welcomeSmsSent?: boolean;
-        alreadyWelcomed?: boolean;
-        smsError?: string | null;
-        smsConfigured?: boolean;
-      };
-
-      if (res.ok) {
-        return {
-          created: data.created !== false,
-          addedEmail: data.addedEmail === true,
-          welcomeEmailSent: data.welcomeEmailSent === true,
-          emailAlreadySent: data.emailAlreadySent === true,
-          emailError: data.emailError ?? null,
-          welcomeSmsSent: data.welcomeSmsSent === true,
-          alreadyWelcomed: data.alreadyWelcomed === true,
-          smsError: data.smsError ?? null,
-          smsConfigured: data.smsConfigured === true,
-        };
-      }
-      lastError = data.error ?? lastError;
-    } catch (err) {
-      if (err instanceof Error) lastError = err.message;
+    const contentType = res.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) {
+      throw new Error(
+        "Signup API returned an invalid response. Redeploy or check server logs for waitlist-signup.",
+      );
     }
-  }
 
-  throw new Error(lastError);
+    const data = (await res.json()) as {
+      error?: string;
+      created?: boolean;
+      addedEmail?: boolean;
+      welcomeEmailSent?: boolean;
+      emailAlreadySent?: boolean;
+      emailError?: string | null;
+      welcomeSmsSent?: boolean;
+      alreadyWelcomed?: boolean;
+      smsError?: string | null;
+      smsConfigured?: boolean;
+    };
+
+    if (res.ok) {
+      return {
+        created: data.created !== false,
+        addedEmail: data.addedEmail === true,
+        welcomeEmailSent: data.welcomeEmailSent === true,
+        emailAlreadySent: data.emailAlreadySent === true,
+        emailError: data.emailError ?? null,
+        welcomeSmsSent: data.welcomeSmsSent === true,
+        alreadyWelcomed: data.alreadyWelcomed === true,
+        smsError: data.smsError ?? null,
+        smsConfigured: data.smsConfigured === true,
+      };
+    }
+    throw new Error(data.error ?? "Could not reach the signup service. Try again in a moment.");
+  } catch (err) {
+    if (err instanceof Error) throw err;
+    throw new Error("Could not reach the signup service. Try again in a moment.");
+  }
 }
 
 /**
- * Join waitlist via Netlify function (Firestore admin + Resend + Twilio).
+ * Join waitlist via server API (Firestore admin + Resend + Twilio).
  * Client does not write Firestore — avoids permission errors and duplicate docs.
  */
 export async function joinWaitlist(input: WaitlistInput): Promise<JoinWaitlistResult> {

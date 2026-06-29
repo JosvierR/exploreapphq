@@ -18,7 +18,7 @@
     "dev:mail": "docker compose up -d mailpit",
     "netlify:env": "powershell -ExecutionPolicy Bypass -File scripts/crear-netlify-env.ps1",
     "resend:check": "node scripts/check-resend-domain.mjs",
-    "netlify:sync": "powershell -ExecutionPolicy Bypass -File scripts/sync-netlify-produccion.ps1"
+    "vercel:env": "powershell -ExecutionPolicy Bypass -File scripts/crear-vercel-env.ps1"
   },
   "dependencies": {
     "@netlify/blobs": "^8.1.0",
