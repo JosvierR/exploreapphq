@@ -12,7 +12,7 @@ Copia `vercel.env.example` → `vercel.env`, rellena con los mismos valores de t
 
 En Vercel → **Settings → Environment Variables → Import .env** → pega `vercel.env`.
 
-Marca **Sensitive** en: `SMTP_PASS`, `TWILIO_AUTH_TOKEN`, `FIREBASE_SERVICE_ACCOUNT_JSON`.
+Marca **Sensitive** en: `SMTP_PASS`, `TWILIO_AUTH_TOKEN`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `SUPABASE_SECRET_KEY`.
 
 | Variable | Notas |
 |----------|--------|
@@ -20,6 +20,10 @@ Marca **Sensitive** en: `SMTP_PASS`, `TWILIO_AUTH_TOKEN`, `FIREBASE_SERVICE_ACCO
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Una línea JSON (Firebase → Service accounts) |
 | `SMTP_FROM` | `Explore <onboarding@exploreapphq.com>` (dominio verificado en Resend) |
 | `VITE_*` | Necesarias en **Production** y **Preview** (build del cliente) |
+| `VITE_SUPABASE_URL` | `https://ookbeuiavzjhvezvamfu.supabase.co` |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Publishable key de Supabase para login del admin |
+| `SUPABASE_SECRET_KEY` | Service role key, solo server-side en Vercel Functions |
+| `EXPLORE_ADMIN_ALLOWED_EMAILS` | Fallback temporal hasta poblar `admin_users` |
 
 ## 3. Deploy
 
@@ -46,6 +50,8 @@ Firebase Console → Authentication → Settings → **Authorized domains** → 
 | `/access` | Waitlist (teléfono + email) |
 | `/feedback` | Ideas / feedback |
 | `/team` | Admin: `admin@example.com` / `Admin` |
+| `/admin` | Supabase moderation dashboard |
+| `/admin/reports` | Moderation reports table |
 | `/admin/waitlist` | Panel + broadcast |
 
 ## 7. Dominio custom (exploreapphq.com)
@@ -61,5 +67,10 @@ Vercel → **Domains** → Add → sigue DNS. Luego actualiza `SITE_URL` y `VITE
 | `GET /api/admin/waitlist` | Lista admin |
 | `POST /api/admin/waitlist/notify-launch` | Email de lanzamiento |
 | `POST /api/admin/broadcast` | SMS + email masivo |
+| `POST /api/reports` | Mobile app content reports |
+| `GET /api/admin/reports` | Admin moderation report list |
+| `PATCH /api/admin/reports/:id` | Update report status |
+| `POST /api/admin/moderation/action` | Apply moderation action |
 
 La lógica está en `netlify/functions/` (reutilizada vía `api/`).
+La moderación Supabase está en `api/lib/supabaseModeration.mjs` y `supabase/migrations/20260629170000_moderation.sql`.

@@ -1,6 +1,17 @@
 import cors from "cors";
 import express from "express";
+import type { Request as ExpressRequest, Response as ExpressResponse } from "express";
 import jwt from "jsonwebtoken";
+// Plain ESM handlers are shared with Vercel serverless functions.
+// @ts-ignore
+import {
+  handleAdminModerationAction,
+  handleAdminMe,
+  handleAdminReportById,
+  handleAdminReports,
+  handleHealth,
+  handleReports,
+} from "../api/lib/supabaseModeration.mjs";
 import { requireAdmin } from "./adminAuth.js";
 import { config } from "./config.js";
 import {
@@ -22,6 +33,63 @@ const app = express();
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
+type FetchHandler = (request: Request) => Promise<Response>;
+
+function expressHeaders(req: ExpressRequest) {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (value == null) continue;
+    if (Array.isArray(value)) {
+      value.forEach((item) => headers.append(key, item));
+    } else {
+      headers.set(key, value);
+    }
+  }
+  return headers;
+}
+
+function expressUrl(req: ExpressRequest) {
+  const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
+  const host = req.headers["x-forwarded-host"] || req.headers.host || `localhost:${config.port}`;
+  return `${protocol}://${host}${req.originalUrl || req.url}`;
+}
+
+async function sendFetchResponse(
+  handler: FetchHandler,
+  req: ExpressRequest,
+  res: ExpressResponse,
+) {
+  try {
+    const headers = expressHeaders(req);
+    let body: string | undefined;
+    if (req.method !== "GET" && req.method !== "HEAD" && req.body !== undefined) {
+      body = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+      if (!headers.has("content-type")) headers.set("content-type", "application/json");
+    }
+
+    const request = new Request(expressUrl(req), {
+      method: req.method,
+      headers,
+      body,
+    });
+    const response = await handler(request);
+
+    res.status(response.status);
+    response.headers.forEach((value, key) => {
+      if (key.toLowerCase() !== "transfer-encoding") {
+        res.setHeader(key, value);
+      }
+    });
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length > 0) res.send(buffer);
+    else res.end();
+  } catch (err) {
+    console.error("[moderation-api]", err);
+    res.status(500).json({ ok: false, error: "Unexpected server error." });
+  }
+}
+
 function normalizeEmail(email: unknown): string | null {
   if (typeof email !== "string") return null;
   const trimmed = email.trim().toLowerCase();
@@ -29,8 +97,28 @@ function normalizeEmail(email: unknown): string | null {
   return trimmed;
 }
 
-app.get("/api/health", (_req, res) => {
-  res.json({ ok: true });
+app.all("/api/health", (req, res) => {
+  void sendFetchResponse(handleHealth, req, res);
+});
+
+app.all("/api/reports", (req, res) => {
+  void sendFetchResponse(handleReports, req, res);
+});
+
+app.all("/api/admin/reports", (req, res) => {
+  void sendFetchResponse(handleAdminReports, req, res);
+});
+
+app.all("/api/admin/me", (req, res) => {
+  void sendFetchResponse(handleAdminMe, req, res);
+});
+
+app.all("/api/admin/reports/:id", (req, res) => {
+  void sendFetchResponse((request) => handleAdminReportById(request, req.params.id), req, res);
+});
+
+app.all("/api/admin/moderation/action", (req, res) => {
+  void sendFetchResponse(handleAdminModerationAction, req, res);
 });
 
 /** Public waitlist signup (email only) — used by the Firebase front-end */

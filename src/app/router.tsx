@@ -11,6 +11,8 @@ import { PrivacyPage } from "@/pages/marketing/PrivacyPage";
 import { ThanksPage } from "@/pages/marketing/ThanksPage";
 import { FeedbackPage } from "@/pages/marketing/FeedbackPage";
 import { NotFoundPage } from "@/pages/marketing/NotFoundPage";
+import { AdminDashboardPage } from "@/pages/admin/AdminDashboardPage";
+import { ReportsAdminPage } from "@/pages/admin/ReportsAdminPage";
 import { WaitlistAdminPage } from "@/pages/admin/WaitlistAdminPage";
 
 function AppRoot() {
@@ -29,6 +31,13 @@ export const router = createBrowserRouter([
   { path: "/access", element: <AccessPage /> },
   { path: "/feedback/*", element: <FeedbackPage /> },
   { path: "/team", element: <TeamLoginPage /> },
+  {
+    element: <AdminLayout />,
+    children: [
+      { path: "/admin", element: <AdminDashboardPage /> },
+      { path: "/admin/reports", element: <ReportsAdminPage /> },
+    ],
+  },
   {
     element: (
       <ProtectedRoute>

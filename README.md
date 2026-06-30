@@ -96,6 +96,16 @@ Copy `.env.example` to `.env` to customize admin credentials and SMTP.
 5. Firebase → Authorized domains → add `exploreapphq.vercel.app`.
 6. **Analytics** + **Speed Insights** → Enable both → redeploy if needed.
 
+### Supabase moderation
+
+The mobile report API and admin moderation panel use the production Supabase project `ookbeuiavzjhvezvamfu`.
+
+- Vercel env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`
+- Migration: `supabase/migrations/20260629170000_moderation.sql`
+- Admin UI: `/admin`, `/admin/reports`
+- Mobile API: `POST /api/reports`
+- Full setup and test flow: [docs/SUPABASE_MODERATION.md](docs/SUPABASE_MODERATION.md)
+
 ## Probar
 
 | Ruta | Uso |
@@ -103,6 +113,8 @@ Copy `.env.example` to `.env` to customize admin credentials and SMTP.
 | `/access` | Waitlist |
 | `/feedback` | Ideas |
 | `/team` | Admin: `admin@example.com` / `Admin` |
+| `/admin` | Supabase moderation dashboard |
+| `/admin/reports` | Moderation reports |
 | `/admin/waitlist` | Panel + broadcast |
 
 ## Deploy on Netlify (legacy)
