@@ -8,26 +8,17 @@ import {
   jsonResponse,
   optionsResponse,
 } from "./supabaseModeration.mjs";
-
-function apiPathname(request) {
-  const pathname = new URL(request.url).pathname.replace(/\/+$/, "");
-  return pathname.replace(/^\/api\/?/, "");
-}
-
-function routeKey(pathname) {
-  return pathname.split("/").filter(Boolean).join("/");
-}
+import { resolveApiRoute } from "./resolveApiRoute.mjs";
 
 /**
- * Single entry for moderation/admin Supabase API routes.
+ * Supabase moderation + admin API routes.
  */
-export async function dispatchModerationApi(request) {
+export async function dispatchModerationApi(request, routeOverride) {
   if (request.method === "OPTIONS") {
     return optionsResponse();
   }
 
-  const pathname = apiPathname(request);
-  const route = routeKey(pathname);
+  const route = routeOverride ?? resolveApiRoute(request);
 
   if (route === "health") {
     return handleHealth(request);
