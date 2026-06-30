@@ -11,6 +11,8 @@ function isModerationRoute(route) {
   return (
     route === "health" ||
     route === "reports" ||
+    route === "user/hidden-content" ||
+    route === "user/hidden-content/unhide" ||
     route === "admin/me" ||
     route === "admin/reports" ||
     /^admin\/reports\/[^/]+$/.test(route) ||

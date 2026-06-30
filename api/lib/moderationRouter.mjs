@@ -5,6 +5,8 @@ import {
   handleAdminReports,
   handleHealth,
   handleReports,
+  handleUserHiddenContent,
+  handleUserHiddenContentUnhide,
   jsonResponse,
   optionsResponse,
 } from "./supabaseModeration.mjs";
@@ -26,6 +28,14 @@ export async function dispatchModerationApi(request, routeOverride) {
 
   if (route === "reports") {
     return handleReports(request);
+  }
+
+  if (route === "user/hidden-content") {
+    return handleUserHiddenContent(request);
+  }
+
+  if (route === "user/hidden-content/unhide") {
+    return handleUserHiddenContentUnhide(request);
   }
 
   if (route === "admin/me") {

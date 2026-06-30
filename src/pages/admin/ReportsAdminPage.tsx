@@ -16,6 +16,7 @@ import {
   formatReasonLabel,
   formatRelativeTime,
   formatStatusLabel,
+  formatVisibilityLabel,
   safeMetadataPreview,
   shortId,
   targetImage,
@@ -132,12 +133,12 @@ function ReportsAdminContent() {
   }
 
   async function runModerationAction(report: AdminReport, actionType: ModerationActionType) {
-    const destructive = actionType === "hide_video" || actionType === "suspend_user" || actionType === "remove_content";
-    if (destructive && !window.confirm(confirmationMessage(actionType))) {
+    const confirmation = confirmationMessage(actionType);
+    if (confirmation && !window.confirm(confirmation)) {
       return;
     }
 
-    setBusyAction({ reportId: report.id, label: primaryActionLabel(report) });
+    setBusyAction({ reportId: report.id, label: actionLabel(actionType) });
     setActionError(null);
     setToast(null);
     try {
@@ -284,6 +285,7 @@ function ReportsAdminContent() {
                     <th>Reason</th>
                     <th>Target preview</th>
                     <th>Reporter</th>
+                    <th>Visibility</th>
                     <th>Status</th>
                     <th>Created date</th>
                     <th>Actions</th>
@@ -303,6 +305,9 @@ function ReportsAdminContent() {
                       </td>
                       <td>
                         <span className="admin-code">{shortId(report.reporter_id)}</span>
+                      </td>
+                      <td>
+                        <VisibilityBadge report={report} />
                       </td>
                       <td>
                         <StatusBadge status={report.status} />
@@ -353,7 +358,7 @@ function ReportsAdminContent() {
           onClose={() => setSelected(null)}
           onReview={() => void runReportStatus(selected, "reviewed")}
           onDismiss={() => void runReportStatus(selected, "dismissed")}
-          onModerationAction={() => void runModerationAction(selected, primaryAction(selected))}
+          onModerationAction={(actionType) => void runModerationAction(selected, actionType)}
         />
       )}
     </div>
@@ -374,6 +379,20 @@ function ReasonChip({ reason }: { reason: AdminReport["reason"] }) {
 
 function StatusBadge({ status }: { status: AdminReport["status"] }) {
   return <span className={`admin-badge admin-badge--status-${status}`}>{formatStatusLabel(status)}</span>;
+}
+
+function VisibilityBadge({ report }: { report: AdminReport }) {
+  const visibility = visibilityValue(report);
+
+  if (!visibility) {
+    return <span className="admin-muted">Not available</span>;
+  }
+
+  return (
+    <span className={`admin-badge admin-badge--visibility-${badgeClassValue(visibility)}`}>
+      {formatVisibilityLabel(visibility)}
+    </span>
+  );
 }
 
 function TargetPreview({ report }: { report: AdminReport }) {
@@ -457,6 +476,7 @@ function ReportCard({
         <span className="admin-report-card__badges">
           <TypeBadge report={report} />
           <ReasonChip reason={report.reason} />
+          <VisibilityBadge report={report} />
           <StatusBadge status={report.status} />
         </span>
         <span className="admin-report-card__meta">
@@ -491,10 +511,10 @@ function ReportDrawer({
   onClose: () => void;
   onReview: () => void;
   onDismiss: () => void;
-  onModerationAction: () => void;
+  onModerationAction: (actionType: ModerationActionType) => void;
 }) {
   const busy = busyAction?.reportId === report.id;
-  const actionLabel = primaryActionLabel(report);
+  const actions = contentActions(report);
 
   return (
     <div
@@ -549,6 +569,12 @@ function ReportDrawer({
           <dd>
             <StatusBadge status={report.status} />
           </dd>
+          <dt>Target visibility</dt>
+          <dd>
+            <VisibilityBadge report={report} />
+          </dd>
+          <dt>Target state</dt>
+          <dd>{report.target.state || report.target.visibility || "Not available"}</dd>
           <dt>Reviewed by</dt>
           <dd>{report.reviewed_by ? <code>{report.reviewed_by}</code> : "Not reviewed yet."}</dd>
           <dt>Reviewed at</dt>
@@ -585,31 +611,53 @@ function ReportDrawer({
           />
         </label>
 
-        <div className="admin-drawer__actions">
-          <button
-            type="button"
-            className="admin-btn admin-btn--secondary"
-            disabled={busy || report.status === "reviewed"}
-            onClick={onReview}
-          >
-            {busy ? "Working..." : "Mark reviewed"}
-          </button>
-          <button
-            type="button"
-            className="admin-btn admin-btn--secondary"
-            disabled={busy || report.status === "dismissed"}
-            onClick={onDismiss}
-          >
-            Dismiss
-          </button>
-          <button
-            type="button"
-            className="admin-btn admin-btn--danger"
-            disabled={busy || report.status === "removed"}
-            onClick={onModerationAction}
-          >
-            {busy ? "Working..." : actionLabel}
-          </button>
+        <div className="admin-drawer__actions admin-action-groups">
+          <section className="admin-action-group" aria-label="Report actions">
+            <div className="admin-action-group__header">
+              <h4>Report actions</h4>
+              <p>Mark reviewed and dismiss update only the report case.</p>
+            </div>
+            <div className="admin-action-group__buttons">
+              <button
+                type="button"
+                className="admin-btn admin-btn--secondary"
+                disabled={busy || report.status === "reviewed"}
+                onClick={onReview}
+              >
+                {busy ? "Working..." : "Mark reviewed"}
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn--secondary"
+                disabled={busy || report.status === "dismissed"}
+                onClick={onDismiss}
+              >
+                Dismiss report
+              </button>
+            </div>
+          </section>
+
+          {actions.length > 0 && (
+            <section className="admin-action-group" aria-label="Content actions">
+              <div className="admin-action-group__header">
+                <h4>Content visibility</h4>
+                <p>Hide, restore, and remove affect public visibility.</p>
+              </div>
+              <div className="admin-action-group__buttons">
+                {actions.map((action) => (
+                  <button
+                    type="button"
+                    className={`admin-btn ${action.variant === "danger" ? "admin-btn--danger" : "admin-btn--secondary"}`}
+                    disabled={busy || contentActionDisabled(report, action.type)}
+                    onClick={() => onModerationAction(action.type)}
+                    key={action.type}
+                  >
+                    {busy ? "Working..." : action.label}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </aside>
     </div>
@@ -682,21 +730,88 @@ function InlineError({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-function primaryAction(report: AdminReport): ModerationActionType {
-  if (report.content_type === "video") return "hide_video";
-  if (report.content_type === "user") return "suspend_user";
-  return "remove_content";
+type ContentAction = {
+  type: ModerationActionType;
+  label: string;
+  variant?: "danger" | "secondary";
+};
+
+function contentActions(report: AdminReport): ContentAction[] {
+  if (report.content_type === "video") {
+    return [
+      { type: "hide_video", label: "Hide video", variant: "danger" },
+      { type: "restore_video", label: "Restore video" },
+      { type: "remove_content", label: "Remove content", variant: "danger" },
+    ];
+  }
+
+  if (report.content_type === "place") {
+    return [
+      { type: "hide_place", label: "Hide place", variant: "danger" },
+      { type: "restore_place", label: "Restore place" },
+    ];
+  }
+
+  if (report.content_type === "user") {
+    return [
+      { type: "suspend_user", label: "Suspend user", variant: "danger" },
+      { type: "unsuspend_user", label: "Unsuspend user" },
+    ];
+  }
+
+  return [{ type: "remove_content", label: "Remove content", variant: "danger" }];
 }
 
-function primaryActionLabel(report: AdminReport) {
-  if (report.content_type === "video") return "Hide content";
-  if (report.content_type === "user") return "Suspend user";
-  return "Remove content";
+function contentActionDisabled(report: AdminReport, actionType: ModerationActionType) {
+  const visibility = visibilityValue(report);
+
+  if (actionType === "hide_video" || actionType === "hide_place") {
+    return visibility === "hidden" || visibility === "removed";
+  }
+
+  if (actionType === "restore_video" || actionType === "restore_place") {
+    return visibility === "active";
+  }
+
+  if (actionType === "remove_content") {
+    return visibility === "removed";
+  }
+
+  return false;
+}
+
+function actionLabel(actionType: ModerationActionType) {
+  const labels: Record<ModerationActionType, string> = {
+    hide_video: "Hide video",
+    restore_video: "Restore video",
+    hide_place: "Hide place",
+    restore_place: "Restore place",
+    suspend_user: "Suspend user",
+    unsuspend_user: "Unsuspend user",
+    dismiss_report: "Dismiss report",
+    mark_reviewed: "Mark reviewed",
+    remove_content: "Remove content",
+  };
+
+  return labels[actionType];
 }
 
 function confirmationMessage(actionType: ModerationActionType) {
+  if (actionType === "hide_video") return "This will hide the video from Explore for everyone. Continue?";
+  if (actionType === "remove_content") return "This will remove the content from public visibility. Continue?";
+  if (actionType === "restore_video") return "This will make the video visible again. Continue?";
+  if (actionType === "hide_place") return "This will hide the place from Explore for everyone. Continue?";
+  if (actionType === "restore_place") return "This will make the place visible again. Continue?";
   if (actionType === "suspend_user") return "Are you sure you want to suspend this user?";
-  return "Are you sure you want to remove this content?";
+  return null;
+}
+
+function visibilityValue(report: AdminReport) {
+  return report.target.moderation_status || report.target.visibility || "";
+}
+
+function badgeClassValue(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9_-]+/g, "_");
 }
 
 function searchableReportText(report: AdminReport) {
@@ -709,6 +824,9 @@ function searchableReportText(report: AdminReport) {
     report.status,
     report.reporter_id,
     report.reviewed_by,
+    report.target.moderation_status,
+    report.target.state,
+    report.target.visibility,
     targetTitle(report),
     targetSubtitle(report),
     safeMetadataPreview(report.metadata, 20),
