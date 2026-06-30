@@ -1,12 +1,24 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminAuthGate } from "@/pages/admin/AdminAuthGate";
+import { useModerationAdmin } from "@/features/admin/ModerationAdminProvider";
 import {
   fetchDashboardStats,
   fetchReports,
   type AdminReport,
   type DashboardStats,
 } from "@/lib/moderationAdminApi";
+import {
+  formatContentTypeLabel,
+  formatDateTime,
+  formatReasonLabel,
+  formatRelativeTime,
+  formatStatusLabel,
+  safeMetadataPreview,
+  targetImage,
+  targetSubtitle,
+  targetTitle,
+} from "@/lib/adminModerationFormat";
 import "@/styles/admin-moderation.css";
 
 export function AdminDashboardPage() {
@@ -18,8 +30,11 @@ export function AdminDashboardPage() {
 }
 
 function AdminDashboardContent() {
+  const admin = useModerationAdmin();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [pending, setPending] = useState<AdminReport[]>([]);
   const [recent, setRecent] = useState<AdminReport[]>([]);
+  const [totalReports, setTotalReports] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,16 +42,21 @@ function AdminDashboardContent() {
     setLoading(true);
     setError(null);
     try {
-      const [nextStats, nextReports] = await Promise.all([
+      const [nextStats, pendingReports, recentReports] = await Promise.all([
         fetchDashboardStats(),
         fetchReports({ status: "pending", limit: 5 }),
+        fetchReports({ status: "all", limit: 6 }),
       ]);
       setStats(nextStats);
-      setRecent(nextReports.reports);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load moderation dashboard.");
+      setPending(pendingReports.reports);
+      setRecent(recentReports.reports);
+      setTotalReports(recentReports.total);
+    } catch {
+      setError("Unable to load reports.");
       setStats(null);
+      setPending([]);
       setRecent([]);
+      setTotalReports(0);
     } finally {
       setLoading(false);
     }
@@ -46,17 +66,20 @@ function AdminDashboardContent() {
     void load();
   }, [load]);
 
+  const displayName = useMemo(() => admin.user?.email?.split("@")[0] || "admin", [admin.user?.email]);
+  const noReports = !loading && !error && totalReports === 0;
+
   return (
     <div className="admin-moderation">
-      <header className="admin-moderation__header">
+      <header className="admin-page-header">
         <div>
-          <p className="admin-moderation__eyebrow">Moderation</p>
-          <h1>Dashboard</h1>
-          <p>Review user-submitted reports from the Explore mobile app.</p>
+          <p className="admin-eyebrow">Welcome back, {displayName}</p>
+          <h2>Moderation overview</h2>
+          <p>Track report volume, review the pending queue, and move quickly through safety actions.</p>
         </div>
-        <div className="admin-moderation__header-actions">
-          <button type="button" className="admin-btn admin-btn--secondary" onClick={() => void load()}>
-            Refresh
+        <div className="admin-page-header__actions">
+          <button type="button" className="admin-btn admin-btn--secondary" onClick={() => void load()} disabled={loading}>
+            {loading ? "Refreshing..." : "Refresh"}
           </button>
           <Link to="/admin/reports" className="admin-btn admin-btn--primary">
             Open reports
@@ -65,72 +88,181 @@ function AdminDashboardContent() {
       </header>
 
       {error && (
-        <p className="admin-moderation__error" role="alert">
-          {error}
-        </p>
+        <ErrorState
+          title="Unable to load reports."
+          message="The moderation API did not return the dashboard data."
+          onRetry={() => void load()}
+        />
       )}
 
-      <section className="admin-moderation__stats" aria-label="Moderation stats">
-        <StatCard label="Pending reports" value={stats?.pending} loading={loading} />
-        <StatCard label="Video reports" value={stats?.video} loading={loading} />
-        <StatCard label="User reports" value={stats?.user} loading={loading} />
-        <StatCard label="Place reports" value={stats?.place} loading={loading} />
-        <StatCard label="Reviewed today" value={stats?.reviewedToday} loading={loading} />
-        <StatCard label="Removed or hidden" value={stats?.removed} loading={loading} />
+      <section className="admin-stats-grid" aria-label="Moderation stats">
+        <StatCard label="Pending reports" value={stats?.pending} loading={loading} tone="warning" />
+        <StatCard label="Video reports" value={stats?.video} loading={loading} tone="blue" />
+        <StatCard label="User reports" value={stats?.user} loading={loading} tone="violet" />
+        <StatCard label="Place reports" value={stats?.place} loading={loading} tone="green" />
+        <StatCard label="Reviewed today" value={stats?.reviewedToday} loading={loading} tone="neutral" />
+        <StatCard label="Removed/hidden content" value={stats?.removed} loading={loading} tone="danger" />
       </section>
 
-      <section className="admin-panel">
-        <div className="admin-panel__header">
-          <h2>Pending queue</h2>
-          <Link to="/admin/reports" className="admin-panel__link">
-            View all
-          </Link>
-        </div>
-        {loading ? (
-          <p className="admin-moderation__muted">Loading reports...</p>
-        ) : recent.length === 0 ? (
-          <p className="admin-moderation__muted">No pending reports.</p>
-        ) : (
-          <div className="admin-mini-list">
-            {recent.map((report) => (
-              <Link key={report.id} to="/admin/reports" className="admin-mini-list__item">
-                <span>
-                  <strong>{formatContentType(report.content_type)}</strong>
-                  {targetLabel(report)}
-                </span>
-                <span className="admin-badge admin-badge--pending">{formatReason(report.reason)}</span>
+      {noReports ? (
+        <EmptyState
+          title="No reports yet"
+          message="Reports submitted from the Explore mobile app will appear here."
+        />
+      ) : (
+        <div className="admin-dashboard-grid">
+          <section className="admin-panel">
+            <div className="admin-panel__header">
+              <div>
+                <p className="admin-panel__kicker">Queue</p>
+                <h3>Pending queue</h3>
+              </div>
+              <Link to="/admin/reports" className="admin-panel__link">
+                View all
               </Link>
-            ))}
-          </div>
-        )}
-      </section>
+            </div>
+
+            {loading ? (
+              <SkeletonList rows={5} />
+            ) : pending.length === 0 ? (
+              <div className="admin-quiet-state">
+                <strong>No pending reports</strong>
+                <span>The queue is clear right now.</span>
+              </div>
+            ) : (
+              <div className="admin-report-list">
+                {pending.map((report) => (
+                  <ReportPreview key={report.id} report={report} compact />
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="admin-panel">
+            <div className="admin-panel__header">
+              <div>
+                <p className="admin-panel__kicker">Activity</p>
+                <h3>Recent reports</h3>
+              </div>
+              <span className="admin-panel__meta">{totalReports} total</span>
+            </div>
+
+            {loading ? (
+              <SkeletonList rows={6} />
+            ) : recent.length === 0 ? (
+              <div className="admin-quiet-state">
+                <strong>No reports yet</strong>
+                <span>New submissions will appear here.</span>
+              </div>
+            ) : (
+              <div className="admin-report-list">
+                {recent.map((report) => (
+                  <ReportPreview key={report.id} report={report} />
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+      )}
     </div>
   );
 }
 
-function StatCard({ label, value, loading }: { label: string; value?: number; loading: boolean }) {
+function StatCard({
+  label,
+  value,
+  loading,
+  tone,
+}: {
+  label: string;
+  value?: number;
+  loading: boolean;
+  tone: "warning" | "blue" | "violet" | "green" | "neutral" | "danger";
+}) {
   return (
-    <div className="admin-stat admin-stat--moderation">
-      <span className="admin-stat__value">{loading ? "..." : value ?? 0}</span>
-      <span className="admin-stat__label">{label}</span>
+    <div className={`admin-stat-card admin-stat-card--${tone}`}>
+      <span className="admin-stat-card__label">{label}</span>
+      {loading ? (
+        <span className="admin-skeleton admin-skeleton--number" aria-label="Loading" />
+      ) : (
+        <strong>{value ?? 0}</strong>
+      )}
     </div>
   );
 }
 
-function formatContentType(type: string) {
-  return type.replace("_", " ");
+function ReportPreview({ report, compact = false }: { report: AdminReport; compact?: boolean }) {
+  const imageUrl = targetImage(report);
+
+  return (
+    <Link to="/admin/reports" className="admin-report-preview">
+      {imageUrl ? (
+        <img src={imageUrl} alt="" className="admin-report-preview__image" />
+      ) : (
+        <span className="admin-report-preview__fallback" aria-hidden="true">
+          {formatContentTypeLabel(report.content_type).slice(0, 1)}
+        </span>
+      )}
+      <span className="admin-report-preview__body">
+        <span className="admin-report-preview__topline">
+          <strong>{targetTitle(report)}</strong>
+          <span className={`admin-badge admin-badge--status-${report.status}`}>
+            {formatStatusLabel(report.status)}
+          </span>
+        </span>
+        <span className="admin-report-preview__meta">
+          {formatContentTypeLabel(report.content_type)} / {formatReasonLabel(report.reason)} /{" "}
+          {formatRelativeTime(report.created_at)}
+        </span>
+        {!compact && <span className="admin-report-preview__sub">{targetSubtitle(report)}</span>}
+        {!compact && <span className="admin-report-preview__sub">{safeMetadataPreview(report.metadata, 2)}</span>}
+      </span>
+      <span className="admin-report-preview__date">{formatDateTime(report.created_at)}</span>
+    </Link>
+  );
 }
 
-function formatReason(reason: string) {
-  return reason.replace("_", " ");
+function SkeletonList({ rows }: { rows: number }) {
+  return (
+    <div className="admin-skeleton-list" aria-label="Loading reports">
+      {Array.from({ length: rows }).map((_, index) => (
+        <div className="admin-skeleton-row" key={index}>
+          <span className="admin-skeleton admin-skeleton--avatar" />
+          <span className="admin-skeleton-row__copy">
+            <span className="admin-skeleton admin-skeleton--line" />
+            <span className="admin-skeleton admin-skeleton--line admin-skeleton--short" />
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
-function targetLabel(report: AdminReport) {
-  const target = report.target;
-  if (report.content_type === "video") return target.title ? ` · ${target.title}` : ` · ${report.content_id}`;
-  if (report.content_type === "user") {
-    return ` · ${target.username ? `@${target.username}` : target.display_name ?? report.content_id}`;
-  }
-  if (report.content_type === "place") return ` · ${target.place_name ?? report.content_id}`;
-  return ` · ${target.photo_url ? "photo" : report.content_id}`;
+function EmptyState({ title, message }: { title: string; message: string }) {
+  return (
+    <section className="admin-empty-state">
+      <div className="admin-empty-state__mark" aria-hidden="true">
+        <span />
+      </div>
+      <h3>{title}</h3>
+      <p>{message}</p>
+      <Link to="/admin/reports" className="admin-btn admin-btn--secondary">
+        Open reports
+      </Link>
+    </section>
+  );
+}
+
+function ErrorState({ title, message, onRetry }: { title: string; message: string; onRetry: () => void }) {
+  return (
+    <section className="admin-error-state" role="alert">
+      <div>
+        <h3>{title}</h3>
+        <p>{message}</p>
+      </div>
+      <button type="button" className="admin-btn admin-btn--secondary" onClick={onRetry}>
+        Try again
+      </button>
+    </section>
+  );
 }

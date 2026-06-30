@@ -36,10 +36,11 @@ export function AdminAuthGate({ children }: { children: ReactNode }) {
 
   if (admin.status === "checking") {
     return (
-      <div className="admin-moderation admin-moderation--center">
-        <div className="admin-auth-card">
+      <div className="admin-auth-screen">
+        <div className="admin-auth-card admin-auth-card--compact" aria-live="polite">
           <div className="admin-spinner" aria-hidden="true" />
-          <h1>Checking access</h1>
+          <p className="admin-eyebrow">Secure access</p>
+          <h2>Checking access</h2>
           <p>Verifying your Supabase session.</p>
         </div>
       </div>
@@ -48,10 +49,10 @@ export function AdminAuthGate({ children }: { children: ReactNode }) {
 
   if (admin.status === "not_configured") {
     return (
-      <div className="admin-moderation admin-moderation--center">
+      <div className="admin-auth-screen">
         <div className="admin-auth-card">
-          <p className="admin-moderation__eyebrow">Setup required</p>
-          <h1>Supabase admin is not configured</h1>
+          <p className="admin-eyebrow">Setup required</p>
+          <h2>Supabase admin is not configured</h2>
           <p>
             Add the public Supabase URL and publishable key to the Vite environment, and add the
             server-side Supabase credential in Vercel.
@@ -68,10 +69,10 @@ export function AdminAuthGate({ children }: { children: ReactNode }) {
 
   if (admin.status === "denied") {
     return (
-      <div className="admin-moderation admin-moderation--center">
+      <div className="admin-auth-screen">
         <div className="admin-auth-card">
-          <p className="admin-moderation__eyebrow">Access denied</p>
-          <h1>No moderator role</h1>
+          <p className="admin-eyebrow">Access denied</p>
+          <h2>No moderator role</h2>
           <p>{admin.error ?? "This Supabase user is not listed as an admin or moderator."}</p>
           <button type="button" className="admin-btn admin-btn--primary" onClick={() => void admin.signOut()}>
             Use another account
@@ -82,11 +83,14 @@ export function AdminAuthGate({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="admin-moderation admin-moderation--center">
+    <div className="admin-auth-screen">
       <form className="admin-auth-card" onSubmit={(event) => void handleSubmit(event)}>
-        <p className="admin-moderation__eyebrow">Moderation</p>
-        <h1>Admin sign in</h1>
-        <p>Use the Supabase account assigned in the moderation admin table.</p>
+        <div className="admin-auth-card__header">
+          <p className="admin-eyebrow">Explore moderation</p>
+          <h2>Admin sign in</h2>
+          <p>Access the Explore moderation console.</p>
+        </div>
+
         <label className="admin-field">
           <span>Email</span>
           <input
@@ -97,6 +101,7 @@ export function AdminAuthGate({ children }: { children: ReactNode }) {
             onChange={(event) => setEmail(event.target.value)}
           />
         </label>
+
         <label className="admin-field">
           <span>Password</span>
           <input
@@ -107,12 +112,14 @@ export function AdminAuthGate({ children }: { children: ReactNode }) {
             onChange={(event) => setPassword(event.target.value)}
           />
         </label>
+
         {(error || admin.error) && (
-          <p className="admin-moderation__error" role="alert">
+          <p className="admin-alert admin-alert--error" role="alert">
             {error ?? admin.error}
           </p>
         )}
-        <button type="submit" className="admin-btn admin-btn--primary" disabled={submitting}>
+
+        <button type="submit" className="admin-btn admin-btn--primary admin-btn--full" disabled={submitting}>
           {submitting ? "Signing in..." : "Sign in"}
         </button>
       </form>

@@ -45,8 +45,8 @@ export function TeamLoginPage() {
         <div className="access-brand">
           <BrandLogo />
         </div>
-        <h1>Team access</h1>
-        <p className="access-lead">Sign in with your team account to preview the site.</p>
+        <h1>Admin sign in</h1>
+        <p className="access-lead">Access the Explore admin workspace.</p>
         <form className="access-form" onSubmit={handleSubmit}>
           <label htmlFor="team-email">Email</label>
           <input
