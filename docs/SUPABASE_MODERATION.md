@@ -52,6 +52,9 @@ Use `moderator` instead of `admin` for limited moderation staff.
 
 ## API Endpoints
 
+All moderation routes are served by one Vercel function: `api/[...path].js` (Hobby plan limit).
+
+- `GET /api/health` — config check (no auth)
 - `POST /api/reports`
 - `GET /api/admin/reports`
 - `PATCH /api/admin/reports/:id`
