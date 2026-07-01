@@ -44,51 +44,38 @@ Legacy aliases are also included:
 /users/*
 ```
 
-## Values To Replace
+## Production Values
 
-`public/.well-known/apple-app-site-association` currently contains placeholders:
+Configured in `public/.well-known/`:
 
-```text
-REPLACE_WITH_APPLE_TEAM_ID
-REPLACE_WITH_IOS_BUNDLE_ID
-```
-
-`public/.well-known/assetlinks.json` uses the Android package name from the current Google Play URL:
-
-```text
-com.explore.miapp
-```
-
-It still needs the Play App Signing SHA-256 fingerprint:
-
-```text
-REPLACE_WITH_GOOGLE_PLAY_APP_SIGNING_SHA256_FINGERPRINT
-```
+| Field | Value |
+| --- | --- |
+| Apple Team ID | `8NXJFU5YB7` |
+| iOS Bundle ID | `com.explore.miapp` |
+| Apple App ID | `8NXJFU5YB7.com.explore.miapp` |
+| Android package | `com.explore.miapp` |
+| Android SHA-256 (Play App Signing) | `71:CC:F5:20:95:36:03:23:75:0E:17:DA:92:9E:F6:DD:73:BB:B5:3C:DB:91:2E:51:88:29:17:E9:83:39:A9:0C` |
 
 ## Apple Values
 
-Apple Team ID:
+Apple Team ID (`8NXJFU5YB7`):
 
 1. Open Apple Developer.
 2. Go to Membership details.
 3. Copy the Team ID.
 
-iOS bundle ID:
+iOS bundle ID (`com.explore.miapp`):
 
 1. Open Apple Developer Certificates, Identifiers & Profiles.
 2. Open Identifiers.
 3. Select the Explore app identifier.
-4. Copy the Bundle ID, for example `com.company.explore`.
+4. Copy the Bundle ID.
 
-The final Apple app ID format is:
-
-```text
-TEAM_ID.BUNDLE_ID
-```
+The Apple App ID format is `TEAM_ID.BUNDLE_ID` → `8NXJFU5YB7.com.explore.miapp`.
 
 ## Android Values
 
-Android package name:
+Android package name (`com.explore.miapp`):
 
 1. Open Google Play Console.
 2. Select the Explore app.
@@ -132,7 +119,7 @@ The "Open in Explore" button currently uses the custom URL scheme `explore://`. 
 
 ## Testing iOS Universal Links
 
-1. Replace the Apple placeholders with the production Team ID and bundle ID.
+1. Confirm `apple-app-site-association` lists `8NXJFU5YB7.com.explore.miapp`.
 2. Deploy to `https://www.exploreapphq.com`.
 3. Verify `/.well-known/apple-app-site-association` returns HTTP 200, valid JSON, and no redirect.
 4. Add the Associated Domains entitlement to the iOS app:
@@ -148,7 +135,7 @@ Expo Go is not enough for final Universal Link testing because it does not use t
 
 ## Testing Android App Links
 
-1. Replace the SHA-256 placeholder with the Google Play App Signing fingerprint.
+1. Confirm `assetlinks.json` lists the Play App Signing SHA-256 for `com.explore.miapp`.
 2. Deploy to `https://www.exploreapphq.com`.
 3. Verify `/.well-known/assetlinks.json` returns HTTP 200, valid JSON, and no redirect.
 4. Add matching Android intent filters for the domain and paths.
