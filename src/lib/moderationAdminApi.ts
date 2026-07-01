@@ -70,6 +70,41 @@ export type AdminModerationAction = {
   created_at: string;
 };
 
+export type AdminUserSummary = {
+  id: string;
+  display_name: string | null;
+  handle: string | null;
+  email: string | null;
+  avatar_url: string | null;
+  created_at: string | null;
+  status: string | null;
+  is_active: boolean | null;
+  is_deactivated: boolean | null;
+  is_ghost: boolean | null;
+};
+
+export type AdminContentSummaryItem = {
+  id: string;
+  title?: string | null;
+  name?: string | null;
+  thumbnail_url?: string | null;
+  category?: string | null;
+  difficulty?: string | null;
+  creator_id?: string | null;
+  state?: string | null;
+  moderation_status?: string | null;
+  is_public?: boolean | null;
+  rating?: number | string | null;
+  likes_count?: number | null;
+  comments_count?: number | null;
+  created_at: string | null;
+};
+
+export type AdminRecentReport = Pick<
+  AdminReport,
+  "id" | "content_type" | "content_id" | "reason" | "status" | "reporter_id" | "created_at"
+>;
+
 export type ReportsResponse = {
   reports: AdminReport[];
   total: number;
@@ -110,6 +145,107 @@ export type AdminHealth = {
   supabaseUrlConfigured: boolean;
   publishableKeyConfigured: boolean;
   secretKeyConfigured: boolean;
+};
+
+export type NullableMetric = number | null;
+
+export type OpsBreakdownEntry = {
+  value?: string;
+  content_type?: ReportContentType;
+  reason?: ReportReason;
+  count: number;
+};
+
+export type AdminOpsSummary = {
+  health: {
+    api_connected: boolean;
+    supabase_configured: boolean;
+    secret_key_configured: boolean;
+    admin_authorized: boolean;
+    environment: string;
+  };
+  users: {
+    total: NullableMetric;
+    new_24h: NullableMetric;
+    new_7d: NullableMetric;
+    deactivated: NullableMetric;
+    ghost: NullableMetric;
+    active_24h: NullableMetric;
+    active_7d: NullableMetric;
+  };
+  content: {
+    videos: {
+      total: NullableMetric;
+      published: NullableMetric;
+      processing: NullableMetric;
+      reported_legacy: NullableMetric;
+      active: NullableMetric;
+      under_review: NullableMetric;
+      hidden: NullableMetric;
+      removed: NullableMetric;
+      created_7d?: NullableMetric;
+    };
+    places: {
+      total: NullableMetric;
+      published: NullableMetric;
+      deleted: NullableMetric;
+      active: NullableMetric;
+      under_review: NullableMetric;
+      hidden: NullableMetric;
+      removed: NullableMetric;
+      created_7d?: NullableMetric;
+    };
+    routes: {
+      total: NullableMetric;
+      published: NullableMetric;
+      public: NullableMetric;
+      draft: NullableMetric;
+    };
+  };
+  engagement: {
+    likes: NullableMetric;
+    comments: NullableMetric;
+    followers: NullableMetric;
+    user_hidden_content: NullableMetric;
+    analytics_events?: NullableMetric;
+  };
+  moderation: {
+    reports_total: NullableMetric;
+    pending: NullableMetric;
+    reviewed: NullableMetric;
+    dismissed: NullableMetric;
+    removed: NullableMetric;
+    removed_or_actions?: NullableMetric;
+    oldest_pending_at: string | null;
+    actions_total: number;
+    actions_24h: number;
+    remove_content_actions?: number;
+  };
+  breakdowns: {
+    reports_by_content_type: Array<{ content_type: ReportContentType; count: number }>;
+    reports_by_reason: Array<{ reason: ReportReason; count: number }>;
+    videos_by_state: OpsBreakdownEntry[];
+    places_by_state: OpsBreakdownEntry[];
+    videos_by_moderation_status: OpsBreakdownEntry[];
+    places_by_moderation_status: OpsBreakdownEntry[];
+  };
+  recent: {
+    users: AdminUserSummary[];
+    videos: AdminContentSummaryItem[];
+    places: AdminContentSummaryItem[];
+    routes: AdminContentSummaryItem[];
+    reports: AdminRecentReport[];
+    admin_actions: AdminModerationAction[];
+  };
+  warnings: string[];
+};
+
+export type AdminUsersResponse = {
+  ok: true;
+  users: AdminUserSummary[];
+  total: number | null;
+  source: string | null;
+  warnings: string[];
 };
 
 export type DashboardStats = {
@@ -211,6 +347,19 @@ export function fetchReports(filters: {
 export async function fetchModerationSummary(): Promise<AdminModerationSummary> {
   const data = await apiFetch<{ ok: true; summary: AdminModerationSummary }>("/api/admin/moderation/summary");
   return data.summary;
+}
+
+export async function fetchOpsSummary(): Promise<AdminOpsSummary> {
+  const data = await apiFetch<{ ok: true; summary: AdminOpsSummary }>("/api/admin/ops/summary");
+  return data.summary;
+}
+
+export function fetchAdminUsers(filters: { query?: string; limit?: number } = {}) {
+  const params = new URLSearchParams({
+    query: filters.query ?? "",
+    limit: String(filters.limit ?? 25),
+  });
+  return apiFetch<AdminUsersResponse>(`/api/admin/users?${params}`);
 }
 
 export async function fetchDashboardStats(): Promise<DashboardStats> {

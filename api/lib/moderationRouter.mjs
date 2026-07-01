@@ -2,8 +2,10 @@ import {
   handleAdminMe,
   handleAdminModerationAction,
   handleAdminModerationSummary,
+  handleAdminOpsSummary,
   handleAdminReportById,
   handleAdminReports,
+  handleAdminUsers,
   handleHealth,
   handleReports,
   handleUserHiddenContent,
@@ -49,6 +51,14 @@ export async function dispatchModerationApi(request, routeOverride) {
 
   if (route === "admin/moderation/summary") {
     return handleAdminModerationSummary(request);
+  }
+
+  if (route === "admin/ops/summary") {
+    return handleAdminOpsSummary(request);
+  }
+
+  if (route === "admin/users") {
+    return handleAdminUsers(request);
   }
 
   const reportMatch = route.match(/^admin\/reports\/([^/]+)$/);

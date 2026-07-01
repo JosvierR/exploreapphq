@@ -6,9 +6,12 @@ import jwt from "jsonwebtoken";
 // @ts-ignore
 import {
   handleAdminModerationAction,
+  handleAdminModerationSummary,
   handleAdminMe,
+  handleAdminOpsSummary,
   handleAdminReportById,
   handleAdminReports,
+  handleAdminUsers,
   handleHealth,
   handleReports,
   handleUserHiddenContent,
@@ -121,6 +124,18 @@ app.all("/api/admin/reports", (req, res) => {
 
 app.all("/api/admin/me", (req, res) => {
   void sendFetchResponse(handleAdminMe, req, res);
+});
+
+app.all("/api/admin/moderation/summary", (req, res) => {
+  void sendFetchResponse(handleAdminModerationSummary, req, res);
+});
+
+app.all("/api/admin/ops/summary", (req, res) => {
+  void sendFetchResponse(handleAdminOpsSummary, req, res);
+});
+
+app.all("/api/admin/users", (req, res) => {
+  void sendFetchResponse(handleAdminUsers, req, res);
 });
 
 app.all("/api/admin/reports/:id", (req, res) => {

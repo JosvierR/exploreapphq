@@ -926,6 +926,571 @@ export async function handleAdminModerationSummary(request) {
   }
 }
 
+function addWarning(warnings, message) {
+  if (!warnings.includes(message)) warnings.push(message);
+}
+
+function startOfLast7Days() {
+  return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function environmentName() {
+  const raw =
+    process.env.VERCEL_ENV ||
+    process.env.VITE_VERCEL_ENV ||
+    process.env.NODE_ENV ||
+    "";
+  const normalized = raw.toLowerCase();
+  if (normalized.includes("preview") || normalized.includes("staging")) return "staging";
+  if (normalized.includes("development") || normalized.includes("local")) return "local";
+  return "production";
+}
+
+async function safeCount(supabase, warnings, table, { label = table, buildQuery } = {}) {
+  try {
+    let query = supabase.from(table).select("*", { count: "exact", head: true });
+    if (buildQuery) query = buildQuery(query);
+    const { count, error } = await query;
+    if (error) throw error;
+    return count || 0;
+  } catch {
+    addWarning(warnings, `${label} not available`);
+    return null;
+  }
+}
+
+async function safeCountFirstAvailable(supabase, warnings, label, candidates) {
+  for (const candidate of candidates) {
+    try {
+      let query = supabase.from(candidate.table).select("*", { count: "exact", head: true });
+      if (candidate.buildQuery) query = candidate.buildQuery(query);
+      const { count, error } = await query;
+      if (error) throw error;
+      return count || 0;
+    } catch {
+      // Try the next candidate before reporting unavailable.
+    }
+  }
+
+  addWarning(warnings, `${label} not available`);
+  return null;
+}
+
+async function safeOldestPendingReportDate(supabase, warnings) {
+  try {
+    const { data, error } = await supabase
+      .from("content_reports")
+      .select("created_at")
+      .eq("status", "pending")
+      .order("created_at", { ascending: true })
+      .limit(1);
+
+    if (error) throw error;
+    return data?.[0]?.created_at ?? null;
+  } catch {
+    addWarning(warnings, "oldest pending report not available");
+    return null;
+  }
+}
+
+async function safeRecent(supabase, warnings, table, { label = table, limit = 8, orderBy = "created_at" } = {}) {
+  try {
+    const { data, error } = await supabase
+      .from(table)
+      .select("*")
+      .order(orderBy, { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return data || [];
+  } catch {
+    try {
+      const { data, error } = await supabase.from(table).select("*").limit(limit);
+      if (error) throw error;
+      return data || [];
+    } catch {
+      addWarning(warnings, `${label} not available`);
+      return [];
+    }
+  }
+}
+
+async function fixedBreakdown(supabase, warnings, table, column, values, label) {
+  const entries = await Promise.all(
+    values.map(async (value) => ({
+      key: value,
+      count: await safeCount(supabase, warnings, table, {
+        label,
+        buildQuery: (query) => query.eq(column, value),
+      }),
+    })),
+  );
+
+  return entries
+    .filter((entry) => entry.count !== null)
+    .map((entry) => ({ value: entry.key, count: entry.count }));
+}
+
+function serializeAdminUser(row) {
+  return {
+    id: String(firstField(row, ["id", "user_id", "uid"]) || ""),
+    display_name: firstField(row, ["display_name", "full_name", "name"]) || null,
+    handle: firstField(row, ["username", "handle"]) || null,
+    email: firstField(row, ["email"]) || null,
+    avatar_url: firstField(row, ["avatar_url", "avatarUrl", "photo_url", "image_url"]) || null,
+    created_at: firstField(row, ["created_at", "createdAt", "inserted_at"]) || null,
+    status: firstField(row, ["status", "state"]) || null,
+    is_active: firstField(row, ["is_active", "active"]) ?? null,
+    is_deactivated:
+      firstField(row, ["deactivated", "is_deactivated", "disabled", "is_disabled"]) ?? null,
+    is_ghost: firstField(row, ["ghost", "is_ghost", "test_user", "is_test"]) ?? null,
+  };
+}
+
+function userSearchText(user) {
+  return [user.id, user.display_name, user.handle, user.email, user.status]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function serializeVideo(row) {
+  return {
+    id: String(firstField(row, ["id"]) || ""),
+    title: firstField(row, ["title", "caption", "description", "name"]) || null,
+    thumbnail_url: firstField(row, ["thumbnail_url", "thumbnailUrl", "thumbnail", "cover_url", "coverUrl"]) || null,
+    creator_id: firstField(row, ["owner_id", "user_id", "profile_id", "creator_id"]) || null,
+    state: firstField(row, ["state", "status"]) || null,
+    moderation_status: firstField(row, ["moderation_status"]) || null,
+    likes_count: firstField(row, ["likes_count", "like_count"]) ?? null,
+    comments_count: firstField(row, ["comments_count", "comment_count"]) ?? null,
+    created_at: firstField(row, ["created_at", "createdAt", "inserted_at"]) || null,
+  };
+}
+
+function serializePlace(row) {
+  return {
+    id: String(firstField(row, ["id"]) || ""),
+    name: firstField(row, ["place_name", "name", "title"]) || null,
+    category: firstField(row, ["category", "category_name", "type"]) || null,
+    creator_id: firstField(row, ["owner_id", "user_id", "profile_id", "creator_id"]) || null,
+    state: firstField(row, ["state", "status"]) || null,
+    moderation_status: firstField(row, ["moderation_status"]) || null,
+    rating: firstField(row, ["rating", "avg_rating", "average_rating"]) ?? null,
+    created_at: firstField(row, ["created_at", "createdAt", "inserted_at"]) || null,
+  };
+}
+
+function serializeRoute(row) {
+  return {
+    id: String(firstField(row, ["id"]) || ""),
+    name: firstField(row, ["name", "title"]) || null,
+    category: firstField(row, ["category", "category_name", "type"]) || null,
+    difficulty: firstField(row, ["difficulty", "difficulty_level"]) || null,
+    creator_id: firstField(row, ["owner_id", "user_id", "profile_id", "creator_id"]) || null,
+    state: firstField(row, ["state", "status"]) || null,
+    is_public: firstField(row, ["is_public", "public"]) ?? null,
+    created_at: firstField(row, ["created_at", "createdAt", "inserted_at"]) || null,
+  };
+}
+
+function serializeRecentReport(row) {
+  return {
+    id: row.id,
+    content_type: row.content_type,
+    content_id: row.content_id,
+    reason: row.reason,
+    status: row.status,
+    reporter_id: row.reporter_id,
+    created_at: row.created_at,
+  };
+}
+
+function serializeRecentAction(row) {
+  return actionHistoryRow(row);
+}
+
+async function fetchOpsUsers(supabase, warnings, { limit = 8, query = "" } = {}) {
+  const candidates = ["profiles", "users"];
+  for (const table of candidates) {
+    const rows = await safeRecent(supabase, warnings, table, {
+      label: `${table} table`,
+      limit: query ? Math.max(limit * 4, 50) : limit,
+    });
+
+    if (rows.length === 0) continue;
+
+    const users = rows.map(serializeAdminUser).filter((user) => user.id);
+    const normalizedQuery = query.trim().toLowerCase();
+    const filtered = normalizedQuery
+      ? users.filter((user) => userSearchText(user).includes(normalizedQuery))
+      : users;
+
+    return {
+      table,
+      users: filtered.slice(0, limit),
+      total: await safeCount(supabase, warnings, table, { label: `${table} table` }),
+    };
+  }
+
+  addWarning(warnings, "users table not available");
+  return { table: null, users: [], total: null };
+}
+
+export async function handleAdminUsers(request) {
+  try {
+    if (request.method === "OPTIONS") return optionsResponse();
+    if (request.method !== "GET") return methodNotAllowed();
+
+    const { supabase } = await requireAdmin(request);
+    const url = new URL(request.url);
+    const limit = parseLimit(url.searchParams.get("limit"));
+    const query = (url.searchParams.get("query") || "").trim().slice(0, 80);
+    const warnings = [];
+    const result = await fetchOpsUsers(supabase, warnings, { limit, query });
+
+    return jsonResponse(200, {
+      ok: true,
+      users: result.users,
+      total: result.total,
+      source: result.table,
+      warnings,
+    });
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+export async function handleAdminOpsSummary(request) {
+  try {
+    if (request.method === "OPTIONS") return optionsResponse();
+    if (request.method !== "GET") return methodNotAllowed();
+
+    const { supabase } = await requireAdmin(request);
+    const warnings = [];
+    const last24h = startOfLast24Hours();
+    const last7d = startOfLast7Days();
+
+    const [
+      usersResult,
+      usersNew24h,
+      usersNew7d,
+      usersDeactivated,
+      usersGhost,
+      videosTotal,
+      videosPublished,
+      videosProcessing,
+      videosLegacyReported,
+      videosActive,
+      videosUnderReview,
+      videosHidden,
+      videosRemoved,
+      videosCreated7d,
+      placesTotal,
+      placesPublished,
+      placesDeleted,
+      placesActive,
+      placesUnderReview,
+      placesHidden,
+      placesRemoved,
+      placesCreated7d,
+      routesTotal,
+      routesPublished,
+      routesPublic,
+      routesDraft,
+      likesTotal,
+      commentsTotal,
+      followersTotal,
+      hiddenContentTotal,
+      reportsTotal,
+      reportsPending,
+      reportsReviewed,
+      reportsDismissed,
+      reportsRemoved,
+      oldestPendingAt,
+      actionsTotal,
+      actions24h,
+      removeContentActions,
+      reportsByContentType,
+      reportsByReason,
+      videosByState,
+      placesByState,
+      videosByModerationStatus,
+      placesByModerationStatus,
+      recentUsers,
+      recentVideos,
+      recentPlaces,
+      recentRoutes,
+      recentReports,
+      recentActions,
+      analyticsEventsTotal,
+    ] = await Promise.all([
+      fetchOpsUsers(supabase, warnings, { limit: 6 }),
+      safeCountFirstAvailable(supabase, warnings, "new users last 24h", [
+        { table: "profiles", buildQuery: (query) => query.gte("created_at", last24h) },
+        { table: "users", buildQuery: (query) => query.gte("created_at", last24h) },
+      ]),
+      safeCountFirstAvailable(supabase, warnings, "new users last 7d", [
+        { table: "profiles", buildQuery: (query) => query.gte("created_at", last7d) },
+        { table: "users", buildQuery: (query) => query.gte("created_at", last7d) },
+      ]),
+      safeCountFirstAvailable(supabase, warnings, "deactivated users", [
+        { table: "profiles", buildQuery: (query) => query.eq("status", "deactivated") },
+        { table: "profiles", buildQuery: (query) => query.eq("is_active", false) },
+        { table: "users", buildQuery: (query) => query.eq("status", "deactivated") },
+        { table: "users", buildQuery: (query) => query.eq("is_active", false) },
+      ]),
+      safeCountFirstAvailable(supabase, warnings, "ghost/test users", [
+        { table: "profiles", buildQuery: (query) => query.eq("is_ghost", true) },
+        { table: "profiles", buildQuery: (query) => query.eq("test_user", true) },
+        { table: "users", buildQuery: (query) => query.eq("is_ghost", true) },
+        { table: "users", buildQuery: (query) => query.eq("test_user", true) },
+      ]),
+      safeCount(supabase, warnings, "videos", { label: "videos table" }),
+      safeCountFirstAvailable(supabase, warnings, "published videos", [
+        { table: "videos", buildQuery: (query) => query.eq("state", "published") },
+        { table: "videos", buildQuery: (query) => query.eq("status", "published") },
+      ]),
+      safeCountFirstAvailable(supabase, warnings, "processing videos", [
+        { table: "videos", buildQuery: (query) => query.eq("state", "processing") },
+        { table: "videos", buildQuery: (query) => query.eq("status", "processing") },
+      ]),
+      safeCountFirstAvailable(supabase, warnings, "legacy reported videos", [
+        { table: "videos", buildQuery: (query) => query.eq("state", "reported") },
+        { table: "videos", buildQuery: (query) => query.eq("status", "reported") },
+      ]),
+      safeCount(supabase, warnings, "videos", {
+        label: "videos moderation_status",
+        buildQuery: (query) => query.eq("moderation_status", "active"),
+      }),
+      safeCount(supabase, warnings, "videos", {
+        label: "videos moderation_status",
+        buildQuery: (query) => query.eq("moderation_status", "under_review"),
+      }),
+      safeCount(supabase, warnings, "videos", {
+        label: "videos moderation_status",
+        buildQuery: (query) => query.eq("moderation_status", "hidden"),
+      }),
+      safeCount(supabase, warnings, "videos", {
+        label: "videos moderation_status",
+        buildQuery: (query) => query.eq("moderation_status", "removed"),
+      }),
+      safeCount(supabase, warnings, "videos", {
+        label: "videos created_at",
+        buildQuery: (query) => query.gte("created_at", last7d),
+      }),
+      safeCount(supabase, warnings, "places", { label: "places table" }),
+      safeCountFirstAvailable(supabase, warnings, "published places", [
+        { table: "places", buildQuery: (query) => query.eq("state", "published") },
+        { table: "places", buildQuery: (query) => query.eq("status", "published") },
+      ]),
+      safeCountFirstAvailable(supabase, warnings, "deleted places", [
+        { table: "places", buildQuery: (query) => query.eq("state", "deleted") },
+        { table: "places", buildQuery: (query) => query.not("deleted_at", "is", null) },
+      ]),
+      safeCount(supabase, warnings, "places", {
+        label: "places moderation_status",
+        buildQuery: (query) => query.eq("moderation_status", "active"),
+      }),
+      safeCount(supabase, warnings, "places", {
+        label: "places moderation_status",
+        buildQuery: (query) => query.eq("moderation_status", "under_review"),
+      }),
+      safeCount(supabase, warnings, "places", {
+        label: "places moderation_status",
+        buildQuery: (query) => query.eq("moderation_status", "hidden"),
+      }),
+      safeCount(supabase, warnings, "places", {
+        label: "places moderation_status",
+        buildQuery: (query) => query.eq("moderation_status", "removed"),
+      }),
+      safeCount(supabase, warnings, "places", {
+        label: "places created_at",
+        buildQuery: (query) => query.gte("created_at", last7d),
+      }),
+      safeCount(supabase, warnings, "routes", { label: "routes table" }),
+      safeCountFirstAvailable(supabase, warnings, "published routes", [
+        { table: "routes", buildQuery: (query) => query.eq("state", "published") },
+        { table: "routes", buildQuery: (query) => query.eq("status", "published") },
+      ]),
+      safeCountFirstAvailable(supabase, warnings, "public routes", [
+        { table: "routes", buildQuery: (query) => query.eq("is_public", true) },
+        { table: "routes", buildQuery: (query) => query.eq("public", true) },
+      ]),
+      safeCountFirstAvailable(supabase, warnings, "draft routes", [
+        { table: "routes", buildQuery: (query) => query.eq("state", "draft") },
+        { table: "routes", buildQuery: (query) => query.eq("status", "draft") },
+      ]),
+      safeCountFirstAvailable(supabase, warnings, "likes total", [
+        { table: "likes" },
+        { table: "video_likes" },
+      ]),
+      safeCountFirstAvailable(supabase, warnings, "comments total", [
+        { table: "comments" },
+        { table: "video_comments" },
+      ]),
+      safeCountFirstAvailable(supabase, warnings, "followers total", [
+        { table: "followers" },
+        { table: "user_followers" },
+        { table: "follows" },
+      ]),
+      safeCount(supabase, warnings, "user_hidden_content", { label: "user_hidden_content table" }),
+      safeCount(supabase, warnings, "content_reports", { label: "content_reports table" }),
+      safeCount(supabase, warnings, "content_reports", {
+        label: "pending reports",
+        buildQuery: (query) => query.eq("status", "pending"),
+      }),
+      safeCount(supabase, warnings, "content_reports", {
+        label: "reviewed reports",
+        buildQuery: (query) => query.eq("status", "reviewed"),
+      }),
+      safeCount(supabase, warnings, "content_reports", {
+        label: "dismissed reports",
+        buildQuery: (query) => query.eq("status", "dismissed"),
+      }),
+      safeCount(supabase, warnings, "content_reports", {
+        label: "removed reports",
+        buildQuery: (query) => query.eq("status", "removed"),
+      }),
+      safeOldestPendingReportDate(supabase, warnings),
+      countActions(supabase),
+      countActions(supabase, (query) => query.gte("created_at", last24h)),
+      countActions(supabase, (query) => query.eq("action_type", "remove_content")),
+      Promise.all(
+        [...CONTENT_TYPES].map(async (contentType) => ({
+          content_type: contentType,
+          count: await safeCount(supabase, warnings, "content_reports", {
+            label: "reports by content type",
+            buildQuery: (query) => query.eq("content_type", contentType),
+          }),
+        })),
+      ),
+      Promise.all(
+        [...REPORT_REASONS].map(async (reason) => ({
+          reason,
+          count: await safeCount(supabase, warnings, "content_reports", {
+            label: "reports by reason",
+            buildQuery: (query) => query.eq("reason", reason),
+          }),
+        })),
+      ),
+      fixedBreakdown(
+        supabase,
+        warnings,
+        "videos",
+        "state",
+        ["published", "processing", "reported", "draft", "deleted"],
+        "videos state",
+      ),
+      fixedBreakdown(
+        supabase,
+        warnings,
+        "places",
+        "state",
+        ["published", "active", "reported", "draft", "deleted"],
+        "places state",
+      ),
+      fixedBreakdown(supabase, warnings, "videos", "moderation_status", VISIBILITY_STATUSES, "videos moderation_status"),
+      fixedBreakdown(supabase, warnings, "places", "moderation_status", VISIBILITY_STATUSES, "places moderation_status"),
+      fetchOpsUsers(supabase, warnings, { limit: 6 }),
+      safeRecent(supabase, warnings, "videos", { label: "recent videos", limit: 6 }),
+      safeRecent(supabase, warnings, "places", { label: "recent places", limit: 6 }),
+      safeRecent(supabase, warnings, "routes", { label: "recent routes", limit: 6 }),
+      safeRecent(supabase, warnings, "content_reports", { label: "recent reports", limit: 6 }),
+      safeRecent(supabase, warnings, "moderation_actions", { label: "recent admin actions", limit: 8 }),
+      safeCount(supabase, warnings, "analytics_events", { label: "analytics_events table" }),
+    ]);
+
+    return jsonResponse(200, {
+      ok: true,
+      summary: {
+        health: {
+          api_connected: true,
+          supabase_configured: Boolean(getSupabaseUrl() && getSupabasePublishableKey()),
+          secret_key_configured: Boolean(getSupabaseSecretKey()),
+          admin_authorized: true,
+          environment: environmentName(),
+        },
+        users: {
+          total: usersResult.total,
+          new_24h: usersNew24h,
+          new_7d: usersNew7d,
+          deactivated: usersDeactivated,
+          ghost: usersGhost,
+          active_24h: analyticsEventsTotal === null ? null : null,
+          active_7d: analyticsEventsTotal === null ? null : null,
+        },
+        content: {
+          videos: {
+            total: videosTotal,
+            published: videosPublished,
+            processing: videosProcessing,
+            reported_legacy: videosLegacyReported,
+            active: videosActive,
+            under_review: videosUnderReview,
+            hidden: videosHidden,
+            removed: videosRemoved,
+            created_7d: videosCreated7d,
+          },
+          places: {
+            total: placesTotal,
+            published: placesPublished,
+            deleted: placesDeleted,
+            active: placesActive,
+            under_review: placesUnderReview,
+            hidden: placesHidden,
+            removed: placesRemoved,
+            created_7d: placesCreated7d,
+          },
+          routes: {
+            total: routesTotal,
+            published: routesPublished,
+            public: routesPublic,
+            draft: routesDraft,
+          },
+        },
+        engagement: {
+          likes: likesTotal,
+          comments: commentsTotal,
+          followers: followersTotal,
+          user_hidden_content: hiddenContentTotal,
+          analytics_events: analyticsEventsTotal,
+        },
+        moderation: {
+          reports_total: reportsTotal,
+          pending: reportsPending,
+          reviewed: reportsReviewed,
+          dismissed: reportsDismissed,
+          removed: reportsRemoved,
+          removed_or_actions: reportsRemoved === null ? removeContentActions : reportsRemoved + removeContentActions,
+          oldest_pending_at: oldestPendingAt,
+          actions_total: actionsTotal,
+          actions_24h: actions24h,
+          remove_content_actions: removeContentActions,
+        },
+        breakdowns: {
+          reports_by_content_type: reportsByContentType.filter((entry) => entry.count !== null),
+          reports_by_reason: reportsByReason.filter((entry) => entry.count !== null),
+          videos_by_state: videosByState,
+          places_by_state: placesByState,
+          videos_by_moderation_status: videosByModerationStatus,
+          places_by_moderation_status: placesByModerationStatus,
+        },
+        recent: {
+          users: recentUsers.users,
+          videos: recentVideos.map(serializeVideo),
+          places: recentPlaces.map(serializePlace),
+          routes: recentRoutes.map(serializeRoute),
+          reports: recentReports.map(serializeRecentReport),
+          admin_actions: recentActions.map(serializeRecentAction),
+        },
+        warnings,
+      },
+    });
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
 export async function handleAdminMe(request) {
   try {
     if (request.method === "OPTIONS") return optionsResponse();
