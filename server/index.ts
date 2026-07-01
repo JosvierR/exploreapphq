@@ -11,6 +11,8 @@ import {
   handleAdminReports,
   handleHealth,
   handleReports,
+  handleUserHiddenContent,
+  handleUserHiddenContentUnhide,
 } from "../api/lib/supabaseModeration.mjs";
 import { requireAdmin } from "./adminAuth.js";
 import { config } from "./config.js";
@@ -103,6 +105,14 @@ app.all("/api/health", (req, res) => {
 
 app.all("/api/reports", (req, res) => {
   void sendFetchResponse(handleReports, req, res);
+});
+
+app.all("/api/user/hidden-content", (req, res) => {
+  void sendFetchResponse(handleUserHiddenContent, req, res);
+});
+
+app.all("/api/user/hidden-content/unhide", (req, res) => {
+  void sendFetchResponse(handleUserHiddenContentUnhide, req, res);
 });
 
 app.all("/api/admin/reports", (req, res) => {
