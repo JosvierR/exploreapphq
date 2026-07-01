@@ -1,0 +1,22 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "8NXJFU5YB7.com.explore.miapp",
+        "paths": [
+          "/v/*",
+          "/p/*",
+          "/r/*",
+          "/u/*",
+          "/me",
+          "/video/*",
+          "/place/*",
+          "/route/*",
+          "/profile/*",
+          "/users/*"
+        ]
+      }
+    ]
+  }
+}
