@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useModerationAdmin } from "@/features/admin/ModerationAdminProvider";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { fetchApiHealth, type AdminHealth } from "@/lib/moderationAdminApi";
 import { getHardcodedAdminSession } from "@/lib/hardcodedAdmin";
 import "@/styles/admin-waitlist.css";
 import "@/styles/admin-moderation.css";
@@ -11,21 +12,48 @@ type NavItem = {
   label: string;
   to?: string;
   disabled?: boolean;
+  note?: string;
+  exactQuery?: boolean;
 };
 
 const moderationItems: NavItem[] = [
   { label: "Dashboard", to: "/admin" },
-  { label: "Reports", to: "/admin/reports" },
-  { label: "Videos", disabled: true },
-  { label: "Users", disabled: true },
-  { label: "Places", disabled: true },
-  { label: "Audit Log", disabled: true },
+  { label: "Reports", to: "/admin/reports?status=all", exactQuery: true },
+  { label: "Pending Queue", to: "/admin/reports?status=pending" },
+  { label: "Reviewed", to: "/admin/reports?status=reviewed" },
+  { label: "Removed/Hidden", to: "/admin/reports?status=all&visibility=hidden_removed" },
+  { label: "Admins", disabled: true, note: "Soon" },
 ];
 
 const operationsItems: NavItem[] = [{ label: "Waitlist", to: "/admin/waitlist" }];
 
-function routeMeta(pathname: string) {
+function routeMeta(pathname: string, search: string) {
   if (pathname.startsWith("/admin/reports")) {
+    const params = new URLSearchParams(search);
+    const status = params.get("status");
+    const visibility = params.get("visibility");
+
+    if (status === "pending") {
+      return {
+        title: "Pending queue",
+        description: "Prioritize unresolved reports and keep global visibility decisions explicit.",
+      };
+    }
+
+    if (status === "reviewed") {
+      return {
+        title: "Reviewed reports",
+        description: "Audit report decisions that did not necessarily change public content visibility.",
+      };
+    }
+
+    if (visibility === "hidden_removed") {
+      return {
+        title: "Removed and hidden content",
+        description: "Inspect reports tied to globally hidden or removed content.",
+      };
+    }
+
     return {
       title: "Moderation reports",
       description: "Review incoming user-submitted reports and take action quickly.",
@@ -57,31 +85,86 @@ function roleLabel(role?: string) {
   return role.charAt(0).toUpperCase() + role.slice(1);
 }
 
+function environmentLabel() {
+  const rawEnv = (
+    import.meta.env.VITE_VERCEL_ENV ||
+    import.meta.env.VITE_APP_ENV ||
+    import.meta.env.MODE ||
+    ""
+  ).toLowerCase();
+
+  if (import.meta.env.DEV || rawEnv === "development" || rawEnv === "local") return "Local";
+  if (rawEnv.includes("preview") || rawEnv.includes("staging")) return "Staging";
+  return "Production";
+}
+
+function formatLastUpdated(value: Date | null) {
+  if (!value) return "Not refreshed";
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(value);
+}
+
+function isItemActive(item: NavItem, pathname: string, search: string) {
+  if (!item.to) return false;
+  const to = item.to;
+  const [targetPath, query = ""] = to.split("?");
+  if (pathname !== targetPath) return false;
+
+  if (!query) {
+    return pathname === targetPath && !search;
+  }
+
+  const expected = new URLSearchParams(query);
+  const current = new URLSearchParams(search);
+  for (const [key, value] of expected.entries()) {
+    if (current.get(key) !== value) return false;
+  }
+  if (item.exactQuery) {
+    return [...current.keys()].every((key) => expected.has(key));
+  }
+  return true;
+}
+
 function NavGroup({ title, items, onNavigate }: { title: string; items: NavItem[]; onNavigate: () => void }) {
+  const location = useLocation();
+
   return (
     <div className="admin-console__nav-group">
       <p className="admin-console__nav-title">{title}</p>
       {items.map((item) =>
         item.to ? (
-          <NavLink
+          <Link
             key={item.label}
             to={item.to}
-            end={item.to === "/admin"}
-            className={({ isActive }) => `admin-console__link${isActive ? " is-active" : ""}`}
+            className={`admin-console__link${
+              isItemActive(item, location.pathname, location.search) ? " is-active" : ""
+            }`}
             onClick={onNavigate}
           >
             <span className="admin-console__link-dot" aria-hidden="true" />
             <span>{item.label}</span>
-          </NavLink>
+          </Link>
         ) : (
           <span key={item.label} className="admin-console__link admin-console__link--disabled" aria-disabled="true">
             <span className="admin-console__link-dot" aria-hidden="true" />
             <span>{item.label}</span>
-            <em>Soon</em>
+            <em>{item.note ?? "Soon"}</em>
           </span>
         ),
       )}
     </div>
+  );
+}
+
+function HealthPill({ label, tone }: { label: string; tone: "ok" | "warning" | "error" }) {
+  return (
+    <span className={`admin-system-pill admin-system-pill--${tone}`}>
+      <span aria-hidden="true" />
+      {label}
+    </span>
   );
 }
 
@@ -91,21 +174,52 @@ export function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [navOpen, setNavOpen] = useState(false);
+  const [health, setHealth] = useState<AdminHealth | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const hardcodedEmail = getHardcodedAdminSession();
   const displayEmail = moderationAdmin.user?.email ?? user?.email ?? hardcodedEmail ?? "Not signed in";
   const hasSession = Boolean(moderationAdmin.user || user || hardcodedEmail);
-  const meta = useMemo(() => routeMeta(location.pathname), [location.pathname]);
+  const meta = useMemo(() => routeMeta(location.pathname, location.search), [location.pathname, location.search]);
   const displayRole = moderationAdmin.admin?.role ? roleLabel(moderationAdmin.admin.role) : hasSession ? "Admin" : "Guest";
+  const envLabel = environmentLabel();
+
+  const loadHealth = useCallback(async () => {
+    setHealthLoading(true);
+    try {
+      const nextHealth = await fetchApiHealth();
+      setHealth(nextHealth);
+    } catch {
+      setHealth(null);
+    } finally {
+      setHealthLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     setNavOpen(false);
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    void loadHealth().then(() => setLastUpdated(new Date()));
+  }, [loadHealth]);
+
+  async function handleRefresh() {
+    await Promise.allSettled([loadHealth(), moderationAdmin.refresh()]);
+    setLastUpdated(new Date());
+    window.dispatchEvent(new Event("admin:refresh"));
+  }
 
   async function handleSignOut() {
     const hadModerationSession = Boolean(moderationAdmin.user);
     await Promise.all([logout(), moderationAdmin.signOut()]);
     navigate(hadModerationSession ? "/admin" : "/team", { replace: true });
   }
+
+  const supabaseConfigured =
+    Boolean(health?.supabaseUrlConfigured && health.publishableKeyConfigured && health.secretKeyConfigured) ||
+    (moderationAdmin.configured && health === null);
+  const adminAuthorized = moderationAdmin.status === "authorized";
 
   return (
     <div className={`admin-console${navOpen ? " is-nav-open" : ""}`}>
@@ -121,7 +235,7 @@ export function AdminLayout() {
           <Link to="/admin" className="admin-console__brand-link" onClick={() => setNavOpen(false)}>
             <BrandLogo size={34} />
           </Link>
-          <span className="admin-console__badge">Console</span>
+          <span className="admin-console__badge">{envLabel}</span>
         </div>
 
         <nav className="admin-console__nav" aria-label="Admin sections">
@@ -130,7 +244,7 @@ export function AdminLayout() {
         </nav>
 
         <div className="admin-console__sidebar-footer">
-          <p>Production moderation workspace</p>
+          <p>Report status decisions are separate from global content visibility actions.</p>
           <Link to="/" className="admin-console__utility-link" onClick={() => setNavOpen(false)}>
             View public site
           </Link>
@@ -158,19 +272,43 @@ export function AdminLayout() {
             <p>{meta.description}</p>
           </div>
 
-          <div className="admin-console__identity">
-            <span className="admin-console__avatar" aria-hidden="true">
-              {initials(displayEmail)}
-            </span>
-            <span className="admin-console__identity-copy">
-              <strong>{displayEmail}</strong>
-              <small>{displayRole}</small>
-            </span>
-            {hasSession && (
-              <button type="button" className="admin-btn admin-btn--ghost" onClick={() => void handleSignOut()}>
-                Sign out
+          <div className="admin-console__topbar-actions">
+            <div className="admin-system-status" aria-label="System status">
+              <HealthPill label="API connected" tone={health?.ok ? "ok" : healthLoading ? "warning" : "error"} />
+              <HealthPill label="Supabase configured" tone={supabaseConfigured ? "ok" : "error"} />
+              <HealthPill
+                label="Admin authorized"
+                tone={adminAuthorized ? "ok" : moderationAdmin.status === "checking" ? "warning" : "error"}
+              />
+            </div>
+
+            <div className="admin-console__refresh">
+              <span>Updated {formatLastUpdated(lastUpdated)}</span>
+              <button
+                type="button"
+                className="admin-btn admin-btn--ghost admin-btn--sm"
+                aria-label="Refresh admin data"
+                onClick={() => void handleRefresh()}
+                disabled={healthLoading}
+              >
+                {healthLoading ? "Refreshing..." : "Refresh"}
               </button>
-            )}
+            </div>
+
+            <div className="admin-console__identity">
+              <span className="admin-console__avatar" aria-hidden="true">
+                {initials(displayEmail)}
+              </span>
+              <span className="admin-console__identity-copy">
+                <strong>{displayEmail}</strong>
+                <small>{displayRole}</small>
+              </span>
+              {hasSession && (
+                <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm" onClick={() => void handleSignOut()}>
+                  Sign out
+                </button>
+              )}
+            </div>
           </div>
         </header>
 

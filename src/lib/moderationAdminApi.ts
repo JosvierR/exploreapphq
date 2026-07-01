@@ -5,6 +5,8 @@ export type ReportStatusFilter = ReportStatus | "all";
 export type ReportContentType = "video" | "user" | "place" | "place_photo";
 export type ReportContentTypeFilter = ReportContentType | "all";
 export type ModerationVisibilityStatus = "active" | "under_review" | "hidden" | "removed";
+export type ReportReasonFilter = ReportReason | "all";
+export type ReportsSort = "newest" | "oldest" | "priority";
 export type ReportReason =
   | "spam"
   | "inappropriate"
@@ -36,6 +38,8 @@ export type AdminReport = {
   created_at: string;
   reviewed_by: string | null;
   reviewed_at: string | null;
+  target_report_count?: number;
+  actions?: AdminModerationAction[];
   target: {
     title?: string;
     thumbnail_url?: string;
@@ -55,9 +59,57 @@ export type AdminReport = {
   };
 };
 
+export type AdminModerationAction = {
+  id: string;
+  report_id: string | null;
+  admin_id: string;
+  target_type: ReportContentType;
+  target_id: string;
+  action_type: string;
+  notes: string | null;
+  created_at: string;
+};
+
 export type ReportsResponse = {
   reports: AdminReport[];
   total: number;
+};
+
+export type ModerationVisibilitySummary = Record<ModerationVisibilityStatus, number> & {
+  available?: boolean;
+};
+
+export type AdminModerationSummary = {
+  reports: {
+    total: number;
+    pending: number;
+    reviewed: number;
+    reviewed_last_24h?: number;
+    dismissed: number;
+    removed: number;
+    removed_or_actions?: number;
+    oldest_pending_at: string | null;
+  };
+  content_visibility: {
+    videos: ModerationVisibilitySummary;
+    places: ModerationVisibilitySummary;
+  };
+  by_content_type: Array<{ content_type: ReportContentType; count: number }>;
+  by_reason: Array<{ reason: ReportReason; count: number }>;
+  actions: {
+    total: number;
+    last_24h: number;
+    remove_content?: number;
+    by_type?: Array<{ action_type: string; count: number }>;
+    recent: AdminModerationAction[];
+  };
+};
+
+export type AdminHealth = {
+  ok: boolean;
+  supabaseUrlConfigured: boolean;
+  publishableKeyConfigured: boolean;
+  secretKeyConfigured: boolean;
 };
 
 export type DashboardStats = {
@@ -110,49 +162,69 @@ async function apiFetch<T>(path: string, init: RequestInit = {}, tokenOverride?:
   return data;
 }
 
+async function publicApiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(path, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init.headers as Record<string, string> | undefined),
+    },
+  });
+  const data = (await response.json().catch(() => ({}))) as T & { error?: string };
+
+  if (!response.ok) {
+    const error = new Error(data.error ?? `Request failed (${response.status}).`);
+    (error as Error & { status?: number }).status = response.status;
+    throw error;
+  }
+
+  return data;
+}
+
 export function fetchAdminMe(token: string) {
   return apiFetch<AdminMe>("/api/admin/me", undefined, token);
+}
+
+export function fetchApiHealth() {
+  return publicApiFetch<AdminHealth>("/api/health");
 }
 
 export function fetchReports(filters: {
   status?: ReportStatusFilter;
   contentType?: ReportContentTypeFilter;
+  reason?: ReportReasonFilter;
+  sort?: Exclude<ReportsSort, "priority">;
   limit?: number;
   offset?: number;
 }) {
   const params = new URLSearchParams({
     status: filters.status ?? "pending",
     content_type: filters.contentType ?? "all",
+    reason: filters.reason ?? "all",
+    sort: filters.sort ?? "newest",
     limit: String(filters.limit ?? 50),
     offset: String(filters.offset ?? 0),
   });
   return apiFetch<ReportsResponse>(`/api/admin/reports?${params}`);
 }
 
-export async function fetchDashboardStats(): Promise<DashboardStats> {
-  const [pending, video, user, place, placePhoto, reviewed, removed] = await Promise.all([
-    fetchReports({ status: "pending", limit: 1 }),
-    fetchReports({ status: "all", contentType: "video", limit: 1 }),
-    fetchReports({ status: "all", contentType: "user", limit: 1 }),
-    fetchReports({ status: "all", contentType: "place", limit: 1 }),
-    fetchReports({ status: "all", contentType: "place_photo", limit: 1 }),
-    fetchReports({ status: "reviewed", limit: 100 }),
-    fetchReports({ status: "removed", limit: 1 }),
-  ]);
+export async function fetchModerationSummary(): Promise<AdminModerationSummary> {
+  const data = await apiFetch<{ ok: true; summary: AdminModerationSummary }>("/api/admin/moderation/summary");
+  return data.summary;
+}
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+export async function fetchDashboardStats(): Promise<DashboardStats> {
+  const summary = await fetchModerationSummary();
+  const typeCount = (type: ReportContentType) =>
+    summary.by_content_type.find((entry) => entry.content_type === type)?.count ?? 0;
 
   return {
-    pending: pending.total,
-    video: video.total,
-    user: user.total,
-    place: place.total + placePhoto.total,
-    reviewedToday: reviewed.reports.filter((report) => {
-      if (!report.reviewed_at) return false;
-      return new Date(report.reviewed_at).getTime() >= startOfToday.getTime();
-    }).length,
-    removed: removed.total,
+    pending: summary.reports.pending,
+    video: typeCount("video"),
+    user: typeCount("user"),
+    place: typeCount("place") + typeCount("place_photo"),
+    reviewedToday: summary.reports.reviewed_last_24h ?? 0,
+    removed: summary.reports.removed_or_actions ?? summary.reports.removed,
   };
 }
 

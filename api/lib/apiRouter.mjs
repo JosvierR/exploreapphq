@@ -15,6 +15,7 @@ function isModerationRoute(route) {
     route === "user/hidden-content/unhide" ||
     route === "admin/me" ||
     route === "admin/reports" ||
+    route === "admin/moderation/summary" ||
     /^admin\/reports\/[^/]+$/.test(route) ||
     route === "admin/moderation/action"
   );

@@ -12,6 +12,9 @@ const REPORT_REASONS = new Set([
 ]);
 const REPORT_STATUSES = new Set(["pending", "reviewed", "dismissed", "removed"]);
 const ADMIN_REPORT_STATUSES = new Set(["pending", "reviewed", "dismissed", "removed", "all"]);
+const ADMIN_REPORT_SORTS = new Set(["newest", "oldest"]);
+const ADMIN_REPORT_REASON_FILTERS = new Set([...REPORT_REASONS, "all"]);
+const VISIBILITY_STATUSES = ["active", "under_review", "hidden", "removed"];
 const HIDDEN_CONTENT_REASONS = new Set(["reported", "hidden_by_user"]);
 const ACTION_TYPES = new Set([
   "hide_video",
@@ -509,6 +512,113 @@ async function fetchTargetPreviewMaps(supabase, reports) {
   return previews;
 }
 
+function actionHistoryRow(action) {
+  return {
+    id: action.id,
+    report_id: action.report_id,
+    admin_id: action.admin_id,
+    target_type: action.target_type,
+    target_id: action.target_id,
+    action_type: action.action_type,
+    notes: action.notes,
+    created_at: action.created_at,
+  };
+}
+
+function reportTargetKey(contentType, contentId) {
+  return `${contentType}:${contentId}`;
+}
+
+async function fetchReportCountsByTarget(supabase, reports) {
+  const grouped = groupReportIds(reports);
+  const counts = new Map();
+
+  await Promise.all(
+    [...grouped.entries()].map(async ([contentType, ids]) => {
+      const idList = [...ids];
+      if (idList.length === 0) return;
+
+      const { data, error } = await supabase
+        .from("content_reports")
+        .select("content_type, content_id")
+        .eq("content_type", contentType)
+        .in("content_id", idList);
+
+      if (error || !data) return;
+
+      for (const row of data) {
+        const key = reportTargetKey(row.content_type, row.content_id);
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+    }),
+  );
+
+  return counts;
+}
+
+function mergeActionRows(rows) {
+  const merged = new Map();
+  for (const row of rows.flat()) {
+    if (row?.id) merged.set(row.id, actionHistoryRow(row));
+  }
+  return [...merged.values()].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
+
+async function fetchActionHistoryForReports(supabase, reports) {
+  if (reports.length === 0) return new Map();
+
+  try {
+    const reportIds = reports.map((report) => report.id).filter(Boolean);
+    const grouped = groupReportIds(reports);
+    const queries = [];
+
+    if (reportIds.length > 0) {
+      queries.push(
+        supabase
+          .from("moderation_actions")
+          .select("id, admin_id, report_id, target_type, target_id, action_type, notes, created_at")
+          .in("report_id", reportIds)
+          .order("created_at", { ascending: false })
+          .limit(200),
+      );
+    }
+
+    for (const [contentType, ids] of grouped.entries()) {
+      const idList = [...ids];
+      if (idList.length === 0) continue;
+      queries.push(
+        supabase
+          .from("moderation_actions")
+          .select("id, admin_id, report_id, target_type, target_id, action_type, notes, created_at")
+          .eq("target_type", contentType)
+          .in("target_id", idList)
+          .order("created_at", { ascending: false })
+          .limit(200),
+      );
+    }
+
+    const results = await Promise.all(queries);
+    const actions = mergeActionRows(results.map((result) => (result.error ? [] : result.data || [])));
+    const actionMap = new Map();
+
+    for (const report of reports) {
+      const targetKey = reportTargetKey(report.content_type, report.content_id);
+      actionMap.set(
+        report.id,
+        actions.filter(
+          (action) =>
+            action.report_id === report.id ||
+            reportTargetKey(action.target_type, action.target_id) === targetKey,
+        ),
+      );
+    }
+
+    return actionMap;
+  } catch {
+    return new Map();
+  }
+}
+
 function firstField(row, names) {
   if (!row) return undefined;
 
@@ -575,8 +685,9 @@ function targetPreview(contentType, contentId, row) {
   };
 }
 
-function serializeReport(report, previewMap) {
+function serializeReport(report, previewMap, reportCountMap = new Map(), actionMap = new Map()) {
   const row = previewMap.get(`${report.content_type}:${report.content_id}`);
+  const targetKey = reportTargetKey(report.content_type, report.content_id);
   return {
     id: report.id,
     content_type: report.content_type,
@@ -590,6 +701,8 @@ function serializeReport(report, previewMap) {
     reviewed_by: report.reviewed_by,
     reviewed_at: report.reviewed_at,
     target: targetPreview(report.content_type, report.content_id, row),
+    target_report_count: reportCountMap.get(targetKey) || 1,
+    actions: actionMap.get(report.id) || [],
   };
 }
 
@@ -607,26 +720,206 @@ export async function handleAdminReports(request) {
       new Set([...CONTENT_TYPES, "all"]),
       "all",
     );
+    const reason = parseEnumParam(url, "reason", ADMIN_REPORT_REASON_FILTERS, "all");
+    const sort = parseEnumParam(url, "sort", ADMIN_REPORT_SORTS, "newest");
     const limit = parseLimit(url.searchParams.get("limit"));
     const offset = parseOffset(url.searchParams.get("offset"));
 
     let query = supabase
       .from("content_reports")
       .select("*", { count: "exact" })
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: sort === "oldest" });
 
     if (status !== "all") query = query.eq("status", status);
     if (contentType !== "all") query = query.eq("content_type", contentType);
+    if (reason !== "all") query = query.eq("reason", reason);
 
     const { data, error, count } = await query.range(offset, offset + limit - 1);
     if (error) throw error;
 
     const reports = data || [];
-    const previewMap = await fetchTargetPreviewMaps(supabase, reports);
+    const [previewMap, reportCountMap, actionMap] = await Promise.all([
+      fetchTargetPreviewMaps(supabase, reports),
+      fetchReportCountsByTarget(supabase, reports),
+      fetchActionHistoryForReports(supabase, reports),
+    ]);
 
     return jsonResponse(200, {
-      reports: reports.map((report) => serializeReport(report, previewMap)),
+      reports: reports.map((report) => serializeReport(report, previewMap, reportCountMap, actionMap)),
       total: count || 0,
+    });
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+function startOfLast24Hours() {
+  return new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+}
+
+async function countRows(supabase, table, buildQuery, { optional = false } = {}) {
+  let query = supabase.from(table).select("id", { count: "exact", head: true });
+  if (buildQuery) query = buildQuery(query);
+
+  const { count, error } = await query;
+  if (error) {
+    if (optional) return null;
+    throw error;
+  }
+
+  return count || 0;
+}
+
+async function countReports(supabase, buildQuery) {
+  return countRows(supabase, "content_reports", buildQuery);
+}
+
+async function visibilitySummaryForTable(supabase, table) {
+  const counts = await Promise.all(
+    VISIBILITY_STATUSES.map((status) =>
+      countRows(
+        supabase,
+        table,
+        (query) => query.eq("moderation_status", status),
+        { optional: true },
+      ),
+    ),
+  );
+
+  const available = counts.every((value) => value !== null);
+  return VISIBILITY_STATUSES.reduce(
+    (summary, status, index) => {
+      summary[status] = counts[index] ?? 0;
+      return summary;
+    },
+    { available },
+  );
+}
+
+async function countActions(supabase, buildQuery) {
+  return countRows(supabase, "moderation_actions", buildQuery, { optional: true }).then((value) => value ?? 0);
+}
+
+async function fetchRecentModerationActions(supabase) {
+  try {
+    const { data, error } = await supabase
+      .from("moderation_actions")
+      .select("id, admin_id, report_id, target_type, target_id, action_type, notes, created_at")
+      .order("created_at", { ascending: false })
+      .limit(8);
+
+    if (error) return [];
+    return (data || []).map(actionHistoryRow);
+  } catch {
+    return [];
+  }
+}
+
+async function countActionsByType(supabase) {
+  const actionTypes = [...ACTION_TYPES, "mark_removed"];
+  const entries = await Promise.all(
+    actionTypes.map(async (actionType) => ({
+      action_type: actionType,
+      count: await countActions(supabase, (query) => query.eq("action_type", actionType)),
+    })),
+  );
+
+  return entries.filter((entry) => entry.count > 0);
+}
+
+async function oldestPendingReportDate(supabase) {
+  const { data, error } = await supabase
+    .from("content_reports")
+    .select("created_at")
+    .eq("status", "pending")
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  if (error) throw error;
+  return data?.[0]?.created_at ?? null;
+}
+
+export async function handleAdminModerationSummary(request) {
+  try {
+    if (request.method === "OPTIONS") return optionsResponse();
+    if (request.method !== "GET") return methodNotAllowed();
+
+    const { supabase } = await requireAdmin(request);
+    const last24h = startOfLast24Hours();
+
+    const [
+      totalReports,
+      pendingReports,
+      reviewedReports,
+      dismissedReports,
+      removedReports,
+      reviewedLast24h,
+      oldestPendingAt,
+      videosVisibility,
+      placesVisibility,
+      actionsTotal,
+      actionsLast24h,
+      removeContentActions,
+      recentActions,
+      actionsByType,
+      byContentType,
+      byReason,
+    ] = await Promise.all([
+      countReports(supabase),
+      countReports(supabase, (query) => query.eq("status", "pending")),
+      countReports(supabase, (query) => query.eq("status", "reviewed")),
+      countReports(supabase, (query) => query.eq("status", "dismissed")),
+      countReports(supabase, (query) => query.eq("status", "removed")),
+      countReports(supabase, (query) => query.eq("status", "reviewed").gte("reviewed_at", last24h)),
+      oldestPendingReportDate(supabase),
+      visibilitySummaryForTable(supabase, "videos"),
+      visibilitySummaryForTable(supabase, "places"),
+      countActions(supabase),
+      countActions(supabase, (query) => query.gte("created_at", last24h)),
+      countActions(supabase, (query) => query.eq("action_type", "remove_content")),
+      fetchRecentModerationActions(supabase),
+      countActionsByType(supabase),
+      Promise.all(
+        [...CONTENT_TYPES].map(async (contentType) => ({
+          content_type: contentType,
+          count: await countReports(supabase, (query) => query.eq("content_type", contentType)),
+        })),
+      ),
+      Promise.all(
+        [...REPORT_REASONS].map(async (reason) => ({
+          reason,
+          count: await countReports(supabase, (query) => query.eq("reason", reason)),
+        })),
+      ),
+    ]);
+
+    return jsonResponse(200, {
+      ok: true,
+      summary: {
+        reports: {
+          total: totalReports,
+          pending: pendingReports,
+          reviewed: reviewedReports,
+          reviewed_last_24h: reviewedLast24h,
+          dismissed: dismissedReports,
+          removed: removedReports,
+          removed_or_actions: removedReports + removeContentActions,
+          oldest_pending_at: oldestPendingAt,
+        },
+        content_visibility: {
+          videos: videosVisibility,
+          places: placesVisibility,
+        },
+        by_content_type: byContentType,
+        by_reason: byReason,
+        actions: {
+          total: actionsTotal,
+          last_24h: actionsLast24h,
+          remove_content: removeContentActions,
+          by_type: actionsByType,
+          recent: recentActions,
+        },
+      },
     });
   } catch (error) {
     return handleError(error);
