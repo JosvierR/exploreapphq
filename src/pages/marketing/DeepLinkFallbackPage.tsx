@@ -1,6 +1,7 @@
 import { Link, useLocation, useParams } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
-import { SITE, STORE_URLS } from "@/lib/constants";
+import { STORE_URLS } from "@/lib/constants";
+import { buildExploreShareUrl } from "@/lib/exploreWebUrl";
 import "@/styles/deeplink.css";
 
 type DeepLinkKind = "video" | "place" | "route" | "profile" | "me";
@@ -63,7 +64,7 @@ export function DeepLinkFallbackPage({ kind, paramName }: DeepLinkFallbackPagePr
   const config = contentConfig[kind];
   const rawValue = paramName ? params[paramName] : "me";
   const displayValue = rawValue || "Not provided";
-  const canonicalUrl = `${SITE.url}${location.pathname}`;
+  const canonicalUrl = buildExploreShareUrl(location.pathname);
   const appHref =
     kind === "me"
       ? "explore://me"
