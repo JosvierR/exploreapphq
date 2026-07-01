@@ -3,18 +3,21 @@ import { Link } from "react-router-dom";
 import { AdminAuthGate } from "@/pages/admin/AdminAuthGate";
 import { useModerationAdmin } from "@/features/admin/ModerationAdminProvider";
 import {
-  fetchDashboardStats,
+  fetchModerationSummary,
   fetchReports,
+  type AdminModerationAction,
+  type AdminModerationSummary,
   type AdminReport,
-  type DashboardStats,
 } from "@/lib/moderationAdminApi";
 import {
+  formatAge,
   formatContentTypeLabel,
   formatDateTime,
   formatReasonLabel,
   formatRelativeTime,
   formatStatusLabel,
   safeMetadataPreview,
+  shortId,
   targetImage,
   targetSubtitle,
   targetTitle,
@@ -31,10 +34,9 @@ export function AdminDashboardPage() {
 
 function AdminDashboardContent() {
   const admin = useModerationAdmin();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [summary, setSummary] = useState<AdminModerationSummary | null>(null);
   const [pending, setPending] = useState<AdminReport[]>([]);
   const [recent, setRecent] = useState<AdminReport[]>([]);
-  const [totalReports, setTotalReports] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,21 +44,19 @@ function AdminDashboardContent() {
     setLoading(true);
     setError(null);
     try {
-      const [nextStats, pendingReports, recentReports] = await Promise.all([
-        fetchDashboardStats(),
-        fetchReports({ status: "pending", limit: 5 }),
-        fetchReports({ status: "all", limit: 6 }),
+      const [nextSummary, pendingReports, recentReports] = await Promise.all([
+        fetchModerationSummary(),
+        fetchReports({ status: "pending", sort: "oldest", limit: 5 }),
+        fetchReports({ status: "all", sort: "newest", limit: 6 }),
       ]);
-      setStats(nextStats);
+      setSummary(nextSummary);
       setPending(pendingReports.reports);
       setRecent(recentReports.reports);
-      setTotalReports(recentReports.total);
     } catch {
-      setError("Unable to load reports.");
-      setStats(null);
+      setError("Unable to load dashboard data.");
+      setSummary(null);
       setPending([]);
       setRecent([]);
-      setTotalReports(0);
     } finally {
       setLoading(false);
     }
@@ -66,59 +66,116 @@ function AdminDashboardContent() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    function handleGlobalRefresh() {
+      void load();
+    }
+
+    window.addEventListener("admin:refresh", handleGlobalRefresh);
+    return () => window.removeEventListener("admin:refresh", handleGlobalRefresh);
+  }, [load]);
+
   const displayName = useMemo(() => admin.user?.email?.split("@")[0] || "admin", [admin.user?.email]);
-  const noReports = !loading && !error && totalReports === 0;
+  const noReports = !loading && !error && (summary?.reports.total ?? 0) === 0;
+  const visibility = summary?.content_visibility;
+  const hiddenContent = (visibility?.videos.hidden ?? 0) + (visibility?.places.hidden ?? 0);
+  const removedContent = (visibility?.videos.removed ?? 0) + (visibility?.places.removed ?? 0);
+  const visibilityAvailable = Boolean(visibility?.videos.available !== false && visibility?.places.available !== false);
+  const oldestPending = summary?.reports.oldest_pending_at;
 
   return (
-    <div className="admin-moderation">
+    <div className="admin-moderation admin-moderation--dashboard">
       <header className="admin-page-header">
         <div>
           <p className="admin-eyebrow">Welcome back, {displayName}</p>
           <h2>Moderation overview</h2>
-          <p>Track report volume, review the pending queue, and move quickly through safety actions.</p>
+          <p>Track case volume, global visibility state, and recent admin decisions from one console.</p>
         </div>
         <div className="admin-page-header__actions">
           <button type="button" className="admin-btn admin-btn--secondary" onClick={() => void load()} disabled={loading}>
             {loading ? "Refreshing..." : "Refresh"}
           </button>
-          <Link to="/admin/reports" className="admin-btn admin-btn--primary">
-            Open reports
+          <Link to="/admin/reports?status=pending" className="admin-btn admin-btn--primary">
+            Open queue
           </Link>
         </div>
       </header>
 
       {error && (
         <ErrorState
-          title="Unable to load reports."
-          message="The moderation API did not return the dashboard data."
+          title="Unable to load dashboard"
+          message="The moderation API did not return summary data. Retry after checking API and Supabase status."
           onRetry={() => void load()}
         />
       )}
 
-      <section className="admin-stats-grid" aria-label="Moderation stats">
-        <StatCard label="Pending reports" value={stats?.pending} loading={loading} tone="warning" />
-        <StatCard label="Video reports" value={stats?.video} loading={loading} tone="blue" />
-        <StatCard label="User reports" value={stats?.user} loading={loading} tone="violet" />
-        <StatCard label="Place reports" value={stats?.place} loading={loading} tone="green" />
-        <StatCard label="Reviewed today" value={stats?.reviewedToday} loading={loading} tone="neutral" />
-        <StatCard label="Removed/hidden content" value={stats?.removed} loading={loading} tone="danger" />
+      <section className="admin-stats-grid admin-stats-grid--wide" aria-label="Moderation metrics">
+        <StatCard
+          label="Pending reports"
+          value={summary?.reports.pending}
+          loading={loading}
+          tone={(summary?.reports.pending ?? 0) >= 10 ? "danger" : "warning"}
+          hint={(summary?.reports.pending ?? 0) >= 10 ? "Queue needs attention" : "Open cases"}
+        />
+        <StatCard
+          label="Reviewed in 24h"
+          value={summary?.reports.reviewed_last_24h}
+          loading={loading}
+          tone="blue"
+          hint="Based on reviewed_at"
+        />
+        <StatCard label="Dismissed reports" value={summary?.reports.dismissed} loading={loading} tone="neutral" />
+        <StatCard
+          label="Removed reports/actions"
+          value={summary?.reports.removed_or_actions ?? summary?.reports.removed}
+          loading={loading}
+          tone="danger"
+          hint={`${formatNumber(summary?.reports.removed ?? 0)} reports, ${formatNumber(
+            summary?.actions.remove_content ?? 0,
+          )} remove actions`}
+        />
+        <StatCard
+          label="Hidden content"
+          value={hiddenContent}
+          loading={loading}
+          tone="violet"
+          hint={visibilityAvailable ? "Videos and places" : "Visibility schema unavailable"}
+        />
+        <StatCard
+          label="Removed content"
+          value={removedContent}
+          loading={loading}
+          tone="danger"
+          hint={visibilityAvailable ? "Global moderation_status" : "Visibility schema unavailable"}
+        />
+        <StatCard
+          label="Oldest pending report"
+          value={oldestPending ? formatAge(oldestPending) : "None"}
+          loading={loading}
+          tone={oldestPending && ageHours(oldestPending) >= 24 ? "danger" : "green"}
+          hint={oldestPending ? formatDateTime(oldestPending) : "Queue is clear"}
+        />
+        <StatCard
+          label="Admin actions"
+          value={summary?.actions.total}
+          loading={loading}
+          tone="green"
+          hint={`${formatNumber(summary?.actions.last_24h ?? 0)} in 24h`}
+        />
       </section>
 
       {noReports ? (
-        <EmptyState
-          title="No reports yet"
-          message="Reports submitted from the Explore mobile app will appear here."
-        />
+        <EmptyState title="No reports yet" message="Reports submitted from the Explore mobile app will appear here." />
       ) : (
-        <div className="admin-dashboard-grid">
-          <section className="admin-panel">
+        <div className="admin-dashboard-layout">
+          <section className="admin-panel admin-panel--span-2">
             <div className="admin-panel__header">
               <div>
                 <p className="admin-panel__kicker">Queue</p>
-                <h3>Pending queue</h3>
+                <h3>Oldest pending reports</h3>
               </div>
-              <Link to="/admin/reports" className="admin-panel__link">
-                View all
+              <Link to="/admin/reports?status=pending&sort=oldest" className="admin-panel__link">
+                View queue
               </Link>
             </div>
 
@@ -127,7 +184,7 @@ function AdminDashboardContent() {
             ) : pending.length === 0 ? (
               <div className="admin-quiet-state">
                 <strong>No pending reports</strong>
-                <span>The queue is clear right now.</span>
+                <span>The queue is clear. Reviewed and dismissed cases remain available in Reports.</span>
               </div>
             ) : (
               <div className="admin-report-list">
@@ -138,13 +195,62 @@ function AdminDashboardContent() {
             )}
           </section>
 
+          <DistributionPanel
+            title="Reports by content type"
+            kicker="Volume"
+            loading={loading}
+            entries={(summary?.by_content_type ?? []).map((entry) => ({
+              key: entry.content_type,
+              label: formatContentTypeLabel(entry.content_type),
+              count: entry.count,
+            }))}
+          />
+
+          <DistributionPanel
+            title="Reports by reason"
+            kicker="Reasons"
+            loading={loading}
+            entries={(summary?.by_reason ?? []).map((entry) => ({
+              key: entry.reason,
+              label: formatReasonLabel(entry.reason),
+              count: entry.count,
+            }))}
+          />
+
+          <VisibilityPanel summary={summary} loading={loading} />
+
           <section className="admin-panel">
             <div className="admin-panel__header">
               <div>
-                <p className="admin-panel__kicker">Activity</p>
-                <h3>Recent reports</h3>
+                <p className="admin-panel__kicker">Audit trail</p>
+                <h3>Recent admin actions</h3>
               </div>
-              <span className="admin-panel__meta">{totalReports} total</span>
+              <span className="admin-panel__meta">{formatNumber(summary?.actions.total ?? 0)} total</span>
+            </div>
+
+            {loading ? (
+              <SkeletonList rows={5} />
+            ) : (summary?.actions.recent ?? []).length === 0 ? (
+              <div className="admin-quiet-state">
+                <strong>No admin actions yet</strong>
+                <span>Report decisions and global visibility actions will appear here.</span>
+              </div>
+            ) : (
+              <div className="admin-action-list">
+                {summary?.actions.recent.map((action) => (
+                  <ActionPreview key={action.id} action={action} />
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="admin-panel admin-panel--span-2">
+            <div className="admin-panel__header">
+              <div>
+                <p className="admin-panel__kicker">Recent</p>
+                <h3>Latest reports</h3>
+              </div>
+              <span className="admin-panel__meta">{formatNumber(summary?.reports.total ?? 0)} total</span>
             </div>
 
             {loading ? (
@@ -173,11 +279,13 @@ function StatCard({
   value,
   loading,
   tone,
+  hint,
 }: {
   label: string;
-  value?: number;
+  value?: number | string;
   loading: boolean;
   tone: "warning" | "blue" | "violet" | "green" | "neutral" | "danger";
+  hint?: string;
 }) {
   return (
     <div className={`admin-stat-card admin-stat-card--${tone}`}>
@@ -185,8 +293,103 @@ function StatCard({
       {loading ? (
         <span className="admin-skeleton admin-skeleton--number" aria-label="Loading" />
       ) : (
-        <strong>{value ?? 0}</strong>
+        <strong>{typeof value === "number" ? formatNumber(value) : value ?? 0}</strong>
       )}
+      {hint && <span className="admin-stat-card__hint">{hint}</span>}
+    </div>
+  );
+}
+
+function DistributionPanel({
+  title,
+  kicker,
+  entries,
+  loading,
+}: {
+  title: string;
+  kicker: string;
+  entries: Array<{ key: string; label: string; count: number }>;
+  loading: boolean;
+}) {
+  const max = Math.max(1, ...entries.map((entry) => entry.count));
+
+  return (
+    <section className="admin-panel">
+      <div className="admin-panel__header">
+        <div>
+          <p className="admin-panel__kicker">{kicker}</p>
+          <h3>{title}</h3>
+        </div>
+      </div>
+      {loading ? (
+        <SkeletonList rows={4} />
+      ) : entries.every((entry) => entry.count === 0) ? (
+        <div className="admin-quiet-state">
+          <strong>No data yet</strong>
+          <span>Counts will update as reports arrive.</span>
+        </div>
+      ) : (
+        <div className="admin-distribution-list">
+          {entries.map((entry) => (
+            <div className="admin-distribution-row" key={entry.key}>
+              <span>{entry.label}</span>
+              <div className="admin-distribution-row__bar" aria-hidden="true">
+                <span style={{ width: `${Math.max(4, (entry.count / max) * 100)}%` }} />
+              </div>
+              <strong>{formatNumber(entry.count)}</strong>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function VisibilityPanel({ summary, loading }: { summary: AdminModerationSummary | null; loading: boolean }) {
+  const videos = summary?.content_visibility.videos;
+  const places = summary?.content_visibility.places;
+
+  return (
+    <section className="admin-panel">
+      <div className="admin-panel__header">
+        <div>
+          <p className="admin-panel__kicker">Global visibility</p>
+          <h3>Content state</h3>
+        </div>
+      </div>
+      {loading ? (
+        <SkeletonList rows={4} />
+      ) : !videos || !places || videos.available === false || places.available === false ? (
+        <div className="admin-quiet-state">
+          <strong>Visibility counts unavailable</strong>
+          <span>The API is connected, but moderation_status counts are not exposed for every target table.</span>
+        </div>
+      ) : (
+        <div className="admin-visibility-grid">
+          <VisibilityColumn label="Videos" values={videos} />
+          <VisibilityColumn label="Places" values={places} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function VisibilityColumn({
+  label,
+  values,
+}: {
+  label: string;
+  values: NonNullable<AdminModerationSummary["content_visibility"]["videos"]>;
+}) {
+  return (
+    <div className="admin-visibility-column">
+      <h4>{label}</h4>
+      {(["active", "under_review", "hidden", "removed"] as const).map((status) => (
+        <span key={status}>
+          <em>{status.replace("_", " ")}</em>
+          <strong>{formatNumber(values[status])}</strong>
+        </span>
+      ))}
     </div>
   );
 }
@@ -195,7 +398,7 @@ function ReportPreview({ report, compact = false }: { report: AdminReport; compa
   const imageUrl = targetImage(report);
 
   return (
-    <Link to="/admin/reports" className="admin-report-preview">
+    <Link to={`/admin/reports?status=${report.status}`} className="admin-report-preview">
       {imageUrl ? (
         <img src={imageUrl} alt="" className="admin-report-preview__image" />
       ) : (
@@ -222,9 +425,26 @@ function ReportPreview({ report, compact = false }: { report: AdminReport; compa
   );
 }
 
+function ActionPreview({ action }: { action: AdminModerationAction }) {
+  return (
+    <div className="admin-action-preview">
+      <span className="admin-action-preview__mark" aria-hidden="true">
+        {action.action_type.slice(0, 1).toUpperCase()}
+      </span>
+      <span>
+        <strong>{actionLabel(action.action_type)}</strong>
+        <small>
+          {formatContentTypeLabel(action.target_type)} {shortId(action.target_id)} by {shortId(action.admin_id)}
+        </small>
+      </span>
+      <time>{formatRelativeTime(action.created_at)}</time>
+    </div>
+  );
+}
+
 function SkeletonList({ rows }: { rows: number }) {
   return (
-    <div className="admin-skeleton-list" aria-label="Loading reports">
+    <div className="admin-skeleton-list" aria-label="Loading">
       {Array.from({ length: rows }).map((_, index) => (
         <div className="admin-skeleton-row" key={index}>
           <span className="admin-skeleton admin-skeleton--avatar" />
@@ -246,7 +466,7 @@ function EmptyState({ title, message }: { title: string; message: string }) {
       </div>
       <h3>{title}</h3>
       <p>{message}</p>
-      <Link to="/admin/reports" className="admin-btn admin-btn--secondary">
+      <Link to="/admin/reports?status=all" className="admin-btn admin-btn--secondary">
         Open reports
       </Link>
     </section>
@@ -265,4 +485,20 @@ function ErrorState({ title, message, onRetry }: { title: string; message: strin
       </button>
     </section>
   );
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat().format(value);
+}
+
+function ageHours(value: string) {
+  return Math.max(0, Date.now() - new Date(value).getTime()) / (60 * 60 * 1000);
+}
+
+function actionLabel(value: string) {
+  return value
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }

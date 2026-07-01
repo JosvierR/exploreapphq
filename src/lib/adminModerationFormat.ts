@@ -6,6 +6,8 @@ import type {
   ReportStatus,
 } from "@/lib/moderationAdminApi";
 
+export type ReportPriority = "high" | "medium" | "low";
+
 const contentTypeLabels: Record<ReportContentType, string> = {
   video: "Video",
   user: "User",
@@ -36,6 +38,15 @@ const visibilityLabels: Record<ModerationVisibilityStatus, string> = {
   hidden: "Hidden",
   removed: "Removed",
 };
+
+const priorityLabels: Record<ReportPriority, string> = {
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+};
+
+const highPriorityReasons = new Set<ReportReason>(["violence", "sexual_content", "harassment"]);
+const mediumPriorityReasons = new Set<ReportReason>(["inappropriate", "fake"]);
 
 function fallbackLabel(value: string) {
   return value
@@ -74,6 +85,10 @@ export function formatStatusLabel(status: ReportStatus | string) {
 
 export function formatVisibilityLabel(status: ModerationVisibilityStatus | string) {
   return visibilityLabels[status as ModerationVisibilityStatus] ?? fallbackLabel(status);
+}
+
+export function formatPriorityLabel(priority: ReportPriority | string) {
+  return priorityLabels[priority as ReportPriority] ?? fallbackLabel(priority);
 }
 
 export function formatDateTime(value: string | null | undefined) {
@@ -128,6 +143,43 @@ export function formatRelativeTime(value: string | null | undefined) {
   }
 
   return "";
+}
+
+export function reportAgeMs(value: string | null | undefined, now = Date.now()) {
+  const date = validDate(value);
+  if (!date) return 0;
+  return Math.max(0, now - date.getTime());
+}
+
+export function reportAgeHours(value: string | null | undefined, now = Date.now()) {
+  return reportAgeMs(value, now) / (60 * 60 * 1000);
+}
+
+export function formatAge(value: string | null | undefined, now = Date.now()) {
+  const minutes = Math.floor(reportAgeMs(value, now) / (60 * 1000));
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours}h`;
+
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
+}
+
+export function getReportPriority(report: AdminReport, now = Date.now()): ReportPriority {
+  const ageHours = report.status === "pending" ? reportAgeHours(report.created_at, now) : 0;
+  const reportCount = report.target_report_count ?? 1;
+
+  if (highPriorityReasons.has(report.reason) || reportCount > 1 || ageHours >= 24) {
+    return "high";
+  }
+
+  if (mediumPriorityReasons.has(report.reason) || ageHours >= 6) {
+    return "medium";
+  }
+
+  return "low";
 }
 
 export function safeMetadataPreview(metadata: Record<string, unknown> | null | undefined, maxItems = 4) {
