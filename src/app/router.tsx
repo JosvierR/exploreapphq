@@ -11,6 +11,7 @@ import { PrivacyPage } from "@/pages/marketing/PrivacyPage";
 import { ThanksPage } from "@/pages/marketing/ThanksPage";
 import { FeedbackPage } from "@/pages/marketing/FeedbackPage";
 import { NotFoundPage } from "@/pages/marketing/NotFoundPage";
+import { DeepLinkFallbackPage } from "@/pages/marketing/DeepLinkFallbackPage";
 import { AdminDashboardPage } from "@/pages/admin/AdminDashboardPage";
 import { ReportsAdminPage } from "@/pages/admin/ReportsAdminPage";
 import { WaitlistAdminPage } from "@/pages/admin/WaitlistAdminPage";
@@ -31,6 +32,16 @@ export const router = createBrowserRouter([
   { path: "/access", element: <AccessPage /> },
   { path: "/feedback/*", element: <FeedbackPage /> },
   { path: "/team", element: <TeamLoginPage /> },
+  { path: "/v/:videoId", element: <DeepLinkFallbackPage kind="video" paramName="videoId" /> },
+  { path: "/p/:placeId", element: <DeepLinkFallbackPage kind="place" paramName="placeId" /> },
+  { path: "/r/:routeId", element: <DeepLinkFallbackPage kind="route" paramName="routeId" /> },
+  { path: "/u/:handleOrUserId", element: <DeepLinkFallbackPage kind="profile" paramName="handleOrUserId" /> },
+  { path: "/me", element: <DeepLinkFallbackPage kind="me" /> },
+  { path: "/video/:videoId", element: <DeepLinkFallbackPage kind="video" paramName="videoId" /> },
+  { path: "/place/:placeId", element: <DeepLinkFallbackPage kind="place" paramName="placeId" /> },
+  { path: "/route/:routeId", element: <DeepLinkFallbackPage kind="route" paramName="routeId" /> },
+  { path: "/profile/:handleOrUserId", element: <DeepLinkFallbackPage kind="profile" paramName="handleOrUserId" /> },
+  { path: "/users/:handleOrUserId", element: <DeepLinkFallbackPage kind="profile" paramName="handleOrUserId" /> },
   {
     element: <AdminLayout />,
     children: [

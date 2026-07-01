@@ -1,0 +1,22 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "REPLACE_WITH_APPLE_TEAM_ID.REPLACE_WITH_IOS_BUNDLE_ID",
+        "paths": [
+          "/v/*",
+          "/p/*",
+          "/r/*",
+          "/u/*",
+          "/me",
+          "/video/*",
+          "/place/*",
+          "/route/*",
+          "/profile/*",
+          "/users/*"
+        ]
+      }
+    ]
+  }
+}
