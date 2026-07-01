@@ -4,6 +4,7 @@ export type ReportStatus = "pending" | "reviewed" | "dismissed" | "removed";
 export type ReportStatusFilter = ReportStatus | "all";
 export type ReportContentType = "video" | "user" | "place" | "place_photo";
 export type ReportContentTypeFilter = ReportContentType | "all";
+export type ModerationVisibilityStatus = "active" | "under_review" | "hidden" | "removed";
 export type ReportReason =
   | "spam"
   | "inappropriate"
@@ -48,6 +49,9 @@ export type AdminReport = {
     category?: string;
     photo_url?: string;
     place_id?: string;
+    moderation_status?: ModerationVisibilityStatus | string;
+    state?: string;
+    visibility?: string;
   };
 };
 
@@ -68,6 +72,8 @@ export type DashboardStats = {
 export type ModerationActionType =
   | "hide_video"
   | "restore_video"
+  | "hide_place"
+  | "restore_place"
   | "suspend_user"
   | "unsuspend_user"
   | "dismiss_report"

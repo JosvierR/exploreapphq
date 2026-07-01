@@ -26,6 +26,7 @@ Run this migration against the production Supabase project:
 
 ```text
 supabase/migrations/20260629170000_moderation.sql
+supabase/migrations/20260630120000_moderation_hide_for_reporter.sql
 ```
 
 It creates:
@@ -33,8 +34,11 @@ It creates:
 - `content_reports`
 - `admin_users`
 - `moderation_actions`
+- `user_hidden_content`
 
-It also enables RLS and adds policies for user report inserts plus admin/moderator reads and updates.
+It also adds `videos.moderation_status` and `places.moderation_status` for global public visibility. User reports should not write `videos.state = 'reported'` or `places.state = 'reported'`.
+
+It also enables RLS and adds policies for user report inserts, per-user hidden content, plus admin/moderator reads and updates.
 
 ## Add Your User As Admin
 
@@ -56,6 +60,9 @@ All moderation and legacy API routes are served by **one** Vercel function: `api
 
 - `GET /api/health` — config check (no auth)
 - `POST /api/reports`
+- `GET /api/user/hidden-content`
+- `POST /api/user/hidden-content`
+- `POST /api/user/hidden-content/unhide`
 - `GET /api/admin/reports`
 - `PATCH /api/admin/reports/:id`
 - `POST /api/admin/moderation/action`
@@ -72,13 +79,13 @@ All endpoints require `Authorization: Bearer <supabase_access_token>`.
 curl -X POST https://www.exploreapphq.com/api/reports \
   -H "Authorization: Bearer USER_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{\"content_type\":\"video\",\"content_id\":\"VIDEO_ID\",\"reason\":\"spam\",\"details\":\"test report\",\"metadata\":{}}"
+  -d "{\"content_type\":\"video\",\"content_id\":\"VIDEO_ID\",\"reason\":\"spam\",\"details\":\"test report\",\"metadata\":{},\"hide_for_reporter\":true}"
 ```
 
-3. Send the same request again. It should return `already_reported: true`.
+3. Send the same request again. It should return `already_reported: true` and still ensure `user_hidden_content` exists for the reporter.
 4. Sign in at `https://www.exploreapphq.com/admin` with a Supabase admin/moderator account.
 5. Open `https://www.exploreapphq.com/admin/reports`.
-6. Mark the report reviewed or dismissed.
-7. Use the destructive action button for the report target. A row should be inserted into `moderation_actions`.
+6. Mark the report reviewed or dismissed. This updates only `content_reports.status`.
+7. Use an explicit content visibility action such as Hide video, Restore video, or Remove content. Only these actions change `videos.moderation_status` or `places.moderation_status`.
 
 For local development, use `npm run dev:all`, then call `http://localhost:5173/api/reports` through the Vite proxy.

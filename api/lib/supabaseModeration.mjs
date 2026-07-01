@@ -12,9 +12,12 @@ const REPORT_REASONS = new Set([
 ]);
 const REPORT_STATUSES = new Set(["pending", "reviewed", "dismissed", "removed"]);
 const ADMIN_REPORT_STATUSES = new Set(["pending", "reviewed", "dismissed", "removed", "all"]);
+const HIDDEN_CONTENT_REASONS = new Set(["reported", "hidden_by_user"]);
 const ACTION_TYPES = new Set([
   "hide_video",
   "restore_video",
+  "hide_place",
+  "restore_place",
   "suspend_user",
   "unsuspend_user",
   "dismiss_report",
@@ -201,6 +204,7 @@ function validateReportBody(body) {
   const details =
     typeof body.details === "string" && body.details.trim() ? body.details.trim().slice(0, 4000) : null;
   const metadata = body.metadata === undefined ? {} : body.metadata;
+  const hideForReporter = body.hide_for_reporter === undefined ? false : body.hide_for_reporter;
 
   if (!CONTENT_TYPES.has(contentType)) {
     throw new HttpError(400, "content_type must be video, user, place, or place_photo.");
@@ -218,17 +222,42 @@ function validateReportBody(body) {
     throw new HttpError(400, "metadata must be a JSON object when provided.");
   }
 
+  if (typeof hideForReporter !== "boolean") {
+    throw new HttpError(400, "hide_for_reporter must be a boolean when provided.");
+  }
+
   return {
     content_type: contentType,
     content_id: contentId,
     reason,
     details,
     metadata,
+    hide_for_reporter: hideForReporter,
   };
 }
 
 function duplicateError(error) {
   return error?.code === "23505" || /duplicate key/i.test(error?.message || "");
+}
+
+async function ensureHiddenContentForUser(
+  supabase,
+  { userId, contentType, contentId, reason = "reported" },
+) {
+  const { error } = await supabase
+    .from("user_hidden_content")
+    .upsert(
+      {
+        user_id: userId,
+        content_type: contentType,
+        content_id: contentId,
+        reason,
+      },
+      { onConflict: "user_id,content_type,content_id" },
+    );
+
+  if (error) throw error;
+  return true;
 }
 
 export async function handleReports(request) {
@@ -238,6 +267,7 @@ export async function handleReports(request) {
 
     const { supabase, user } = await requireUser(request);
     const input = validateReportBody(await readJson(request));
+    const { hide_for_reporter: hideForReporter, ...reportInput } = input;
 
     const existing = await supabase
       .from("content_reports")
@@ -248,7 +278,20 @@ export async function handleReports(request) {
       .maybeSingle();
 
     if (existing.data) {
-      return jsonResponse(200, { ok: true, already_reported: true });
+      if (hideForReporter) {
+        await ensureHiddenContentForUser(supabase, {
+          userId: user.id,
+          contentType: input.content_type,
+          contentId: input.content_id,
+          reason: "reported",
+        });
+      }
+
+      return jsonResponse(200, {
+        ok: true,
+        already_reported: true,
+        hidden_for_reporter: hideForReporter,
+      });
     }
 
     if (existing.error) {
@@ -258,7 +301,7 @@ export async function handleReports(request) {
     const { data, error } = await supabase
       .from("content_reports")
       .insert({
-        ...input,
+        ...reportInput,
         reporter_id: user.id,
         status: "pending",
       })
@@ -266,16 +309,137 @@ export async function handleReports(request) {
       .single();
 
     if (duplicateError(error)) {
-      return jsonResponse(200, { ok: true, already_reported: true });
+      if (hideForReporter) {
+        await ensureHiddenContentForUser(supabase, {
+          userId: user.id,
+          contentType: input.content_type,
+          contentId: input.content_id,
+          reason: "reported",
+        });
+      }
+
+      return jsonResponse(200, {
+        ok: true,
+        already_reported: true,
+        hidden_for_reporter: hideForReporter,
+      });
     }
 
     if (error) throw error;
+
+    if (hideForReporter) {
+      await ensureHiddenContentForUser(supabase, {
+        userId: user.id,
+        contentType: input.content_type,
+        contentId: input.content_id,
+        reason: "reported",
+      });
+    }
 
     return jsonResponse(201, {
       ok: true,
       report_id: data.id,
       status: data.status,
+      hidden_for_reporter: hideForReporter,
     });
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+function validateHiddenContentBody(body, { requireReason }) {
+  if (!isPlainObject(body)) {
+    throw new HttpError(400, "Request body must be a JSON object.");
+  }
+
+  const contentType = typeof body.content_type === "string" ? body.content_type.trim() : "";
+  const contentId = typeof body.content_id === "string" ? body.content_id.trim() : "";
+  const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+
+  if (!CONTENT_TYPES.has(contentType)) {
+    throw new HttpError(400, "content_type must be video, user, place, or place_photo.");
+  }
+
+  if (!contentId || contentId.length > 256) {
+    throw new HttpError(400, "content_id is required and must be 256 characters or fewer.");
+  }
+
+  if (requireReason && !HIDDEN_CONTENT_REASONS.has(reason)) {
+    throw new HttpError(400, "reason must be reported or hidden_by_user.");
+  }
+
+  return {
+    content_type: contentType,
+    content_id: contentId,
+    reason: requireReason ? reason : null,
+  };
+}
+
+export async function handleUserHiddenContent(request) {
+  try {
+    if (request.method === "OPTIONS") return optionsResponse();
+
+    const { supabase, user } = await requireUser(request);
+
+    if (request.method === "GET") {
+      const url = new URL(request.url);
+      const contentType = url.searchParams.get("content_type")?.trim() || "";
+
+      if (contentType && !CONTENT_TYPES.has(contentType)) {
+        throw new HttpError(400, "content_type must be video, user, place, or place_photo.");
+      }
+
+      let query = supabase
+        .from("user_hidden_content")
+        .select("content_type, content_id, reason, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (contentType) query = query.eq("content_type", contentType);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return jsonResponse(200, { ok: true, items: data || [] });
+    }
+
+    if (request.method === "POST") {
+      const input = validateHiddenContentBody(await readJson(request), { requireReason: true });
+
+      await ensureHiddenContentForUser(supabase, {
+        userId: user.id,
+        contentType: input.content_type,
+        contentId: input.content_id,
+        reason: input.reason,
+      });
+
+      return jsonResponse(200, { ok: true });
+    }
+
+    return methodNotAllowed();
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+export async function handleUserHiddenContentUnhide(request) {
+  try {
+    if (request.method === "OPTIONS") return optionsResponse();
+    if (request.method !== "POST") return methodNotAllowed();
+
+    const { supabase, user } = await requireUser(request);
+    const input = validateHiddenContentBody(await readJson(request), { requireReason: false });
+
+    const { error } = await supabase
+      .from("user_hidden_content")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("content_type", input.content_type)
+      .eq("content_id", input.content_id);
+
+    if (error) throw error;
+
+    return jsonResponse(200, { ok: true });
   } catch (error) {
     return handleError(error);
   }
@@ -358,11 +522,20 @@ function firstField(row, names) {
   return undefined;
 }
 
+function targetVisibilityFields(row) {
+  return {
+    moderation_status: firstField(row, ["moderation_status"]),
+    state: firstField(row, ["state"]),
+    visibility: firstField(row, ["visibility"]),
+  };
+}
+
 function targetPreview(contentType, contentId, row) {
   if (!row) return { title: contentId };
 
   if (contentType === "video") {
     return {
+      ...targetVisibilityFields(row),
       title: firstField(row, ["title", "caption", "description", "name"]),
       thumbnail_url: firstField(row, [
         "thumbnail_url",
@@ -379,6 +552,7 @@ function targetPreview(contentType, contentId, row) {
 
   if (contentType === "user") {
     return {
+      ...targetVisibilityFields(row),
       username: firstField(row, ["username", "handle"]),
       display_name: firstField(row, ["display_name", "full_name", "name"]),
       avatar_url: firstField(row, ["avatar_url", "avatarUrl", "photo_url", "image_url"]),
@@ -387,6 +561,7 @@ function targetPreview(contentType, contentId, row) {
 
   if (contentType === "place") {
     return {
+      ...targetVisibilityFields(row),
       place_name: firstField(row, ["place_name", "name", "title"]),
       city: firstField(row, ["city", "locality", "municipality"]),
       category: firstField(row, ["category", "category_name", "type"]),
@@ -394,6 +569,7 @@ function targetPreview(contentType, contentId, row) {
   }
 
   return {
+    ...targetVisibilityFields(row),
     photo_url: firstField(row, ["photo_url", "image_url", "url", "media_url"]),
     place_id: firstField(row, ["place_id", "location_id"]),
   };
@@ -502,7 +678,7 @@ function validateReportStatusBody(body) {
 
 function actionTypeForReportStatus(status) {
   if (status === "dismissed") return "dismiss_report";
-  if (status === "removed") return "remove_content";
+  if (status === "removed") return "mark_removed";
   return "mark_reviewed";
 }
 
@@ -587,8 +763,16 @@ function validateModerationActionBody(body) {
     throw new HttpError(400, `${actionType} can only be used with target_type video.`);
   }
 
+  if ((actionType === "hide_place" || actionType === "restore_place") && targetType !== "place") {
+    throw new HttpError(400, `${actionType} can only be used with target_type place.`);
+  }
+
   if ((actionType === "suspend_user" || actionType === "unsuspend_user") && targetType !== "user") {
     throw new HttpError(400, `${actionType} can only be used with target_type user.`);
+  }
+
+  if (actionType === "remove_content" && targetType === "user") {
+    throw new HttpError(400, "remove_content cannot be used with target_type user. Use suspend_user instead.");
   }
 
   return {
@@ -608,13 +792,8 @@ function timestamp() {
   return new Date().toISOString();
 }
 
-function videoHideUpdate(row, hidden) {
-  if (hasField(row, "is_hidden")) return { is_hidden: hidden };
-  if (hasField(row, "hidden")) return { hidden };
-  if (hasField(row, "visibility")) return { visibility: hidden ? "hidden" : "public" };
-  if (hasField(row, "status")) return { status: hidden ? "hidden" : "active" };
-  if (hasField(row, "state")) return { state: hidden ? "hidden" : "active" };
-  if (hasField(row, "deleted_at")) return { deleted_at: hidden ? timestamp() : null };
+function moderationStatusUpdate(row, status) {
+  if (hasField(row, "moderation_status")) return { moderation_status: status };
   return null;
 }
 
@@ -648,9 +827,20 @@ function tablesForTargetType(targetType) {
   return ["place_photos", "photos"];
 }
 
-function buildUpdateForAction(actionType, row) {
-  if (actionType === "hide_video") return videoHideUpdate(row, true);
-  if (actionType === "restore_video") return videoHideUpdate(row, false);
+function buildUpdateForAction(input, row) {
+  if (input.target_type === "video") {
+    if (input.action_type === "hide_video") return moderationStatusUpdate(row, "hidden");
+    if (input.action_type === "restore_video") return moderationStatusUpdate(row, "active");
+    if (input.action_type === "remove_content") return moderationStatusUpdate(row, "removed");
+  }
+
+  if (input.target_type === "place") {
+    if (input.action_type === "hide_place") return moderationStatusUpdate(row, "hidden");
+    if (input.action_type === "restore_place") return moderationStatusUpdate(row, "active");
+    if (input.action_type === "remove_content") return moderationStatusUpdate(row, "removed");
+  }
+
+  const actionType = input.action_type;
   if (actionType === "suspend_user") return userSuspendUpdate(row, true);
   if (actionType === "unsuspend_user") return userSuspendUpdate(row, false);
   if (actionType === "remove_content") return contentRemoveUpdate(row);
@@ -666,7 +856,7 @@ async function applyModerationAction(supabase, input) {
     const { data, error } = await supabase.from(table).select("*").eq("id", input.target_id).maybeSingle();
     if (error || !data) continue;
 
-    const update = buildUpdateForAction(input.action_type, data);
+    const update = buildUpdateForAction(input, data);
     if (!update || Object.keys(update).length === 0) {
       return {
         applied: false,
@@ -691,10 +881,16 @@ async function applyModerationAction(supabase, input) {
 
 function reportStatusForAction(actionType) {
   if (actionType === "dismiss_report") return "dismissed";
-  if (actionType === "hide_video" || actionType === "suspend_user" || actionType === "remove_content") {
+  if (
+    actionType === "hide_video" ||
+    actionType === "hide_place" ||
+    actionType === "suspend_user" ||
+    actionType === "remove_content"
+  ) {
     return "removed";
   }
-  return "reviewed";
+  if (actionType === "mark_reviewed") return "reviewed";
+  return null;
 }
 
 function appendOutcomeToNotes(notes, outcome) {
@@ -731,17 +927,21 @@ export async function handleAdminModerationAction(request) {
 
     let report = null;
     if (input.report_id) {
-      const { data, error } = await supabase
-        .from("content_reports")
-        .update({
-          status: reportStatusForAction(input.action_type),
-          reviewed_by: user.id,
-          reviewed_at: timestamp(),
-        })
-        .eq("id", input.report_id)
-        .select("*")
-        .single();
+      const nextReportStatus = reportStatusForAction(input.action_type);
+      const reportQuery = nextReportStatus
+        ? supabase
+            .from("content_reports")
+            .update({
+              status: nextReportStatus,
+              reviewed_by: user.id,
+              reviewed_at: timestamp(),
+            })
+            .eq("id", input.report_id)
+            .select("*")
+            .single()
+        : supabase.from("content_reports").select("*").eq("id", input.report_id).maybeSingle();
 
+      const { data, error } = await reportQuery;
       if (error) throw error;
       report = data;
     }

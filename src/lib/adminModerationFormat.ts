@@ -1,4 +1,10 @@
-import type { AdminReport, ReportContentType, ReportReason, ReportStatus } from "@/lib/moderationAdminApi";
+import type {
+  AdminReport,
+  ModerationVisibilityStatus,
+  ReportContentType,
+  ReportReason,
+  ReportStatus,
+} from "@/lib/moderationAdminApi";
 
 const contentTypeLabels: Record<ReportContentType, string> = {
   video: "Video",
@@ -21,6 +27,13 @@ const statusLabels: Record<ReportStatus, string> = {
   pending: "Pending",
   reviewed: "Reviewed",
   dismissed: "Dismissed",
+  removed: "Removed",
+};
+
+const visibilityLabels: Record<ModerationVisibilityStatus, string> = {
+  active: "Active",
+  under_review: "Under review",
+  hidden: "Hidden",
   removed: "Removed",
 };
 
@@ -57,6 +70,10 @@ export function formatReasonLabel(reason: ReportReason | string) {
 
 export function formatStatusLabel(status: ReportStatus | string) {
   return statusLabels[status as ReportStatus] ?? fallbackLabel(status);
+}
+
+export function formatVisibilityLabel(status: ModerationVisibilityStatus | string) {
+  return visibilityLabels[status as ModerationVisibilityStatus] ?? fallbackLabel(status);
 }
 
 export function formatDateTime(value: string | null | undefined) {
