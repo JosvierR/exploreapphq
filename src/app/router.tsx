@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
 import { VercelAnalytics } from "@/features/analytics/VercelAnalytics";
+import { AdminErrorBoundary } from "@/features/admin/components/AdminErrorBoundary";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { MarketingLayout } from "@/components/layout/MarketingLayout";
 import { AccessPage } from "@/pages/auth/AccessPage";
@@ -8,6 +9,7 @@ import { TeamLoginPage } from "@/pages/auth/TeamLoginPage";
 import { HomePage } from "@/pages/marketing/HomePage";
 import { TermsPage } from "@/pages/marketing/TermsPage";
 import { PrivacyPage } from "@/pages/marketing/PrivacyPage";
+import { SafetyPage } from "@/pages/marketing/SafetyPage";
 import { ThanksPage } from "@/pages/marketing/ThanksPage";
 import { FeedbackPage } from "@/pages/marketing/FeedbackPage";
 import { NotFoundPage } from "@/pages/marketing/NotFoundPage";
@@ -43,7 +45,11 @@ export const router = createBrowserRouter([
   { path: "/profile/:handleOrUserId", element: <DeepLinkFallbackPage kind="profile" paramName="handleOrUserId" /> },
   { path: "/users/:handleOrUserId", element: <DeepLinkFallbackPage kind="profile" paramName="handleOrUserId" /> },
   {
-    element: <AdminLayout />,
+    element: (
+      <AdminErrorBoundary>
+        <AdminLayout />
+      </AdminErrorBoundary>
+    ),
     children: [
       { path: "/admin", element: <AdminDashboardPage /> },
       { path: "/admin/reports", element: <ReportsAdminPage /> },
@@ -52,7 +58,9 @@ export const router = createBrowserRouter([
   {
     element: (
       <ProtectedRoute>
-        <AdminLayout />
+        <AdminErrorBoundary>
+          <AdminLayout />
+        </AdminErrorBoundary>
       </ProtectedRoute>
     ),
     children: [{ path: "/admin/waitlist", element: <WaitlistAdminPage /> }],
@@ -67,6 +75,7 @@ export const router = createBrowserRouter([
       { path: "/", element: <HomePage /> },
       { path: "/terms", element: <TermsPage /> },
       { path: "/privacy", element: <PrivacyPage /> },
+      { path: "/safety", element: <SafetyPage /> },
       { path: "/thanks", element: <ThanksPage /> },
       { path: "*", element: <NotFoundPage /> },
     ],

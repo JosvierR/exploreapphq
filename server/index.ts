@@ -17,6 +17,14 @@ import {
   handleUserHiddenContent,
   handleUserHiddenContentUnhide,
 } from "../api/lib/supabaseModeration.mjs";
+// @ts-ignore
+import {
+  handleAdminSystemHealth,
+  handleAdminSystemMetrics,
+  handleTokenMetrics,
+} from "../api/lib/systemRouter.mjs";
+// @ts-ignore
+import { ensureRequestId } from "../api/lib/requestContext.mjs";
 import { requireAdmin } from "./adminAuth.js";
 import { config } from "./config.js";
 import {
@@ -77,7 +85,8 @@ async function sendFetchResponse(
       headers,
       body,
     });
-    const response = await handler(request);
+    const { request: requestWithId } = ensureRequestId(request);
+    const response = await handler(requestWithId);
 
     res.status(response.status);
     response.headers.forEach((value, key) => {
@@ -136,6 +145,18 @@ app.all("/api/admin/ops/summary", (req, res) => {
 
 app.all("/api/admin/users", (req, res) => {
   void sendFetchResponse(handleAdminUsers, req, res);
+});
+
+app.all("/api/admin/system/health", (req, res) => {
+  void sendFetchResponse(handleAdminSystemHealth, req, res);
+});
+
+app.all("/api/admin/system/metrics", (req, res) => {
+  void sendFetchResponse(handleAdminSystemMetrics, req, res);
+});
+
+app.all("/api/metrics", (req, res) => {
+  void sendFetchResponse(handleTokenMetrics, req, res);
 });
 
 app.all("/api/admin/reports/:id", (req, res) => {

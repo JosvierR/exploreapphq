@@ -22,8 +22,12 @@ declare module "*.mjs" {
   export const handleAdminOpsSummary: (request: Request) => Promise<Response>;
   export const handleAdminReportById: (request: Request, id?: string) => Promise<Response>;
   export const handleAdminReports: (request: Request) => Promise<Response>;
+  export const handleAdminSystemHealth: (request: Request) => Promise<Response>;
+  export const handleAdminSystemMetrics: (request: Request) => Promise<Response>;
   export const handleAdminUsers: (request: Request) => Promise<Response>;
   export const handleHealth: (request: Request) => Promise<Response>;
+  export const handleTokenMetrics: (request: Request) => Promise<Response>;
+  export const ensureRequestId: (request: Request) => { request: Request; requestId: string };
   export const handleReports: (request: Request) => Promise<Response>;
   export const handleUserHiddenContent: (request: Request) => Promise<Response>;
   export const handleUserHiddenContentUnhide: (request: Request) => Promise<Response>;

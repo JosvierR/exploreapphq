@@ -1,4 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
+import { appEnvironment, appVersion, errorSummary, logger, requestLogMeta } from "./logger.mjs";
+import { recordAdminAction, recordModerationAction, recordSupabaseError } from "./metrics.mjs";
+import { requestIdFromRequest } from "./requestContext.mjs";
 
 const CONTENT_TYPES = new Set(["video", "user", "place", "place_photo"]);
 const REPORT_REASONS = new Set([
@@ -31,8 +34,9 @@ const ACTION_TYPES = new Set([
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Authorization, Content-Type",
+  "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Request-ID",
   "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+  "Access-Control-Expose-Headers": "X-Request-ID",
 };
 
 class HttpError extends Error {
@@ -65,13 +69,39 @@ function methodNotAllowed() {
   return jsonResponse(405, { ok: false, error: "Method not allowed." });
 }
 
-function handleError(error) {
-  if (error instanceof HttpError) {
-    return jsonResponse(error.status, { ok: false, error: error.message });
+function safeClientError(error, status) {
+  if (status === 401) return "Authentication required.";
+  if (status === 403) return "Access denied.";
+  if (status >= 500) return "Internal server error.";
+  return error instanceof Error ? error.message : "Request failed.";
+}
+
+function handleError(error, request) {
+  const status = error instanceof HttpError ? error.status : error?.status || 500;
+  const meta = request
+    ? requestLogMeta(request, new URL(request.url).pathname.replace(/^\/api\/?/, ""))
+    : {};
+
+  if (status >= 500) {
+    recordSupabaseError(meta.route || "unknown");
+    logger.error("Moderation API error", {
+      ...meta,
+      status,
+      error: errorSummary(error),
+    });
+  } else {
+    logger.warn("Moderation API rejected request", {
+      ...meta,
+      status,
+      error: errorSummary(error),
+    });
   }
 
-  console.error("[moderation-api]", error);
-  return jsonResponse(500, { ok: false, error: "Unexpected server error." });
+  return jsonResponse(status, {
+    ok: false,
+    error: safeClientError(error, status),
+    request_id: request ? requestIdFromRequest(request) : undefined,
+  });
 }
 
 function getSupabaseUrl() {
@@ -94,11 +124,27 @@ export async function handleHealth(request) {
   if (request.method === "OPTIONS") return optionsResponse();
   if (request.method !== "GET") return methodNotAllowed();
 
+  const supabaseUrlConfigured = Boolean(getSupabaseUrl());
+  const publishableKeyConfigured = Boolean(getSupabasePublishableKey());
+  const secretKeyConfigured = Boolean(getSupabaseSecretKey());
+
   return jsonResponse(200, {
     ok: true,
-    supabaseUrlConfigured: Boolean(getSupabaseUrl()),
-    publishableKeyConfigured: Boolean(getSupabasePublishableKey()),
-    secretKeyConfigured: Boolean(getSupabaseSecretKey()),
+    service: "explore-web-admin",
+    environment: appEnvironment(),
+    version: appVersion(),
+    timestamp: new Date().toISOString(),
+    request_id: requestIdFromRequest(request),
+    checks: {
+      api: "ok",
+      supabase_url_configured: supabaseUrlConfigured,
+      supabase_publishable_configured: publishableKeyConfigured,
+      supabase_service_configured: secretKeyConfigured,
+      admin_routes: "ok",
+    },
+    supabaseUrlConfigured,
+    publishableKeyConfigured,
+    secretKeyConfigured,
   });
 }
 
@@ -347,7 +393,7 @@ export async function handleReports(request) {
       hidden_for_reporter: hideForReporter,
     });
   } catch (error) {
-    return handleError(error);
+    return handleError(error, request);
   }
 }
 
@@ -422,7 +468,7 @@ export async function handleUserHiddenContent(request) {
 
     return methodNotAllowed();
   } catch (error) {
-    return handleError(error);
+    return handleError(error, request);
   }
 }
 
@@ -445,7 +491,7 @@ export async function handleUserHiddenContentUnhide(request) {
 
     return jsonResponse(200, { ok: true });
   } catch (error) {
-    return handleError(error);
+    return handleError(error, request);
   }
 }
 
@@ -1032,7 +1078,7 @@ export async function handleAdminReports(request) {
       total: count || 0,
     });
   } catch (error) {
-    return handleError(error);
+    return handleError(error, request);
   }
 }
 
@@ -1205,7 +1251,7 @@ export async function handleAdminModerationSummary(request) {
       },
     });
   } catch (error) {
-    return handleError(error);
+    return handleError(error, request);
   }
 }
 
@@ -1439,7 +1485,7 @@ export async function handleAdminUsers(request) {
       warnings,
     });
   } catch (error) {
-    return handleError(error);
+    return handleError(error, request);
   }
 }
 
@@ -1770,7 +1816,7 @@ export async function handleAdminOpsSummary(request) {
       },
     });
   } catch (error) {
-    return handleError(error);
+    return handleError(error, request);
   }
 }
 
@@ -1790,7 +1836,7 @@ export async function handleAdminMe(request) {
       fallback: Boolean(fallback),
     });
   } catch (error) {
-    return handleError(error);
+    return handleError(error, request);
   }
 }
 
@@ -1842,7 +1888,7 @@ export async function handleAdminReportById(request, explicitId) {
     const id = reportIdFromRequest(request, explicitId);
     if (!id) throw new HttpError(400, "Report id is required.");
 
-    const { supabase, user } = await requireAdmin(request);
+    const { supabase, user, email } = await requireAdmin(request);
 
     if (request.method === "GET") {
       const current = await supabase.from("content_reports").select("*").eq("id", id).maybeSingle();
@@ -1894,18 +1940,34 @@ export async function handleAdminReportById(request, explicitId) {
 
     if (error) throw error;
 
-    await insertModerationAction(supabase, {
+    const actionType = actionTypeForReportStatus(input.status);
+    const action = await insertModerationAction(supabase, {
       admin_id: user.id,
       report_id: id,
       target_type: current.data.content_type,
       target_id: current.data.content_id,
-      action_type: actionTypeForReportStatus(input.status),
+      action_type: actionType,
       notes: input.notes,
+    });
+
+    recordAdminAction({ action: actionType, targetType: current.data.content_type });
+    recordModerationAction({ action: actionType, targetType: current.data.content_type });
+    logger.info("Admin report status updated", {
+      ...requestLogMeta(request, "admin/reports/:id"),
+      admin_user_id: user.id,
+      admin_email: email,
+      action_type: actionType,
+      action_id: action.id,
+      target_type: current.data.content_type,
+      target_id: current.data.content_id,
+      report_id: id,
+      previous_state: { status: current.data.status },
+      next_state: { status: input.status },
     });
 
     return jsonResponse(200, { ok: true, report: data });
   } catch (error) {
-    return handleError(error);
+    return handleError(error, request);
   }
 }
 
@@ -2054,7 +2116,14 @@ async function applyModerationAction(supabase, input) {
     const result = await supabase.from(table).update(update).eq("id", input.target_id);
     if (result.error) throw result.error;
 
-    return { applied: true, table, fields: Object.keys(update) };
+    const fields = Object.keys(update);
+    return {
+      applied: true,
+      table,
+      fields,
+      previous_state: Object.fromEntries(fields.map((field) => [field, data[field] ?? null])),
+      next_state: Object.fromEntries(fields.map((field) => [field, update[field] ?? null])),
+    };
   }
 
   return {
@@ -2082,7 +2151,7 @@ export async function handleAdminModerationAction(request) {
     if (request.method === "OPTIONS") return optionsResponse();
     if (request.method !== "POST") return methodNotAllowed();
 
-    const { supabase, user } = await requireAdmin(request);
+    const { supabase, user, email } = await requireAdmin(request);
     const input = validateModerationActionBody(await readJson(request));
     const outcome = await applyModerationAction(supabase, input);
 
@@ -2093,6 +2162,24 @@ export async function handleAdminModerationAction(request) {
       target_id: input.target_id,
       action_type: input.action_type,
       notes: appendOutcomeToNotes(input.notes, outcome),
+    });
+
+    const actionStatus = outcome.applied ? "success" : "failed";
+    recordAdminAction({ action: input.action_type, targetType: input.target_type, status: actionStatus });
+    recordModerationAction({ action: input.action_type, targetType: input.target_type, status: actionStatus });
+    logger.info("Admin moderation action recorded", {
+      ...requestLogMeta(request, "admin/moderation/action"),
+      admin_user_id: user.id,
+      admin_email: email,
+      action_type: input.action_type,
+      action_id: action.id,
+      target_type: input.target_type,
+      target_id: input.target_id,
+      report_id: input.report_id,
+      previous_state: outcome.previous_state || null,
+      next_state: outcome.next_state || null,
+      applied: Boolean(outcome.applied),
+      table: outcome.table || null,
     });
 
     if (!outcome.applied) {
@@ -2149,6 +2236,6 @@ export async function handleAdminModerationAction(request) {
       target: serializedReport?.target || null,
     });
   } catch (error) {
-    return handleError(error);
+    return handleError(error, request);
   }
 }
