@@ -8,6 +8,7 @@ import { resolveApiRoute } from "./resolveApiRoute.mjs";
 import {
   handleAdminSystemHealth,
   handleAdminSystemMetrics,
+  handleBootstrapBoardAdmins,
   handleTokenMetrics,
 } from "./systemRouter.mjs";
 import { jsonResponse, optionsResponse } from "./supabaseModeration.mjs";
@@ -50,6 +51,8 @@ export async function dispatchApi(incomingRequest) {
       response = await handleAdminSystemHealth(request);
     } else if (route === "admin/system/metrics") {
       response = await handleAdminSystemMetrics(request);
+    } else if (route === "admin/system/bootstrap-board") {
+      response = await handleBootstrapBoardAdmins(request);
     } else if (route === "metrics") {
       response = await handleTokenMetrics(request);
     } else if (route === "waitlist/signup") {

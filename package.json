@@ -18,6 +18,8 @@
     "dev:mail": "docker compose up -d mailpit",
     "netlify:env": "powershell -ExecutionPolicy Bypass -File scripts/crear-netlify-env.ps1",
     "resend:check": "node scripts/check-resend-domain.mjs",
+    "admin:provision": "node scripts/provision-supabase-admins.mjs",
+    "admin:bootstrap": "node scripts/run-board-admin-bootstrap.mjs",
     "vercel:env": "powershell -ExecutionPolicy Bypass -File scripts/crear-vercel-env.ps1"
   },
   "dependencies": {
@@ -47,6 +49,7 @@
     "concurrently": "^9.1.2",
     "tsx": "^4.19.2",
     "typescript": "~5.7.2",
-    "vite": "^6.0.5"
+    "vite": "^6.0.5",
+    "ws": "^8.21.0"
   }
 }

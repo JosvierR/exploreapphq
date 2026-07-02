@@ -21,6 +21,7 @@ import {
 import {
   handleAdminSystemHealth,
   handleAdminSystemMetrics,
+  handleBootstrapBoardAdmins,
   handleTokenMetrics,
 } from "../api/lib/systemRouter.mjs";
 // @ts-ignore
@@ -153,6 +154,10 @@ app.all("/api/admin/system/health", (req, res) => {
 
 app.all("/api/admin/system/metrics", (req, res) => {
   void sendFetchResponse(handleAdminSystemMetrics, req, res);
+});
+
+app.all("/api/admin/system/bootstrap-board", (req, res) => {
+  void sendFetchResponse(handleBootstrapBoardAdmins, req, res);
 });
 
 app.all("/api/metrics", (req, res) => {

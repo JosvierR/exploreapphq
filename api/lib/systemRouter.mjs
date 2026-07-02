@@ -185,3 +185,57 @@ export async function handleTokenMetrics(request) {
 
   return metricsResponse(request);
 }
+
+function bootstrapSecret() {
+  return String(process.env.ADMIN_BOOTSTRAP_SECRET || "").trim();
+}
+
+export async function handleBootstrapBoardAdmins(request) {
+  if (request.method === "OPTIONS") return optionsResponse();
+  if (request.method !== "POST") return methodNotAllowed(request);
+
+  const requestId = requestIdFromRequest(request);
+  const expected = bootstrapSecret();
+  if (!expected) {
+    return jsonResponse(404, {
+      ok: false,
+      error: "Not found.",
+      request_id: requestId,
+    });
+  }
+
+  const provided = String(request.headers.get("x-admin-bootstrap-secret") || "").trim();
+  if (!provided || provided !== expected) {
+    return jsonResponse(403, {
+      ok: false,
+      error: "Bootstrap secret required.",
+      request_id: requestId,
+    });
+  }
+
+  try {
+    const { provisionBoardAdminAccounts } = await import("./boardAdminProvision.mjs");
+    const result = await provisionBoardAdminAccounts();
+    logger.info("Board admin bootstrap completed", {
+      request_id: requestId,
+      account_count: result.accounts.length,
+    });
+    return jsonResponse(200, {
+      ok: true,
+      request_id: requestId,
+      ...result,
+      warning:
+        "Save these credentials securely now. Rotate ADMIN_BOOTSTRAP_SECRET and redeploy after bootstrap.",
+    });
+  } catch (error) {
+    logger.error("Board admin bootstrap failed", {
+      request_id: requestId,
+      error: errorSummary(error),
+    });
+    return jsonResponse(500, {
+      ok: false,
+      error: error?.message || "Bootstrap failed.",
+      request_id: requestId,
+    });
+  }
+}
