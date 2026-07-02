@@ -38,25 +38,57 @@ export type AdminReport = {
   created_at: string;
   reviewed_by: string | null;
   reviewed_at: string | null;
+  reporter: AdminReportActor | null;
   target_report_count?: number;
+  report_count_for_target?: number;
+  previous_reports_for_target?: AdminRecentReport[];
+  related_reports?: AdminRecentReport[];
+  recent_moderation_actions?: AdminModerationAction[];
+  reporter_hidden_for_target?: boolean;
   actions?: AdminModerationAction[];
-  target: {
-    title?: string;
-    thumbnail_url?: string;
-    video_url?: string;
-    owner_id?: string;
-    username?: string;
-    display_name?: string;
-    avatar_url?: string;
-    place_name?: string;
-    city?: string;
-    category?: string;
-    photo_url?: string;
-    place_id?: string;
-    moderation_status?: ModerationVisibilityStatus | string;
-    state?: string;
-    visibility?: string;
-  };
+  target: AdminReportTarget;
+};
+
+export type AdminReportActor = {
+  id: string;
+  handle: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  email: string | null;
+};
+
+export type AdminReportTarget = {
+  type?: ReportContentType;
+  id?: string;
+  title?: string | null;
+  thumbnail_url?: string | null;
+  video_url?: string | null;
+  video_available?: boolean;
+  unavailable_message?: string | null;
+  target_unavailable?: boolean;
+  description?: string | null;
+  tags?: string[];
+  duration_seconds?: number | null;
+  total_likes?: number | null;
+  total_comments?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  owner_id?: string | null;
+  creator?: AdminReportActor | null;
+  public_deep_link?: string | null;
+  username?: string;
+  display_name?: string;
+  avatar_url?: string | null;
+  place_name?: string;
+  city?: string;
+  category?: string;
+  photo_url?: string | null;
+  place_id?: string;
+  moderation_status?: ModerationVisibilityStatus | string | null;
+  state?: string | null;
+  visibility?: string | null;
+  visibility_label?: string | null;
+  globally_visible?: boolean;
 };
 
 export type AdminModerationAction = {
@@ -108,6 +140,16 @@ export type AdminRecentReport = Pick<
 export type ReportsResponse = {
   reports: AdminReport[];
   total: number;
+};
+
+export type AdminReportDetailResponse = {
+  ok: true;
+  report: AdminReport;
+  target: AdminReportTarget;
+  reporter: AdminReportActor | null;
+  creator: AdminReportActor | null;
+  related_reports: AdminRecentReport[];
+  moderation_actions: AdminModerationAction[];
 };
 
 export type ModerationVisibilitySummary = Record<ModerationVisibilityStatus, number> & {
@@ -325,7 +367,7 @@ export function fetchApiHealth() {
   return publicApiFetch<AdminHealth>("/api/health");
 }
 
-export function fetchReports(filters: {
+export function getAdminReports(filters: {
   status?: ReportStatusFilter;
   contentType?: ReportContentTypeFilter;
   reason?: ReportReasonFilter;
@@ -342,6 +384,12 @@ export function fetchReports(filters: {
     offset: String(filters.offset ?? 0),
   });
   return apiFetch<ReportsResponse>(`/api/admin/reports?${params}`);
+}
+
+export const fetchReports = getAdminReports;
+
+export function getAdminReportDetail(reportId: string) {
+  return apiFetch<AdminReportDetailResponse>(`/api/admin/reports/${encodeURIComponent(reportId)}`);
 }
 
 export async function fetchModerationSummary(): Promise<AdminModerationSummary> {
@@ -384,6 +432,14 @@ export function updateReportStatus(id: string, status: Exclude<ReportStatus, "pe
   });
 }
 
+export function markReportReviewed(reportId: string, notes?: string) {
+  return updateReportStatus(reportId, "reviewed", notes);
+}
+
+export function dismissReport(reportId: string, notes?: string) {
+  return updateReportStatus(reportId, "dismissed", notes);
+}
+
 export function applyModerationAction(payload: {
   report_id?: string;
   target_type: ReportContentType;
@@ -398,4 +454,34 @@ export function applyModerationAction(payload: {
       body: JSON.stringify(payload),
     },
   );
+}
+
+export function hideVideo(videoId: string, reportId?: string, notes?: string) {
+  return applyModerationAction({
+    report_id: reportId,
+    target_type: "video",
+    target_id: videoId,
+    action_type: "hide_video",
+    notes,
+  });
+}
+
+export function removeVideo(videoId: string, reportId?: string, notes?: string) {
+  return applyModerationAction({
+    report_id: reportId,
+    target_type: "video",
+    target_id: videoId,
+    action_type: "remove_content",
+    notes,
+  });
+}
+
+export function restoreVideo(videoId: string, reportId?: string, notes?: string) {
+  return applyModerationAction({
+    report_id: reportId,
+    target_type: "video",
+    target_id: videoId,
+    action_type: "restore_video",
+    notes,
+  });
 }
