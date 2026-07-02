@@ -40,7 +40,7 @@ const insightsItems: NavItem[] = [
 ];
 
 const systemItems: NavItem[] = [
-  { label: "Health", to: "/admin?section=system", exactQuery: true },
+  { label: "System / Observability", to: "/admin?section=system", exactQuery: true },
   { label: "Admins", to: "/admin?section=admins", exactQuery: true },
 ];
 
@@ -73,8 +73,8 @@ function routeMeta(pathname: string, search: string) {
     }
     if (section === "system" || section === "admins") {
       return {
-        title: "System health",
-        description: "Check API, Supabase, domain, and admin authorization status.",
+        title: "System / Observability",
+        description: "Check API, Supabase, request ids, metrics, logs, and admin authorization status.",
       };
     }
 

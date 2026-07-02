@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { T } from "@/components/ui/T";
 import { BrandLogo } from "@/components/brand/BrandLogo";
-import { SITE, SOCIAL } from "@/lib/constants";
+import { SITE, SOCIAL, STORE_URLS } from "@/lib/constants";
 
 export function SiteFooter() {
   const year = new Date().getFullYear();
@@ -53,6 +53,9 @@ export function SiteFooter() {
             <a href={`mailto:${SITE.email}`}>
               <T k="nav.contact" />
             </a>
+            <a href={`mailto:${SITE.email}?subject=Explore%20account%20or%20data%20deletion`}>
+              Delete account/data
+            </a>
           </div>
           <div className="footer-col">
             <h5>
@@ -64,6 +67,13 @@ export function SiteFooter() {
             <Link to="/terms">
               <T k="footer.terms" />
             </Link>
+            <Link to="/safety">Safety</Link>
+            <a href={STORE_URLS.apple} target="_blank" rel="noopener noreferrer">
+              App Store
+            </a>
+            <a href={STORE_URLS.play} target="_blank" rel="noopener noreferrer">
+              Google Play
+            </a>
           </div>
         </div>
         <div className="footer-bottom">

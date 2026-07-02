@@ -184,9 +184,78 @@ export type AdminModerationSummary = {
 
 export type AdminHealth = {
   ok: boolean;
+  service?: string;
+  environment?: string;
+  version?: string;
+  timestamp?: string;
+  request_id?: string;
+  checks?: {
+    api: "ok" | string;
+    supabase_url_configured: boolean;
+    supabase_publishable_configured: boolean;
+    supabase_service_configured: boolean;
+    admin_routes: "ok" | string;
+  };
   supabaseUrlConfigured: boolean;
   publishableKeyConfigured: boolean;
   secretKeyConfigured: boolean;
+};
+
+export type AdminSystemHealth = {
+  ok: boolean;
+  service: string;
+  environment: string;
+  version: string;
+  timestamp: string;
+  request_id: string;
+  duration_ms: number;
+  admin: {
+    user_id: string;
+    email: string;
+    role: "admin" | "moderator";
+    fallback: boolean;
+  };
+  checks: {
+    api: "ok" | "warning" | string;
+    admin_auth: "ok" | "warning" | string;
+    supabase_connection: "ok" | "warning" | string;
+    reports_table: "ok" | "warning" | string;
+    videos_table: "ok" | "warning" | string;
+    places_table: "ok" | "warning" | string;
+    moderation_actions_table: "ok" | "warning" | string;
+    metrics: "in_memory" | string;
+    loki_configured: boolean;
+    grafana_logs_enabled: boolean;
+  };
+  config: {
+    supabase_url_configured: boolean;
+    supabase_publishable_configured: boolean;
+    supabase_service_configured: boolean;
+    metrics_token_configured: boolean;
+    loki_enabled: boolean;
+    loki_url_configured: boolean;
+    loki_username_configured: boolean;
+    loki_token_configured: boolean;
+    loki_ready: boolean;
+    grafana_logs_enabled: boolean;
+  };
+  warnings: string[];
+};
+
+export type AdminMetricsSnapshot = {
+  ok: true;
+  request_id: string;
+  generated_at: string;
+  note: string;
+  counters: Array<{ name: string; labels: Record<string, string>; value: number }>;
+  timers: Array<{
+    name: string;
+    labels: Record<string, string>;
+    count: number;
+    sum: number;
+    avg: number;
+    p95: number;
+  }>;
 };
 
 export type NullableMetric = number | null;
@@ -319,44 +388,127 @@ async function accessToken() {
   return data.session.access_token;
 }
 
-async function apiFetch<T>(path: string, init: RequestInit = {}, tokenOverride?: string): Promise<T> {
-  const token = tokenOverride ?? (await accessToken());
-  const response = await fetch(path, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...(init.headers as Record<string, string> | undefined),
-    },
-  });
-  const data = (await response.json().catch(() => ({}))) as T & { error?: string };
+export class AdminApiError extends Error {
+  status?: number;
+  requestId?: string;
+
+  constructor(message: string, options: { status?: number; requestId?: string } = {}) {
+    super(message);
+    this.name = "AdminApiError";
+    this.status = options.status;
+    this.requestId = options.requestId;
+  }
+}
+
+function createClientRequestId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return `web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function withTimeout(init: RequestInit, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  const cleanup = () => window.clearTimeout(timeout);
+
+  if (init.signal) {
+    init.signal.addEventListener("abort", () => controller.abort(), { once: true });
+  }
+
+  return { signal: controller.signal, cleanup };
+}
+
+function requestHeaders(init: RequestInit, token?: string) {
+  const headers = new Headers(init.headers);
+  if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  if (!headers.has("x-request-id")) headers.set("x-request-id", createClientRequestId());
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  return headers;
+}
+
+function errorMessage(message: string, status?: number, requestId?: string) {
+  const base =
+    status === 401
+      ? "Sign in to Supabase admin first."
+      : status === 403
+        ? "Your account is signed in, but it is not authorized for Explore Admin Console."
+        : message || "Something went wrong.";
+  return requestId ? `${base} Request ID: ${requestId}` : base;
+}
+
+async function parseResponse<T>(response: Response): Promise<T> {
+  const data = (await response.json().catch(() => ({}))) as T & {
+    error?: string;
+    request_id?: string;
+  };
+  const requestId = response.headers.get("x-request-id") || data.request_id || undefined;
 
   if (!response.ok) {
-    const error = new Error(data.error ?? `Request failed (${response.status}).`);
-    (error as Error & { status?: number }).status = response.status;
-    throw error;
+    throw new AdminApiError(errorMessage(data.error ?? `Request failed (${response.status}).`, response.status, requestId), {
+      status: response.status,
+      requestId,
+    });
   }
 
   return data;
 }
 
-async function publicApiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(path, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init.headers as Record<string, string> | undefined),
-    },
-  });
-  const data = (await response.json().catch(() => ({}))) as T & { error?: string };
+async function apiFetch<T>(path: string, init: RequestInit = {}, tokenOverride?: string): Promise<T> {
+  const token = tokenOverride ?? (await accessToken());
+  const method = (init.method || "GET").toUpperCase();
+  const canRetry = method === "GET";
+  const attempts = canRetry ? 2 : 1;
 
-  if (!response.ok) {
-    const error = new Error(data.error ?? `Request failed (${response.status}).`);
-    (error as Error & { status?: number }).status = response.status;
-    throw error;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const { signal, cleanup } = withTimeout(init);
+    try {
+      const response = await fetch(path, {
+        ...init,
+        signal,
+        headers: requestHeaders(init, token),
+      });
+      return await parseResponse<T>(response);
+    } catch (error) {
+      const status = error instanceof AdminApiError ? error.status : undefined;
+      const retryable = canRetry && attempt < attempts && (!status || status === 502 || status === 503 || status === 504);
+      if (!retryable) {
+        if (error instanceof AdminApiError) throw error;
+        throw new AdminApiError(error instanceof Error ? error.message : "Network request failed.");
+      }
+    } finally {
+      cleanup();
+    }
   }
 
-  return data;
+  throw new AdminApiError("Network request failed.");
+}
+
+async function publicApiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const method = (init.method || "GET").toUpperCase();
+  const canRetry = method === "GET";
+  const attempts = canRetry ? 2 : 1;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const { signal, cleanup } = withTimeout(init);
+    try {
+      const response = await fetch(path, {
+        ...init,
+        signal,
+        headers: requestHeaders(init),
+      });
+      return await parseResponse<T>(response);
+    } catch (error) {
+      const status = error instanceof AdminApiError ? error.status : undefined;
+      const retryable = canRetry && attempt < attempts && (!status || status === 502 || status === 503 || status === 504);
+      if (!retryable) {
+        if (error instanceof AdminApiError) throw error;
+        throw new AdminApiError(error instanceof Error ? error.message : "Network request failed.");
+      }
+    } finally {
+      cleanup();
+    }
+  }
+
+  throw new AdminApiError("Network request failed.");
 }
 
 export function fetchAdminMe(token: string) {
@@ -365,6 +517,14 @@ export function fetchAdminMe(token: string) {
 
 export function fetchApiHealth() {
   return publicApiFetch<AdminHealth>("/api/health");
+}
+
+export function fetchAdminSystemHealth() {
+  return apiFetch<AdminSystemHealth>("/api/admin/system/health");
+}
+
+export function fetchAdminSystemMetrics() {
+  return apiFetch<AdminMetricsSnapshot>("/api/admin/system/metrics?format=json");
 }
 
 export function getAdminReports(filters: {

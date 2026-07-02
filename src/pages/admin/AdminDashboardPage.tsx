@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { AdminAuthGate } from "@/pages/admin/AdminAuthGate";
 import { useModerationAdmin } from "@/features/admin/ModerationAdminProvider";
+import { AdminSystemPage } from "@/features/admin/pages/AdminSystemPage";
 import {
   fetchAdminUsers,
   fetchOpsSummary,
@@ -29,7 +30,6 @@ import {
   targetSubtitle,
   targetTitle,
 } from "@/lib/adminModerationFormat";
-import { SITE } from "@/lib/constants";
 import "@/styles/admin-moderation.css";
 
 type ConsoleSection = "overview" | "users" | "content" | "moderation" | "insights" | "analytics" | "system" | "admins";
@@ -135,7 +135,7 @@ function AdminDashboardContent() {
       {section === "moderation" && <ModerationSection summary={summary} pending={pending} loading={loading} />}
       {section === "insights" && <InsightsSection summary={summary} loading={loading} />}
       {section === "analytics" && <AnalyticsFoundationSection />}
-      {section === "system" && <SystemSection summary={summary} adminEmail={admin.user?.email ?? "Not signed in"} />}
+      {section === "system" && <AdminSystemPage adminEmail={admin.user?.email ?? "Not signed in"} />}
       {section === "admins" && (
         <ComingSoonSection
           title="Admins"
@@ -533,41 +533,6 @@ function AnalyticsFoundationSection() {
           <span key={item}>{item}</span>
         ))}
       </div>
-    </section>
-  );
-}
-
-function SystemSection({ summary, adminEmail }: { summary: AdminOpsSummary | null; adminEmail: string }) {
-  const health = summary?.health;
-  const rows = [
-    ["API connected", boolLabel(health?.api_connected)],
-    ["Supabase configured", boolLabel(health?.supabase_configured)],
-    ["Secret key configured", boolLabel(health?.secret_key_configured)],
-    ["Admin authorized", boolLabel(health?.admin_authorized)],
-    ["Environment", health?.environment ?? "Not available"],
-    ["Current admin", adminEmail],
-    ["Last refreshed", new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" }).format(new Date())],
-  ];
-
-  return (
-    <section className="admin-panel">
-      <PanelHeader kicker="System" title="Health and domain checks" />
-      <dl className="admin-system-grid">
-        {rows.map(([label, value]) => (
-          <div key={label}>
-            <dt>{label}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
-      <div className="admin-domain-links" aria-label="Domain links">
-        <a href={SITE.url} target="_blank" rel="noreferrer">Public site</a>
-        <a href={`${SITE.url}/admin`} target="_blank" rel="noreferrer">Admin route</a>
-        <a href={`${SITE.url}/api/health`} target="_blank" rel="noreferrer">API health</a>
-        <a href={`${SITE.url}/.well-known/apple-app-site-association`} target="_blank" rel="noreferrer">Apple association</a>
-        <a href={`${SITE.url}/.well-known/assetlinks.json`} target="_blank" rel="noreferrer">Android association</a>
-      </div>
-      <p className="admin-muted">Secret values are never displayed. This section only reports configured/not configured state.</p>
     </section>
   );
 }
@@ -991,11 +956,6 @@ function sumNullable(...values: Array<NullableMetric | undefined>) {
 
 function ageHours(value: string) {
   return Math.max(0, Date.now() - new Date(value).getTime()) / (60 * 60 * 1000);
-}
-
-function boolLabel(value?: boolean) {
-  if (value === undefined) return "Not available";
-  return value ? "Configured" : "Not configured";
 }
 
 function capitalize(value: string) {

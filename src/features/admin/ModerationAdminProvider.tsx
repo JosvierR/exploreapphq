@@ -8,10 +8,17 @@ import {
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { fetchAdminMe, type AdminMe } from "@/lib/moderationAdminApi";
+import { AdminApiError, fetchAdminMe, type AdminMe } from "@/lib/moderationAdminApi";
 import { getSupabaseBrowserClient, isSupabaseBrowserConfigured } from "@/lib/supabaseClient";
 
-type AdminStatus = "not_configured" | "checking" | "logged_out" | "authorized" | "denied";
+type AdminStatus =
+  | "not_configured"
+  | "checking"
+  | "logged_out"
+  | "authorized"
+  | "denied"
+  | "api_unavailable"
+  | "supabase_unavailable";
 
 type ModerationAdminState = {
   status: AdminStatus;
@@ -64,9 +71,12 @@ export function ModerationAdminProvider({ children }: { children: ReactNode }) {
       setAdmin(me);
       setStatus("authorized");
     } catch (err) {
-      const httpStatus = (err as Error & { status?: number }).status;
+      const httpStatus = err instanceof AdminApiError ? err.status : undefined;
       setError(err instanceof Error ? err.message : "Could not verify admin access.");
-      setStatus(httpStatus === 403 ? "denied" : "logged_out");
+      if (httpStatus === 403) setStatus("denied");
+      else if (httpStatus === 500) setStatus("supabase_unavailable");
+      else if (!httpStatus) setStatus("api_unavailable");
+      else setStatus("logged_out");
     }
   }, [configured]);
 

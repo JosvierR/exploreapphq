@@ -9,6 +9,54 @@ function authErrorMessage(error: unknown) {
   return "Incorrect email or password.";
 }
 
+function environmentLabel() {
+  const raw = (import.meta.env.VITE_VERCEL_ENV || import.meta.env.VITE_APP_ENV || import.meta.env.MODE || "").toLowerCase();
+  if (import.meta.env.DEV || raw === "development" || raw === "local") return "Local";
+  if (raw.includes("preview") || raw.includes("staging")) return "Staging";
+  return "Production";
+}
+
+function AdminAuthStatusCard({
+  eyebrow,
+  title,
+  message,
+  tone = "default",
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  message: string;
+  tone?: "default" | "danger" | "warning";
+  children?: ReactNode;
+}) {
+  return (
+    <div className="admin-auth-screen">
+      <section className={`admin-auth-card admin-auth-card--status admin-auth-card--${tone}`} aria-live="polite">
+        <div className="admin-auth-brand">
+          <span className="admin-auth-brand__mark" aria-hidden="true">EX</span>
+          <div>
+            <p className="admin-eyebrow">{eyebrow}</p>
+            <h2>{title}</h2>
+          </div>
+          <span className="admin-console__badge">{environmentLabel()}</span>
+        </div>
+        <p>{message}</p>
+        {children}
+        <dl className="admin-auth-debug">
+          <div>
+            <dt>Console</dt>
+            <dd>Explore Admin Console</dd>
+          </div>
+          <div>
+            <dt>Environment</dt>
+            <dd>{environmentLabel()}</dd>
+          </div>
+        </dl>
+      </section>
+    </div>
+  );
+}
+
 export function AdminAuthGate({ children }: { children: ReactNode }) {
   const admin = useModerationAdmin();
   const [email, setEmail] = useState("");
@@ -36,49 +84,74 @@ export function AdminAuthGate({ children }: { children: ReactNode }) {
 
   if (admin.status === "checking") {
     return (
-      <div className="admin-auth-screen">
-        <div className="admin-auth-card admin-auth-card--compact" aria-live="polite">
+      <AdminAuthStatusCard
+        eyebrow="Secure admin access"
+        title="Checking admin session"
+        message="Verifying your Supabase session and moderator authorization."
+      >
+        <div className="admin-auth-progress">
           <div className="admin-spinner" aria-hidden="true" />
-          <p className="admin-eyebrow">Secure access</p>
-          <h2>Checking access</h2>
-          <p>Verifying your Supabase session.</p>
         </div>
-      </div>
+      </AdminAuthStatusCard>
     );
   }
 
   if (admin.status === "not_configured") {
     return (
-      <div className="admin-auth-screen">
-        <div className="admin-auth-card">
-          <p className="admin-eyebrow">Setup required</p>
-          <h2>Supabase admin is not configured</h2>
-          <p>
-            Add the public Supabase URL and publishable key to the Vite environment, and add the
-            server-side Supabase credential in Vercel.
-          </p>
-          <div className="admin-auth-card__code">
-            <code>VITE_SUPABASE_URL</code>
-            <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>
-            <code>server Supabase credential</code>
-          </div>
+      <AdminAuthStatusCard
+        eyebrow="Setup required"
+        title="Supabase browser config is missing"
+        message="Add the public Supabase URL and publishable key for this environment. Server credentials must stay server-side."
+        tone="warning"
+      >
+        <div className="admin-auth-card__code">
+          <code>VITE_SUPABASE_URL</code>
+          <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>
+          <code>server Supabase credential configured in Vercel</code>
         </div>
-      </div>
+      </AdminAuthStatusCard>
     );
   }
 
   if (admin.status === "denied") {
     return (
-      <div className="admin-auth-screen">
-        <div className="admin-auth-card">
-          <p className="admin-eyebrow">Access denied</p>
-          <h2>No moderator role</h2>
-          <p>{admin.error ?? "This Supabase user is not listed as an admin or moderator."}</p>
-          <button type="button" className="admin-btn admin-btn--primary" onClick={() => void admin.signOut()}>
-            Use another account
+      <AdminAuthStatusCard
+        eyebrow="Access denied"
+        title="No admin authorization"
+        message="Your account is signed in, but it is not authorized for Explore Admin Console."
+        tone="danger"
+      >
+        {admin.error && <p className="admin-auth-note">{admin.error}</p>}
+        <button type="button" className="admin-btn admin-btn--primary" onClick={() => void admin.signOut()}>
+          Use another account
+        </button>
+      </AdminAuthStatusCard>
+    );
+  }
+
+  if (admin.status === "api_unavailable" || admin.status === "supabase_unavailable") {
+    const isSupabase = admin.status === "supabase_unavailable";
+    return (
+      <AdminAuthStatusCard
+        eyebrow={isSupabase ? "Supabase unavailable" : "API unavailable"}
+        title={isSupabase ? "Admin data source unavailable" : "Admin API is not reachable"}
+        message={
+          isSupabase
+            ? "The API is responding, but Supabase admin verification failed. Check server-side Supabase configuration and logs."
+            : "The browser could not reach the admin API. Check deployment routing, network status, and server logs."
+        }
+        tone="warning"
+      >
+        {admin.error && <p className="admin-auth-note">{admin.error}</p>}
+        <div className="admin-auth-actions">
+          <button type="button" className="admin-btn admin-btn--secondary" onClick={() => void admin.refresh()}>
+            Retry verification
+          </button>
+          <button type="button" className="admin-btn admin-btn--ghost" onClick={() => void admin.signOut()}>
+            Sign out
           </button>
         </div>
-      </div>
+      </AdminAuthStatusCard>
     );
   }
 
@@ -86,9 +159,15 @@ export function AdminAuthGate({ children }: { children: ReactNode }) {
     <div className="admin-auth-screen">
       <form className="admin-auth-card" onSubmit={(event) => void handleSubmit(event)}>
         <div className="admin-auth-card__header">
-          <p className="admin-eyebrow">Explore moderation</p>
-          <h2>Admin sign in</h2>
-          <p>Access the Explore moderation console.</p>
+          <div className="admin-auth-brand">
+            <span className="admin-auth-brand__mark" aria-hidden="true">EX</span>
+            <div>
+              <p className="admin-eyebrow">Secure admin access</p>
+              <h2>Explore Admin Console</h2>
+            </div>
+            <span className="admin-console__badge">{environmentLabel()}</span>
+          </div>
+          <p>Sign in with an authorized Supabase admin account to operate moderation, content, and system health.</p>
         </div>
 
         <label className="admin-field">
@@ -122,6 +201,9 @@ export function AdminAuthGate({ children }: { children: ReactNode }) {
         <button type="submit" className="admin-btn admin-btn--primary admin-btn--full" disabled={submitting}>
           {submitting ? "Signing in..." : "Sign in"}
         </button>
+        <p className="admin-auth-footnote">
+          Tokens and raw auth payloads are never displayed in this console.
+        </p>
       </form>
     </div>
   );
