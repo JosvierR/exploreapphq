@@ -39,8 +39,24 @@ async function main() {
     body: "{}",
   });
 
-  const body = await response.json().catch(() => ({}));
+  const rawText = await response.text();
+  let body = {};
+  try {
+    body = rawText ? JSON.parse(rawText) : {};
+  } catch {
+    body = { raw: rawText };
+  }
+
   if (!response.ok || !body.ok) {
+    const detail =
+      typeof body.error === "string"
+        ? body.error
+        : body.error?.message ||
+          body.message ||
+          body.msg ||
+          body.raw ||
+          JSON.stringify(body);
+
     if (response.status === 404 && body.error === "Not found.") {
       throw new Error(
         [
@@ -56,7 +72,7 @@ async function main() {
         "Bootstrap secret rejected. Use the exact same ADMIN_BOOTSTRAP_SECRET value configured in Vercel Production.",
       );
     }
-    throw new Error(body.error || `Bootstrap failed (${response.status})`);
+    throw new Error(`Bootstrap failed (${response.status}): ${detail}`);
   }
 
   const lines = [

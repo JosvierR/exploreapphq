@@ -228,13 +228,19 @@ export async function handleBootstrapBoardAdmins(request) {
         "Save these credentials securely now. Rotate ADMIN_BOOTSTRAP_SECRET and redeploy after bootstrap.",
     });
   } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : typeof error === "string"
+          ? error
+          : JSON.stringify(error);
     logger.error("Board admin bootstrap failed", {
       request_id: requestId,
       error: errorSummary(error),
     });
     return jsonResponse(500, {
       ok: false,
-      error: error?.message || "Bootstrap failed.",
+      error: message || "Bootstrap failed.",
       request_id: requestId,
     });
   }

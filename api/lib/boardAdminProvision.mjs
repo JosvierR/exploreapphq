@@ -1,5 +1,4 @@
 import { randomBytes } from "node:crypto";
-import { createClient } from "@supabase/supabase-js";
 
 export const BOARD_ACCOUNTS = [
   { slot: "01", label: "Directiva 01" },
@@ -25,53 +24,83 @@ export function generateSecurePassword() {
 }
 
 function getSupabaseUrl() {
-  return (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").trim();
+  return (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").trim().replace(/\/$/, "");
 }
 
 function getSupabaseSecretKey() {
   return (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
 }
 
-export function createServiceAdminClient() {
-  const url = getSupabaseUrl();
-  const secretKey = getSupabaseSecretKey();
-  if (!url || !secretKey) {
-    throw new Error("Supabase server credentials are not configured.");
-  }
-
-  return createClient(url, secretKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+function serviceHeaders(secretKey) {
+  const headers = {
+    apikey: secretKey,
+    "Content-Type": "application/json",
+    "User-Agent": "explore-admin-provision/1.0 (server)",
+  };
+  headers.Authorization = `Bearer ${secretKey}`;
+  return headers;
 }
 
-async function listUsersByEmail(adminClient) {
+async function parseJson(response) {
+  const text = await response.text();
+  try {
+    return { body: text ? JSON.parse(text) : {}, text };
+  } catch {
+    return { body: {}, text };
+  }
+}
+
+function apiError(prefix, response, parsed) {
+  const detail =
+    parsed.body?.msg ||
+    parsed.body?.message ||
+    parsed.body?.error_description ||
+    parsed.body?.error ||
+    parsed.text ||
+    `HTTP ${response.status}`;
+  const message = typeof detail === "string" ? detail : JSON.stringify(detail);
+  throw new Error(`${prefix} (${response.status}): ${message}`);
+}
+
+async function listUsersByEmail(config) {
   const map = new Map();
   let page = 1;
   const perPage = 200;
 
   while (true) {
-    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage });
-    if (error) throw error;
-    for (const user of data.users) {
+    const response = await fetch(
+      `${config.url}/auth/v1/admin/users?page=${page}&per_page=${perPage}`,
+      { headers: serviceHeaders(config.secretKey) },
+    );
+    const parsed = await parseJson(response);
+    if (!response.ok) apiError("listUsers failed", response, parsed);
+
+    const users = parsed.body.users || [];
+    for (const user of users) {
       const email = user.email?.trim().toLowerCase();
       if (email) map.set(email, user);
     }
-    if (data.users.length < perPage) break;
+    if (users.length < perPage) break;
     page += 1;
   }
 
   return map;
 }
 
-async function upsertAdminUser(serviceClient, userId) {
-  const { error } = await serviceClient.from("admin_users").upsert(
-    { user_id: userId, role: "admin" },
-    { onConflict: "user_id" },
-  );
-  if (error) throw error;
+async function upsertAdminUser(config, userId) {
+  const response = await fetch(`${config.url}/rest/v1/admin_users?on_conflict=user_id`, {
+    method: "POST",
+    headers: {
+      ...serviceHeaders(config.secretKey),
+      Prefer: "resolution=merge-duplicates,return=minimal",
+    },
+    body: JSON.stringify({ user_id: userId, role: "admin" }),
+  });
+  const parsed = await parseJson(response);
+  if (!response.ok) apiError("admin_users upsert failed", response, parsed);
 }
 
-async function provisionAccount(adminClient, serviceClient, account, existingUsers) {
+async function provisionAccount(config, account, existingUsers) {
   const email = boardEmail(account.slot);
   const password = generateSecurePassword();
   const existing = existingUsers.get(email);
@@ -82,35 +111,54 @@ async function provisionAccount(adminClient, serviceClient, account, existingUse
   };
 
   if (existing) {
-    const { data, error } = await adminClient.auth.admin.updateUserById(existing.id, {
-      password,
-      email_confirm: true,
-      user_metadata: { ...(existing.user_metadata || {}), ...metadata },
+    const response = await fetch(`${config.url}/auth/v1/admin/users/${existing.id}`, {
+      method: "PUT",
+      headers: serviceHeaders(config.secretKey),
+      body: JSON.stringify({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { ...(existing.user_metadata || {}), ...metadata },
+      }),
     });
-    if (error) throw error;
-    await upsertAdminUser(serviceClient, data.user.id);
-    return { slot: account.slot, label: account.label, email, password, user_id: data.user.id, action: "updated" };
+    const parsed = await parseJson(response);
+    if (!response.ok) apiError(`updateUser failed for ${email}`, response, parsed);
+    const userId = parsed.body.id || existing.id;
+    await upsertAdminUser(config, userId);
+    return { slot: account.slot, label: account.label, email, password, user_id: userId, action: "updated" };
   }
 
-  const { data, error } = await adminClient.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: metadata,
+  const response = await fetch(`${config.url}/auth/v1/admin/users`, {
+    method: "POST",
+    headers: serviceHeaders(config.secretKey),
+    body: JSON.stringify({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: metadata,
+    }),
   });
-  if (error) throw error;
-  await upsertAdminUser(serviceClient, data.user.id);
-  return { slot: account.slot, label: account.label, email, password, user_id: data.user.id, action: "created" };
+  const parsed = await parseJson(response);
+  if (!response.ok) apiError(`createUser failed for ${email}`, response, parsed);
+  const userId = parsed.body.id;
+  if (!userId) throw new Error(`createUser failed for ${email}: missing user id in response.`);
+  await upsertAdminUser(config, userId);
+  return { slot: account.slot, label: account.label, email, password, user_id: userId, action: "created" };
 }
 
 export async function provisionBoardAdminAccounts() {
-  const adminClient = createServiceAdminClient();
-  const serviceClient = adminClient;
-  const existingUsers = await listUsersByEmail(adminClient);
+  const url = getSupabaseUrl();
+  const secretKey = getSupabaseSecretKey();
+  if (!url || !secretKey) {
+    throw new Error("Supabase server credentials are not configured.");
+  }
+
+  const config = { url, secretKey };
+  const existingUsers = await listUsersByEmail(config);
   const accounts = [];
 
   for (const account of BOARD_ACCOUNTS) {
-    accounts.push(await provisionAccount(adminClient, serviceClient, account, existingUsers));
+    accounts.push(await provisionAccount(config, account, existingUsers));
   }
 
   return {
