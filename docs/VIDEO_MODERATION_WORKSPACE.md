@@ -34,9 +34,37 @@ Marking a report reviewed does not hide the video. Dismissing a report does not 
 - `Dismiss report`: dismisses the report. The video remains visible unless hidden separately.
 - `Hide video globally`: sets `videos.moderation_status = hidden`.
 - `Remove video globally`: sets `videos.moderation_status = removed`. The video is not hard-deleted.
-- `Restore video`: sets `videos.moderation_status = active`.
+- `Show video`: sets a hidden video back to `videos.moderation_status = active`.
+- `Restore video`: sets a removed video back to `videos.moderation_status = active`.
+- `Reopen report`: sets `content_reports.status = pending` without changing video visibility.
 
 Reporting content only hides it for the reporting user through `user_hidden_content`.
+
+## Full Lifecycle Controls
+
+The drawer separates two lifecycle panels:
+
+- Report case lifecycle: report status, decision, reviewer, reviewed time, last report action, and whether the case is open or closed.
+- Video visibility lifecycle: publication state, `moderation_status`, public visibility, and reporter-specific hidden status.
+
+Important rules:
+
+- Reviewed does not mean the video is hidden.
+- Dismissed does not mean the video is restored.
+- Hidden and Removed affect everyone.
+- Show video only changes global visibility back to active; users who personally hid the video may still not see it.
+
+## Recovery
+
+After a successful moderation action, the workspace shows a recovery action when safe:
+
+- Hide video -> Show video
+- Remove video -> Restore video
+- Show/Restore video -> Hide video
+- Mark reviewed -> Reopen report
+- Dismiss report -> Reopen report
+
+Reviewed and dismissed reports remain viewable. They can still be reopened, and video visibility actions remain available based on the video `moderation_status`.
 
 ## Video Preview
 
@@ -75,3 +103,26 @@ Video report QA:
 16. Confirm moderation_status becomes removed.
 17. Confirm no hard delete happened.
 18. Confirm moderation_actions records were created.
+
+Full Lifecycle QA:
+
+1. Open video report.
+2. Mark reviewed.
+3. Confirm video remains visible.
+4. Confirm `Reopen report` appears.
+5. Reopen report.
+6. Confirm report becomes pending.
+7. Hide video.
+8. Confirm moderation_status = hidden.
+9. Confirm `Show video` appears.
+10. Click Show video.
+11. Confirm moderation_status = active.
+12. Remove video.
+13. Confirm moderation_status = removed.
+14. Confirm `Restore video` appears.
+15. Restore video.
+16. Confirm moderation_status = active.
+17. Dismiss report.
+18. Confirm Reopen report is available.
+19. Confirm action timeline shows all actions.
+20. Confirm no hard delete happened.

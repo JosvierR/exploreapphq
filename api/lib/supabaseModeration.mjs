@@ -25,6 +25,7 @@ const ACTION_TYPES = new Set([
   "unsuspend_user",
   "dismiss_report",
   "mark_reviewed",
+  "reopen_report",
   "remove_content",
 ]);
 
@@ -897,6 +898,7 @@ function targetPreview(contentType, contentId, row, userMap = new Map()) {
       ...target,
       visibility_label: visibilityLabelForTarget(target),
       globally_visible: isGloballyVisibleTarget(target),
+      is_publicly_visible: isGloballyVisibleTarget(target),
     };
   }
 
@@ -1825,7 +1827,7 @@ async function insertModerationAction(supabase, action) {
   const { data, error } = await supabase
     .from("moderation_actions")
     .insert(action)
-    .select("id, created_at")
+    .select("id, admin_id, report_id, target_type, target_id, action_type, notes, created_at")
     .single();
 
   if (error) throw error;
@@ -1856,6 +1858,19 @@ export async function handleAdminReportById(request, explicitId) {
         creator: report.target?.creator || null,
         related_reports: report.related_reports || [],
         moderation_actions: report.recent_moderation_actions || [],
+        moderation_actions_timeline: [
+          {
+            id: `report_created:${report.id}`,
+            action_type: "report_created",
+            report_id: report.id,
+            target_type: report.content_type,
+            target_id: report.content_id,
+            admin_id: report.reporter_id,
+            notes: report.details,
+            created_at: report.created_at,
+          },
+          ...(report.recent_moderation_actions || []),
+        ],
       });
     }
 
@@ -1902,7 +1917,12 @@ function validateModerationActionBody(body) {
   const reportId = typeof body.report_id === "string" && body.report_id.trim() ? body.report_id.trim() : null;
   const targetType = typeof body.target_type === "string" ? body.target_type.trim() : "";
   const targetId = typeof body.target_id === "string" ? body.target_id.trim() : "";
-  const actionType = typeof body.action_type === "string" ? body.action_type.trim() : "";
+  const actionType =
+    typeof body.action_type === "string"
+      ? body.action_type.trim()
+      : typeof body.action === "string"
+        ? body.action.trim()
+        : "";
 
   if (!CONTENT_TYPES.has(targetType)) {
     throw new HttpError(400, "target_type must be video, user, place, or place_photo.");
@@ -1914,6 +1934,10 @@ function validateModerationActionBody(body) {
 
   if (!ACTION_TYPES.has(actionType)) {
     throw new HttpError(400, "action_type is invalid.");
+  }
+
+  if (actionType === "reopen_report" && !reportId) {
+    throw new HttpError(400, "report_id is required for reopen_report.");
   }
 
   if ((actionType === "hide_video" || actionType === "restore_video") && targetType !== "video") {
@@ -2005,7 +2029,11 @@ function buildUpdateForAction(input, row) {
 }
 
 async function applyModerationAction(supabase, input) {
-  if (input.action_type === "dismiss_report" || input.action_type === "mark_reviewed") {
+  if (
+    input.action_type === "dismiss_report" ||
+    input.action_type === "mark_reviewed" ||
+    input.action_type === "reopen_report"
+  ) {
     return { applied: true, table: null, fields: [] };
   }
 
@@ -2039,6 +2067,7 @@ async function applyModerationAction(supabase, input) {
 function reportStatusForAction(actionType) {
   if (actionType === "dismiss_report") return "dismissed";
   if (actionType === "mark_reviewed") return "reviewed";
+  if (actionType === "reopen_report") return "pending";
   return null;
 }
 
@@ -2077,14 +2106,24 @@ export async function handleAdminModerationAction(request) {
     let report = null;
     if (input.report_id) {
       const nextReportStatus = reportStatusForAction(input.action_type);
+      const reportUpdate =
+        input.action_type === "reopen_report"
+          ? {
+              status: "pending",
+              reviewed_by: null,
+              reviewed_at: null,
+            }
+          : nextReportStatus
+            ? {
+                status: nextReportStatus,
+                reviewed_by: user.id,
+                reviewed_at: timestamp(),
+              }
+            : null;
       const reportQuery = nextReportStatus
         ? supabase
             .from("content_reports")
-            .update({
-              status: nextReportStatus,
-              reviewed_by: user.id,
-              reviewed_at: timestamp(),
-            })
+            .update(reportUpdate)
             .eq("id", input.report_id)
             .select("*")
             .single()
@@ -2095,11 +2134,19 @@ export async function handleAdminModerationAction(request) {
       report = data;
     }
 
+    let serializedReport = report;
+    if (report) {
+      const [withContext] = await serializeReportsWithContext(supabase, [report]);
+      serializedReport = withContext || report;
+    }
+
     return jsonResponse(200, {
       ok: true,
       action_id: action.id,
+      action: actionHistoryRow(action),
       applied: outcome,
-      report,
+      report: serializedReport,
+      target: serializedReport?.target || null,
     });
   } catch (error) {
     return handleError(error);
