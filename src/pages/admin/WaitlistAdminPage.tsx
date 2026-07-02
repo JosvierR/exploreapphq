@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/features/auth/AuthProvider";
+import { AdminAuthGate } from "@/pages/admin/AdminAuthGate";
+import { useModerationAdmin } from "@/features/admin/ModerationAdminProvider";
 import {
   fetchAdminWaitlist,
   previewLaunchNotify,
@@ -15,7 +16,15 @@ import {
 import "@/styles/admin-waitlist.css";
 
 export function WaitlistAdminPage() {
-  const { user } = useAuth();
+  return (
+    <AdminAuthGate>
+      <WaitlistAdminContent />
+    </AdminAuthGate>
+  );
+}
+
+function WaitlistAdminContent() {
+  const admin = useModerationAdmin();
   const [stats, setStats] = useState<WaitlistStats | null>(null);
   const [rows, setRows] = useState<WaitlistRow[]>([]);
   const [source, setSource] = useState<string>("");
@@ -170,7 +179,7 @@ export function WaitlistAdminPage() {
         <p className="admin-waitlist__eyebrow">Early access</p>
         <h1>Waitlist</h1>
         <p className="admin-waitlist__sub">
-          Signed in as <strong>{user?.email}</strong>
+          Signed in as <strong>{admin.user?.email ?? "Admin"}</strong>
           {source ? ` · Data: ${source}` : ""}
         </p>
       </header>

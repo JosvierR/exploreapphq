@@ -1,11 +1,9 @@
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
-import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
 import { VercelAnalytics } from "@/features/analytics/VercelAnalytics";
 import { AdminErrorBoundary } from "@/features/admin/components/AdminErrorBoundary";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { MarketingLayout } from "@/components/layout/MarketingLayout";
 import { AccessPage } from "@/pages/auth/AccessPage";
-import { TeamLoginPage } from "@/pages/auth/TeamLoginPage";
 import { HomePage } from "@/pages/marketing/HomePage";
 import { TermsPage } from "@/pages/marketing/TermsPage";
 import { PrivacyPage } from "@/pages/marketing/PrivacyPage";
@@ -31,56 +29,42 @@ export const router = createBrowserRouter([
   {
     element: <AppRoot />,
     children: [
-  { path: "/access", element: <AccessPage /> },
-  { path: "/feedback/*", element: <FeedbackPage /> },
-  { path: "/team", element: <TeamLoginPage /> },
-  { path: "/v/:videoId", element: <DeepLinkFallbackPage kind="video" paramName="videoId" /> },
-  { path: "/p/:placeId", element: <DeepLinkFallbackPage kind="place" paramName="placeId" /> },
-  { path: "/r/:routeId", element: <DeepLinkFallbackPage kind="route" paramName="routeId" /> },
-  { path: "/u/:handleOrUserId", element: <DeepLinkFallbackPage kind="profile" paramName="handleOrUserId" /> },
-  { path: "/me", element: <DeepLinkFallbackPage kind="me" /> },
-  { path: "/video/:videoId", element: <DeepLinkFallbackPage kind="video" paramName="videoId" /> },
-  { path: "/place/:placeId", element: <DeepLinkFallbackPage kind="place" paramName="placeId" /> },
-  { path: "/route/:routeId", element: <DeepLinkFallbackPage kind="route" paramName="routeId" /> },
-  { path: "/profile/:handleOrUserId", element: <DeepLinkFallbackPage kind="profile" paramName="handleOrUserId" /> },
-  { path: "/users/:handleOrUserId", element: <DeepLinkFallbackPage kind="profile" paramName="handleOrUserId" /> },
-  {
-    element: (
-      <AdminErrorBoundary>
-        <AdminLayout />
-      </AdminErrorBoundary>
-    ),
-    children: [
-      { path: "/admin", element: <AdminDashboardPage /> },
-      { path: "/admin/reports", element: <ReportsAdminPage /> },
-    ],
-  },
-  {
-    element: (
-      <ProtectedRoute>
-        <AdminErrorBoundary>
-          <AdminLayout />
-        </AdminErrorBoundary>
-      </ProtectedRoute>
-    ),
-    children: [{ path: "/admin/waitlist", element: <WaitlistAdminPage /> }],
-  },
-  {
-    element: (
-      <ProtectedRoute>
-        <MarketingLayout />
-      </ProtectedRoute>
-    ),
-    children: [
-      { path: "/", element: <HomePage /> },
-      { path: "/terms", element: <TermsPage /> },
-      { path: "/privacy", element: <PrivacyPage /> },
-      { path: "/safety", element: <SafetyPage /> },
-      { path: "/thanks", element: <ThanksPage /> },
-      { path: "*", element: <NotFoundPage /> },
-    ],
-  },
-  { path: "*", element: <Navigate to="/access" replace /> },
+      { path: "/access", element: <AccessPage /> },
+      { path: "/feedback/*", element: <FeedbackPage /> },
+      { path: "/team", element: <Navigate to="/admin" replace /> },
+      { path: "/v/:videoId", element: <DeepLinkFallbackPage kind="video" paramName="videoId" /> },
+      { path: "/p/:placeId", element: <DeepLinkFallbackPage kind="place" paramName="placeId" /> },
+      { path: "/r/:routeId", element: <DeepLinkFallbackPage kind="route" paramName="routeId" /> },
+      { path: "/u/:handleOrUserId", element: <DeepLinkFallbackPage kind="profile" paramName="handleOrUserId" /> },
+      { path: "/me", element: <DeepLinkFallbackPage kind="me" /> },
+      { path: "/video/:videoId", element: <DeepLinkFallbackPage kind="video" paramName="videoId" /> },
+      { path: "/place/:placeId", element: <DeepLinkFallbackPage kind="place" paramName="placeId" /> },
+      { path: "/route/:routeId", element: <DeepLinkFallbackPage kind="route" paramName="routeId" /> },
+      { path: "/profile/:handleOrUserId", element: <DeepLinkFallbackPage kind="profile" paramName="handleOrUserId" /> },
+      { path: "/users/:handleOrUserId", element: <DeepLinkFallbackPage kind="profile" paramName="handleOrUserId" /> },
+      {
+        element: (
+          <AdminErrorBoundary>
+            <AdminLayout />
+          </AdminErrorBoundary>
+        ),
+        children: [
+          { path: "/admin", element: <AdminDashboardPage /> },
+          { path: "/admin/reports", element: <ReportsAdminPage /> },
+          { path: "/admin/waitlist", element: <WaitlistAdminPage /> },
+        ],
+      },
+      {
+        element: <MarketingLayout />,
+        children: [
+          { path: "/", element: <HomePage /> },
+          { path: "/terms", element: <TermsPage /> },
+          { path: "/privacy", element: <PrivacyPage /> },
+          { path: "/safety", element: <SafetyPage /> },
+          { path: "/thanks", element: <ThanksPage /> },
+          { path: "*", element: <NotFoundPage /> },
+        ],
+      },
     ],
   },
 ]);

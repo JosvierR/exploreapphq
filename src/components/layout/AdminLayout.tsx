@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useModerationAdmin } from "@/features/admin/ModerationAdminProvider";
-import { useAuth } from "@/features/auth/AuthProvider";
 import { fetchApiHealth, type AdminHealth } from "@/lib/moderationAdminApi";
 import { getHardcodedAdminSession } from "@/lib/hardcodedAdmin";
 import "@/styles/admin-waitlist.css";
@@ -225,7 +224,6 @@ function HealthPill({ label, tone }: { label: string; tone: "ok" | "warning" | "
 }
 
 export function AdminLayout() {
-  const { user, logout } = useAuth();
   const moderationAdmin = useModerationAdmin();
   const navigate = useNavigate();
   const location = useLocation();
@@ -234,8 +232,8 @@ export function AdminLayout() {
   const [healthLoading, setHealthLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const hardcodedEmail = getHardcodedAdminSession();
-  const displayEmail = moderationAdmin.user?.email ?? user?.email ?? hardcodedEmail ?? "Not signed in";
-  const hasSession = Boolean(moderationAdmin.user || user || hardcodedEmail);
+  const displayEmail = moderationAdmin.user?.email ?? hardcodedEmail ?? "Not signed in";
+  const hasSession = Boolean(moderationAdmin.user || hardcodedEmail);
   const meta = useMemo(() => routeMeta(location.pathname, location.search), [location.pathname, location.search]);
   const displayRole = moderationAdmin.admin?.role ? roleLabel(moderationAdmin.admin.role) : hasSession ? "Admin" : "Guest";
   const envLabel = environmentLabel();
@@ -267,9 +265,8 @@ export function AdminLayout() {
   }
 
   async function handleSignOut() {
-    const hadModerationSession = Boolean(moderationAdmin.user);
-    await Promise.all([logout(), moderationAdmin.signOut()]);
-    navigate(hadModerationSession ? "/admin" : "/team", { replace: true });
+    await moderationAdmin.signOut();
+    navigate("/", { replace: true });
   }
 
   const supabaseConfigured =

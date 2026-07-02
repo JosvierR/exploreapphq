@@ -1,5 +1,6 @@
 import { getHardcodedAdminSession, hardcodedAdminToken } from "@/lib/hardcodedAdmin";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase";
+import { getSupabaseBrowserClient, isSupabaseBrowserConfigured } from "@/lib/supabaseClient";
 import {
   fetchWaitlistFromFirestoreClient,
   listPendingEmailsFromClient,
@@ -44,14 +45,22 @@ async function getAdminToken(): Promise<string> {
   if (getHardcodedAdminSession()) {
     return hardcodedAdminToken();
   }
-  if (!isFirebaseConfigured()) {
-    throw new Error("Firebase is not configured.");
+
+  if (isSupabaseBrowserConfigured()) {
+    const { data, error } = await getSupabaseBrowserClient().auth.getSession();
+    if (!error && data.session?.access_token) {
+      return data.session.access_token;
+    }
   }
-  const user = getFirebaseAuth().currentUser;
-  if (!user) {
-    throw new Error("Sign in at /team first.");
+
+  if (isFirebaseConfigured()) {
+    const user = getFirebaseAuth().currentUser;
+    if (user) {
+      return user.getIdToken();
+    }
   }
-  return user.getIdToken();
+
+  throw new Error("Sign in at /admin first.");
 }
 
 type AdminJson = {
@@ -166,7 +175,7 @@ export async function fetchAdminWaitlist() {
         err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
       if (code === "permission-denied") {
         throw new Error(
-          "Firestore blocked read. Deploy firestore.rules and sign in again at /team.",
+          "Firestore blocked read. Deploy firestore.rules and sign in again at /admin.",
         );
       }
       console.warn("[waitlist] Direct Firestore read failed:", err);

@@ -204,6 +204,9 @@ export function AdminAuthGate({ children }: { children: ReactNode }) {
         <p className="admin-auth-footnote">
           Tokens and raw auth payloads are never displayed in this console.
         </p>
+        <p className="admin-auth-footnote">
+          <a href="/">Back to public site</a>
+        </p>
       </form>
     </div>
   );

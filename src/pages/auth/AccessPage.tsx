@@ -1,14 +1,12 @@
 import { FormEvent, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
-import { useAuth } from "@/features/auth/AuthProvider";
 import { joinWaitlist } from "@/lib/waitlistSignup";
 import { mapFirebaseAuthError } from "@/features/auth/firebaseAuth";
 import { isValidPhone, normalizePhone } from "@/lib/phone";
 import "@/styles/access.css";
 
 export function AccessPage() {
-  const { isAdmin } = useAuth();
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [success, setSuccess] = useState<{
@@ -21,10 +19,6 @@ export function AccessPage() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  if (isAdmin) {
-    return <Navigate to="/" replace />;
-  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/features/auth/AuthProvider";
+import { Link } from "react-router-dom";
 import { useI18n } from "@/features/i18n/I18nProvider";
 import { useHeaderScroll } from "@/hooks/useHeaderScroll";
 import { T } from "@/components/ui/T";
@@ -18,15 +17,7 @@ const NAV = [
 export function SiteHeader() {
   const scrolled = useHeaderScroll();
   const { locale, setLocale } = useI18n();
-  const { logout, isAdmin } = useAuth();
-  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  async function handleLogout() {
-    await logout();
-    closeMobile();
-    navigate("/team");
-  }
 
   const closeMobile = () => {
     setMobileOpen(false);
@@ -67,17 +58,12 @@ export function SiteHeader() {
                 </button>
               ))}
             </div>
-            {isAdmin && (
-              <Link to="/admin/waitlist" className="btn btn-ghost">
-                Waitlist
-              </Link>
-            )}
+            <Link to="/admin" className="btn btn-ghost">
+              Admin
+            </Link>
             <a href="#download" className="btn btn-primary">
               <T k="cta.start" />
             </a>
-            <button type="button" className="btn btn-ghost btn-logout" onClick={handleLogout}>
-              Log out
-            </button>
             <button
               type="button"
               className={`nav-toggle${mobileOpen ? " is-open" : ""}`}
@@ -100,12 +86,12 @@ export function SiteHeader() {
             <T k={item.key} />
           </a>
         ))}
+        <Link to="/admin" className="btn btn-ghost" onClick={closeMobile}>
+          Admin
+        </Link>
         <a href="#download" className="btn btn-primary" onClick={closeMobile}>
           <T k="cta.start" />
         </a>
-        <button type="button" className="btn btn-ghost" onClick={handleLogout}>
-          Log out
-        </button>
       </nav>
     </>
   );
