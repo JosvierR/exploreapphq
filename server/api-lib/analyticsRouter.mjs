@@ -1,11 +1,13 @@
 import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import WebSocket from "ws";
-import { errorSummary, logger, requestLogMeta } from "./logger.mjs";
+import { logger, requestLogMeta } from "./logger.mjs";
 import { incrementCounter, observeTimer, recordSupabaseError } from "./metrics.mjs";
 import { requestIdFromRequest } from "./requestContext.mjs";
 import { jsonResponse, optionsResponse, requireAdmin } from "./supabaseModeration.mjs";
 
+const ANALYTICS_EVENTS_TABLE = "analytics_events";
+const ANALYTICS_DEAD_LETTERS_TABLE = "analytics_event_dead_letters";
 const MAX_EVENTS_PER_BATCH = 50;
 const MAX_PAYLOAD_BYTES = 256 * 1024;
 const MAX_JSON_DEPTH = 6;
@@ -17,6 +19,34 @@ const MAX_BATCHES_PER_MINUTE = 30;
 const MAX_EVENTS_PER_MINUTE = 900;
 const MAX_ID_LENGTH = 160;
 const MAX_TEXT_LENGTH = 256;
+const MAX_LOG_TEXT_LENGTH = 2000;
+const REDACTED = "[redacted]";
+
+const ANALYTICS_EVENTS_COLUMNS = [
+  "event_id",
+  "user_id",
+  "anonymous_id",
+  "session_id",
+  "event_name",
+  "event_version",
+  "entity_type",
+  "entity_id",
+  "source",
+  "platform",
+  "app_version",
+  "build_number",
+  "device_os",
+  "locale",
+  "timezone",
+  "country",
+  "region",
+  "city",
+  "properties",
+  "context",
+  "occurred_at",
+];
+
+const ANALYTICS_DEAD_LETTER_COLUMNS = ["event_id", "user_id", "anonymous_id", "reason", "payload", "source"];
 
 const EVENT_NAMES = new Set([
   "app_open",
@@ -77,10 +107,14 @@ const LOCATION_KEYS = new Set(["lat", "lng", "latitude", "longitude", "coordinat
 const rateBuckets = new Map();
 
 class AnalyticsError extends Error {
-  constructor(status, message) {
+  constructor(status, message, options = {}) {
     super(message);
     this.name = "AnalyticsError";
     this.status = status;
+    this.code = options.code;
+    this.cause = options.cause;
+    this.operation = options.operation;
+    this.table = options.table;
   }
 }
 
@@ -92,11 +126,42 @@ function getSupabaseSecretKey() {
   return (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
 }
 
+function serviceRoleConfigured() {
+  return Boolean(getSupabaseUrl() && getSupabaseSecretKey());
+}
+
+function serviceKeyLooksLikeJwt() {
+  const key = getSupabaseSecretKey();
+  return /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(key);
+}
+
+function supabaseProjectRef() {
+  const url = getSupabaseUrl();
+  if (!url) return null;
+  try {
+    const host = new URL(url).hostname;
+    const match = host.match(/^([a-z0-9-]+)\.supabase\.(co|in)$/i) || host.match(/^([a-z0-9-]+)\.supabase\.co$/i);
+    return match?.[1] || null;
+  } catch {
+    return null;
+  }
+}
+
+function analyticsSupabaseConfigMeta() {
+  return {
+    project_ref: supabaseProjectRef(),
+    service_role_configured: serviceRoleConfigured(),
+    service_key_looks_like_jwt: serviceKeyLooksLikeJwt(),
+  };
+}
+
 function createServiceClient() {
   const url = getSupabaseUrl();
   const secretKey = getSupabaseSecretKey();
   if (!url || !secretKey) {
-    throw new AnalyticsError(500, "Supabase server credentials are not configured.");
+    throw new AnalyticsError(503, "Supabase server credentials are not configured.", {
+      code: "analytics_service_role_missing",
+    });
   }
 
   return createClient(url, secretKey, {
@@ -107,6 +172,155 @@ function createServiceClient() {
     realtime: {
       transport: WebSocket,
     },
+  });
+}
+
+function compactObject(value) {
+  return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined && item !== ""));
+}
+
+function safeLogValue(value, depth = 0, seen = new WeakSet()) {
+  if (value == null) return value;
+  if (typeof value === "string") return value.slice(0, MAX_LOG_TEXT_LENGTH);
+  if (typeof value === "number" || typeof value === "boolean") return value;
+  if (typeof value !== "object") return String(value).slice(0, MAX_LOG_TEXT_LENGTH);
+  if (seen.has(value)) return "[circular]";
+  if (depth >= 2) return "[object]";
+  seen.add(value);
+
+  if (Array.isArray(value)) {
+    return value.slice(0, 10).map((item) => safeLogValue(item, depth + 1, seen));
+  }
+
+  const out = {};
+  for (const [rawKey, item] of Object.entries(value).slice(0, 25)) {
+    const key = String(rawKey).slice(0, 120);
+    const normalizedKey = key.toLowerCase();
+    out[key] = SENSITIVE_KEY_RE.test(normalizedKey) || LOCATION_KEYS.has(normalizedKey)
+      ? REDACTED
+      : safeLogValue(item, depth + 1, seen);
+  }
+  return out;
+}
+
+function safeText(value) {
+  if (value == null) return undefined;
+  if (typeof value === "string") return value.slice(0, MAX_LOG_TEXT_LENGTH);
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value === "object") {
+    for (const key of ["message", "error", "description", "details", "hint"]) {
+      if (value[key] !== undefined && value[key] !== value) {
+        const nested = safeText(value[key]);
+        if (nested && nested !== "[object Object]") return nested;
+      }
+    }
+
+    try {
+      const serialized = JSON.stringify(safeLogValue(value));
+      return serialized && serialized !== "{}" ? serialized.slice(0, MAX_LOG_TEXT_LENGTH) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  return String(value).slice(0, MAX_LOG_TEXT_LENGTH);
+}
+
+export function serializeErrorForLog(error) {
+  if (error instanceof Error) {
+    const message = safeText(error.message) === "[object Object]" ? safeText(error.cause) : safeText(error.message);
+    return compactObject({
+      name: error.name,
+      message: message || safeText(error.cause) || error.name,
+      code: safeText(error.code),
+      status: error.status,
+      details: safeText(error.details),
+      hint: safeText(error.hint),
+      stack: process.env.NODE_ENV === "production" ? undefined : safeText(error.stack),
+    });
+  }
+
+  if (error && typeof error === "object") {
+    const message = safeText(error.message) === "[object Object]" ? safeText(error) : safeText(error.message);
+    return compactObject({
+      name: safeText(error.name),
+      message: message || safeText(error) || "Unknown object error",
+      code: safeText(error.code),
+      status: error.status,
+      details: safeText(error.details),
+      hint: safeText(error.hint),
+    });
+  }
+
+  return {
+    message: safeText(error) || "Unknown error",
+  };
+}
+
+export function classifySupabaseAnalyticsError(error) {
+  if (error instanceof AnalyticsError && typeof error.code === "string" && error.code.startsWith("analytics_")) {
+    return error.code;
+  }
+
+  const serialized = serializeErrorForLog(error);
+  const rawCode = String(serialized.code || "").trim();
+  const code = rawCode.toUpperCase();
+  const message = `${serialized.message || ""} ${serialized.details || ""}`.toLowerCase();
+  const hint = String(serialized.hint || "").toLowerCase();
+
+  if (rawCode === "analytics_service_role_missing") return "analytics_service_role_missing";
+  if (
+    code === "42P01" ||
+    code === "PGRST205" ||
+    (message.includes("relation") && message.includes("does not exist")) ||
+    message.includes("could not find the table")
+  ) {
+    return "analytics_schema_missing";
+  }
+  if (code === "42703" || code === "PGRST204" || (message.includes("column") && message.includes("schema cache"))) {
+    return "analytics_column_mismatch";
+  }
+  if (code === "42501" || message.includes("permission denied")) return "analytics_permission_denied";
+  if (code === "23514" || code === "23502" || code === "23503") return "analytics_constraint_failed";
+  if (code === "23505") return "analytics_duplicate_conflict";
+  if (message.includes("schema cache") && hint.includes("reload schema")) return "analytics_schema_cache_stale";
+
+  return "analytics_unknown_supabase_error";
+}
+
+function analyticsStatusForCode(code) {
+  if (code === "analytics_duplicate_conflict") return 409;
+  return 503;
+}
+
+function analyticsOperationError(error, operation, table) {
+  const code = classifySupabaseAnalyticsError(error);
+  return new AnalyticsError(
+    analyticsStatusForCode(code),
+    code === "analytics_schema_missing" ? "Analytics schema not installed." : "Analytics ingestion is not ready.",
+    {
+      code,
+      cause: error,
+      operation,
+      table,
+    },
+  );
+}
+
+function logSupabaseOperationFailure(request, route, operation, table, error, extra = {}) {
+  const serialized = serializeErrorForLog(error);
+  const classifiedCode = classifySupabaseAnalyticsError(error);
+  logger.warn("Analytics Supabase operation failed", {
+    ...requestLogMeta(request, route),
+    operation,
+    table,
+    error_code: serialized.code,
+    error_message: serialized.message,
+    error_details: serialized.details,
+    error_hint: serialized.hint,
+    classified_code: classifiedCode,
+    error: serialized,
+    ...analyticsSupabaseConfigMeta(),
+    ...extra,
   });
 }
 
@@ -285,16 +499,38 @@ function sanitizeRootObject(value, label) {
   return sanitizeJson(value, label);
 }
 
-function reject(reason, event) {
+function sanitizedDeadLetterPayload(event) {
+  if (!isPlainObject(event)) {
+    return {
+      type: event === null ? "null" : typeof event,
+    };
+  }
+
+  const sanitized = sanitizeJson(event, "event");
+  if (sanitized.rejected) {
+    return {
+      rejected: true,
+      warnings: sanitized.warnings.slice(0, 10),
+    };
+  }
+
+  return sanitized.value || {};
+}
+
+function reject(reason, event, userId = null) {
   return {
     reason,
     event_id: typeof event?.event_id === "string" ? event.event_id.slice(0, MAX_ID_LENGTH) : null,
     event_name: typeof event?.event_name === "string" ? event.event_name.slice(0, MAX_TEXT_LENGTH) : null,
+    user_id: userId || null,
+    anonymous_id: typeof event?.anonymous_id === "string" ? event.anonymous_id.slice(0, MAX_ID_LENGTH) : null,
+    payload: sanitizedDeadLetterPayload(event),
+    source: cleanString(event?.source, 80) || "api_events",
   };
 }
 
-function validateEvent(event, { userId, batchId, requestId, receivedAt }) {
-  if (!isPlainObject(event)) return { rejected: reject("event must be a JSON object", event), warnings: [] };
+function validateEvent(event, { userId }) {
+  if (!isPlainObject(event)) return { rejected: reject("event must be a JSON object", event, userId), warnings: [] };
 
   const eventId = cleanString(event.event_id, MAX_ID_LENGTH);
   const eventName = cleanString(event.event_name, 80);
@@ -304,20 +540,24 @@ function validateEvent(event, { userId, batchId, requestId, receivedAt }) {
   const entityType = normalizeOptionalEnum(event.entity_type, ENTITY_TYPES);
   const platform = normalizeOptionalEnum(event.platform, PLATFORMS);
 
-  if (!eventId) return { rejected: reject("event_id is required", event), warnings: [] };
-  if (!eventName) return { rejected: reject("event_name is required", event), warnings: [] };
-  if (!EVENT_NAMES.has(eventName)) return { rejected: reject("event_name is not allowed", event), warnings: [] };
-  if (!sessionId) return { rejected: reject("session_id is required", event), warnings: [] };
-  if (!userId && !anonymousId) return { rejected: reject("anonymous_id is required for anonymous events", event), warnings: [] };
-  if (!occurredAt) return { rejected: reject("occurred_at must be an ISO timestamp", event), warnings: [] };
-  if (event.entity_type && !entityType) return { rejected: reject("entity_type is invalid", event), warnings: [] };
-  if (event.platform && !platform) return { rejected: reject("platform is invalid", event), warnings: [] };
+  if (!eventId) return { rejected: reject("event_id is required", event, userId), warnings: [] };
+  if (!eventName) return { rejected: reject("event_name is required", event, userId), warnings: [] };
+  if (!EVENT_NAMES.has(eventName)) return { rejected: reject("event_name is not allowed", event, userId), warnings: [] };
+  if (!sessionId) return { rejected: reject("session_id is required", event, userId), warnings: [] };
+  if (!userId && !anonymousId) return { rejected: reject("anonymous_id is required for anonymous events", event, userId), warnings: [] };
+  if (!occurredAt) return { rejected: reject("occurred_at must be an ISO timestamp", event, userId), warnings: [] };
+  if (event.entity_type && !entityType) return { rejected: reject("entity_type is invalid", event, userId), warnings: [] };
+  if (event.platform && !platform) return { rejected: reject("platform is invalid", event, userId), warnings: [] };
 
   const properties = sanitizeRootObject(event.properties, "properties");
-  if (properties.rejected) return { rejected: reject(properties.warnings[0] || "properties rejected", event), warnings: properties.warnings };
+  if (properties.rejected) {
+    return { rejected: reject(properties.warnings[0] || "properties rejected", event, userId), warnings: properties.warnings };
+  }
 
   const context = sanitizeRootObject(event.context, "context");
-  if (context.rejected) return { rejected: reject(context.warnings[0] || "context rejected", event), warnings: context.warnings };
+  if (context.rejected) {
+    return { rejected: reject(context.warnings[0] || "context rejected", event, userId), warnings: context.warnings };
+  }
 
   const eventVersion = Number.isInteger(event.event_version) && event.event_version > 0 ? event.event_version : 1;
   const row = {
@@ -329,13 +569,11 @@ function validateEvent(event, { userId, batchId, requestId, receivedAt }) {
     session_id: sessionId,
     entity_type: entityType,
     entity_id: cleanString(event.entity_id, MAX_ID_LENGTH),
-    occurred_at: occurredAt,
-    received_at: receivedAt,
-    batch_id: batchId,
-    request_id: requestId,
+    source: cleanString(event.source, 80),
     platform,
     app_version: cleanString(event.app_version, 80),
     build_number: cleanString(event.build_number, 80),
+    device_os: cleanString(event.device_os, 80),
     locale: cleanString(event.locale, 40),
     timezone: cleanString(event.timezone, 80),
     country: cleanString(event.country, 2)?.toUpperCase() || null,
@@ -343,6 +581,7 @@ function validateEvent(event, { userId, batchId, requestId, receivedAt }) {
     city: cleanString(event.city, 120),
     properties: properties.value,
     context: context.value,
+    occurred_at: occurredAt,
   };
 
   return { row, warnings: [...properties.warnings, ...context.warnings] };
@@ -360,67 +599,102 @@ async function authContext(request, supabase) {
   return { userId: data.user.id, authenticated: true };
 }
 
-async function insertDeadLetters(supabase, rejected, requestId, batchId) {
+async function insertDeadLetters(supabase, rejected, context) {
   if (rejected.length === 0) return;
 
   try {
     const rows = rejected.map((item) => ({
-      request_id: requestId,
-      batch_id: batchId,
       event_id: item.event_id,
-      event_name: item.event_name,
+      user_id: item.user_id,
+      anonymous_id: item.anonymous_id,
       reason: item.reason,
-      received_at: new Date().toISOString(),
+      payload: item.payload,
+      source: item.source,
     }));
-    const { error } = await supabase.from("analytics_event_dead_letters").insert(rows);
+    const { error } = await supabase.from(ANALYTICS_DEAD_LETTERS_TABLE).insert(rows);
     if (error) throw error;
   } catch (error) {
-    logger.warn("Analytics dead-letter insert skipped", {
-      request_id: requestId,
-      error: errorSummary(error),
+    logSupabaseOperationFailure(context.request, "events", "insertDeadLetters insert", ANALYTICS_DEAD_LETTERS_TABLE, error, {
       rejected_count: rejected.length,
     });
   }
 }
 
-async function existingEventIds(supabase, eventIds) {
+async function existingEventIds(supabase, eventIds, context) {
   if (eventIds.length === 0) return new Set();
 
   const { data, error } = await supabase
-    .from("analytics_events")
+    .from(ANALYTICS_EVENTS_TABLE)
     .select("event_id")
     .in("event_id", eventIds);
 
-  if (error) throw error;
+  if (error) {
+    logSupabaseOperationFailure(context.request, "events", "existingEventIds select", ANALYTICS_EVENTS_TABLE, error, {
+      event_id_count: eventIds.length,
+    });
+    throw analyticsOperationError(error, "existingEventIds select", ANALYTICS_EVENTS_TABLE);
+  }
   return new Set((data || []).map((row) => row.event_id).filter(Boolean));
 }
 
-async function insertEvents(supabase, rows) {
+async function insertEvents(supabase, rows, context) {
   if (rows.length === 0) return { accepted: 0, duplicates: 0 };
 
-  const existing = await existingEventIds(supabase, rows.map((row) => row.event_id));
+  const eventIds = rows.map((row) => row.event_id);
+  const existing = await existingEventIds(supabase, eventIds, context);
   const newRows = rows.filter((row) => !existing.has(row.event_id));
   if (newRows.length === 0) {
     return { accepted: 0, duplicates: rows.length };
   }
 
-  const { error } = await supabase.from("analytics_events").insert(newRows);
+  const { error } = await supabase.from(ANALYTICS_EVENTS_TABLE).insert(newRows);
   if (error?.code === "23505" || /duplicate key/i.test(error?.message || "")) {
-    const afterRetry = await existingEventIds(supabase, rows.map((row) => row.event_id));
+    const afterRetry = await existingEventIds(supabase, eventIds, context);
     const retryRows = rows.filter((row) => !afterRetry.has(row.event_id));
     if (retryRows.length === 0) return { accepted: 0, duplicates: rows.length };
 
-    const retry = await supabase.from("analytics_events").insert(retryRows);
-    if (retry.error) throw retry.error;
+    const retry = await supabase.from(ANALYTICS_EVENTS_TABLE).insert(retryRows);
+    if (retry.error) {
+      logSupabaseOperationFailure(context.request, "events", "insertEvents retry insert", ANALYTICS_EVENTS_TABLE, retry.error, {
+        row_count: retryRows.length,
+      });
+      throw analyticsOperationError(retry.error, "insertEvents retry insert", ANALYTICS_EVENTS_TABLE);
+    }
     return { accepted: retryRows.length, duplicates: rows.length - retryRows.length };
   }
-  if (error) throw error;
+  if (error) {
+    logSupabaseOperationFailure(context.request, "events", "insertEvents insert", ANALYTICS_EVENTS_TABLE, error, {
+      row_count: newRows.length,
+    });
+    throw analyticsOperationError(error, "insertEvents insert", ANALYTICS_EVENTS_TABLE);
+  }
 
   return { accepted: newRows.length, duplicates: rows.length - newRows.length };
 }
 
+function publicAnalyticsErrorCode(error) {
+  if (error instanceof AnalyticsError && typeof error.code === "string" && error.code.startsWith("analytics_")) {
+    return error.code;
+  }
+
+  const candidate = error?.cause || error;
+  if (candidate && typeof candidate === "object" && (candidate.code || candidate.details || candidate.hint)) {
+    return classifySupabaseAnalyticsError(candidate);
+  }
+
+  return null;
+}
+
+function statusForError(error) {
+  const code = publicAnalyticsErrorCode(error);
+  if (code) return analyticsStatusForCode(code);
+  return error?.status || 500;
+}
+
 function clientError(error) {
-  if (analyticsSchemaMissing(error)) return "Analytics schema not installed.";
+  const code = publicAnalyticsErrorCode(error);
+  if (code === "analytics_schema_missing") return "Analytics schema not installed.";
+  if (code) return "Analytics ingestion is not ready.";
   const status = error?.status || 500;
   if (status === 401) return "Authentication required.";
   if (status === 413) return "Analytics payload is too large.";
@@ -436,7 +710,6 @@ export function analyticsEventAllowlist() {
 export async function handleEvents(request) {
   const started = Date.now();
   const requestId = requestIdFromRequest(request);
-  const receivedAt = new Date().toISOString();
 
   try {
     if (request.method === "OPTIONS") return optionsResponse();
@@ -450,7 +723,6 @@ export async function handleEvents(request) {
       throw new AnalyticsError(400, `events cannot contain more than ${MAX_EVENTS_PER_BATCH} items.`);
     }
 
-    const batchId = cleanString(body.batch_id, MAX_ID_LENGTH);
     const sentAt = body.sent_at === undefined ? null : isoTimestamp(body.sent_at);
     if (body.sent_at !== undefined && !sentAt) throw new AnalyticsError(400, "sent_at must be an ISO timestamp.");
 
@@ -467,9 +739,6 @@ export async function handleEvents(request) {
     for (const event of body.events) {
       const result = validateEvent(event, {
         userId: auth.userId,
-        batchId,
-        requestId,
-        receivedAt,
       });
       warnings.push(...result.warnings);
       if (result.rejected) {
@@ -484,21 +753,23 @@ export async function handleEvents(request) {
     }
 
     if (supabase) {
-      await insertDeadLetters(supabase, rejected, requestId, batchId);
+      await insertDeadLetters(supabase, rejected, { request, requestId });
     } else if (rejected.length > 0) {
       try {
         const deadLetterClient = createServiceClient();
-        await insertDeadLetters(deadLetterClient, rejected, requestId, batchId);
+        await insertDeadLetters(deadLetterClient, rejected, { request, requestId });
       } catch (error) {
         logger.warn("Analytics dead-letter skipped without Supabase credentials", {
           request_id: requestId,
           rejected_count: rejected.length,
-          error: errorSummary(error),
+          error: serializeErrorForLog(error),
+          classified_code: publicAnalyticsErrorCode(error),
+          ...analyticsSupabaseConfigMeta(),
         });
       }
     }
 
-    const inserted = await insertEvents(supabase, rows);
+    const inserted = await insertEvents(supabase, rows, { request, requestId });
     const durationMs = Date.now() - started;
 
     incrementCounter("explore_analytics_events_accepted_total", { authenticated: String(auth.authenticated) }, inserted.accepted);
@@ -526,19 +797,26 @@ export async function handleEvents(request) {
       warnings: warnings.slice(0, 20),
     });
   } catch (error) {
-    const status = analyticsSchemaMissing(error) ? 503 : error?.status || 500;
+    const status = statusForError(error);
+    const code = publicAnalyticsErrorCode(error);
     if (status >= 500) recordSupabaseError("/api/events");
     logger.warn("Analytics events request failed", {
       ...requestLogMeta(request, "events"),
       status,
-      error: errorSummary(error),
+      operation: error?.operation,
+      table: error?.table,
+      classified_code: code,
+      error: serializeErrorForLog(error?.cause || error),
+      ...analyticsSupabaseConfigMeta(),
       duration_ms: Date.now() - started,
     });
-    return jsonResponse(status, {
+    const body = {
       ok: false,
       error: clientError(error),
       request_id: requestId,
-    });
+    };
+    if (code) body.code = code;
+    return jsonResponse(status, body);
   }
 }
 
@@ -558,51 +836,139 @@ function countBy(rows, key) {
     .slice(0, 10);
 }
 
-async function countSince(supabase, since) {
+async function countSince(supabase, since, request) {
   const { count, error } = await supabase
-    .from("analytics_events")
+    .from(ANALYTICS_EVENTS_TABLE)
     .select("event_id", { count: "exact", head: true })
-    .gte("received_at", since);
-  if (error) throw error;
+    .gte("occurred_at", since);
+  if (error) {
+    logSupabaseOperationFailure(
+      request,
+      "admin/analytics/overview",
+      "admin analytics overview count/checks",
+      ANALYTICS_EVENTS_TABLE,
+      error,
+      { since },
+    );
+    throw analyticsOperationError(error, "admin analytics overview count/checks", ANALYTICS_EVENTS_TABLE);
+  }
   return count || 0;
 }
 
 function analyticsSchemaMissing(error) {
-  return error?.code === "42P01" || /does not exist|schema cache/i.test(error?.message || "");
+  return classifySupabaseAnalyticsError(error?.cause || error) === "analytics_schema_missing";
+}
+
+function tableExistsFromCode(code) {
+  if (code === "analytics_schema_missing") return false;
+  if (code === "analytics_column_mismatch" || code === "analytics_schema_cache_stale") return true;
+  return null;
+}
+
+async function probeAnalyticsTable(supabase, request, table, columns) {
+  const { error } = await supabase.from(table).select(columns.join(","), { count: "exact", head: true }).limit(1);
+  if (!error) {
+    return {
+      exists: true,
+      selectable: true,
+      columns,
+      warning: null,
+    };
+  }
+
+  const code = classifySupabaseAnalyticsError(error);
+  logSupabaseOperationFailure(
+    request,
+    "admin/analytics/overview",
+    "admin analytics overview count/checks",
+    table,
+    error,
+    { diagnostic: true },
+  );
+
+  return {
+    exists: tableExistsFromCode(code),
+    selectable: false,
+    columns: [],
+    warning: `${table}: ${code}`,
+  };
+}
+
+async function buildAdminAnalyticsDiagnostics(supabase, request) {
+  const [events, deadLetters] = await Promise.all([
+    probeAnalyticsTable(supabase, request, ANALYTICS_EVENTS_TABLE, ANALYTICS_EVENTS_COLUMNS),
+    probeAnalyticsTable(supabase, request, ANALYTICS_DEAD_LETTERS_TABLE, ANALYTICS_DEAD_LETTER_COLUMNS),
+  ]);
+  const warnings = [events.warning, deadLetters.warning].filter(Boolean);
+
+  return {
+    analytics_events_exists: events.exists,
+    analytics_dead_letters_exists: deadLetters.exists,
+    analytics_events_selectable: events.selectable,
+    analytics_dead_letters_selectable: deadLetters.selectable,
+    analytics_events_columns: events.columns,
+    analytics_dead_letter_columns: deadLetters.columns,
+    supabase_project_ref: supabaseProjectRef(),
+    service_role_configured: serviceRoleConfigured(),
+    service_key_looks_like_jwt: serviceKeyLooksLikeJwt(),
+    warnings,
+  };
+}
+
+async function checkedAnalyticsQuery(request, operation, table, query) {
+  const result = await query;
+  if (result.error) {
+    logSupabaseOperationFailure(request, "admin/analytics/overview", operation, table, result.error);
+    throw analyticsOperationError(result.error, operation, table);
+  }
+  return result;
 }
 
 export async function handleAdminAnalyticsOverview(request) {
+  let supabase = null;
+  let diagnostics = null;
+
   try {
     if (request.method === "OPTIONS") return optionsResponse();
     if (request.method !== "GET") return methodNotAllowed(request);
 
-    const { supabase } = await requireAdmin(request);
+    const admin = await requireAdmin(request);
+    supabase = admin.supabase;
+    diagnostics = await buildAdminAnalyticsDiagnostics(supabase, request);
     const since24h = lastHours(24);
     const since7d = lastHours(24 * 7);
 
     const [events24h, events7d, recentResult, latestResult] = await Promise.all([
-      countSince(supabase, since24h),
-      countSince(supabase, since7d),
-      supabase
-        .from("analytics_events")
-        .select("event_name, entity_type, user_id, anonymous_id, received_at")
-        .gte("received_at", since7d)
-        .order("received_at", { ascending: false })
-        .limit(1000),
-      supabase
-        .from("analytics_events")
-        .select("received_at")
-        .order("received_at", { ascending: false })
-        .limit(1),
+      countSince(supabase, since24h, request),
+      countSince(supabase, since7d, request),
+      checkedAnalyticsQuery(
+        request,
+        "admin analytics overview count/checks",
+        ANALYTICS_EVENTS_TABLE,
+        supabase
+          .from(ANALYTICS_EVENTS_TABLE)
+          .select("event_name, entity_type, user_id, anonymous_id, occurred_at")
+          .gte("occurred_at", since7d)
+          .order("occurred_at", { ascending: false })
+          .limit(1000),
+      ),
+      checkedAnalyticsQuery(
+        request,
+        "admin analytics overview count/checks",
+        ANALYTICS_EVENTS_TABLE,
+        supabase
+          .from(ANALYTICS_EVENTS_TABLE)
+          .select("occurred_at")
+          .order("occurred_at", { ascending: false })
+          .limit(1),
+      ),
     ]);
 
-    if (recentResult.error) throw recentResult.error;
-    if (latestResult.error) throw latestResult.error;
-
     const recentRows = recentResult.data || [];
-    const rows24h = recentRows.filter((row) => row.received_at && row.received_at >= since24h);
+    const rows24h = recentRows.filter((row) => row.occurred_at && row.occurred_at >= since24h);
     const uniqueUsers = new Set(rows24h.map((row) => row.user_id).filter(Boolean));
     const uniqueAnonymous = new Set(rows24h.map((row) => row.anonymous_id).filter(Boolean));
+    const latestOccurredAt = latestResult.data?.[0]?.occurred_at || null;
 
     return jsonResponse(200, {
       ok: true,
@@ -614,10 +980,12 @@ export async function handleAdminAnalyticsOverview(request) {
         unique_anonymous_ids_last_24h: uniqueAnonymous.size,
         top_event_names: countBy(recentRows, "event_name"),
         top_entity_types: countBy(recentRows, "entity_type"),
-        latest_received_at: latestResult.data?.[0]?.received_at || null,
+        latest_occurred_at: latestOccurredAt,
+        latest_received_at: latestOccurredAt,
         ingestion_health: "ok",
       },
-      warnings: [],
+      diagnostics,
+      warnings: diagnostics.warnings,
     });
   } catch (error) {
     if (analyticsSchemaMissing(error)) {
@@ -625,7 +993,8 @@ export async function handleAdminAnalyticsOverview(request) {
         ok: true,
         request_id: requestIdFromRequest(request),
         overview: null,
-        warnings: ["analytics schema not installed"],
+        diagnostics,
+        warnings: ["analytics schema not installed", ...(diagnostics?.warnings || [])],
       });
     }
 
@@ -633,12 +1002,17 @@ export async function handleAdminAnalyticsOverview(request) {
     logger.warn("Admin analytics overview failed", {
       ...requestLogMeta(request, "admin/analytics/overview"),
       status,
-      error: errorSummary(error),
+      operation: error?.operation,
+      table: error?.table,
+      classified_code: publicAnalyticsErrorCode(error),
+      error: serializeErrorForLog(error?.cause || error),
+      ...analyticsSupabaseConfigMeta(),
     });
     return jsonResponse(status, {
       ok: false,
       error: status === 401 ? "Authentication required." : status === 403 ? "Access denied." : "Internal server error",
       request_id: requestIdFromRequest(request),
+      diagnostics,
     });
   }
 }
