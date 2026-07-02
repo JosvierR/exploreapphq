@@ -89,6 +89,7 @@ export type AdminReportTarget = {
   visibility?: string | null;
   visibility_label?: string | null;
   globally_visible?: boolean;
+  is_publicly_visible?: boolean;
 };
 
 export type AdminModerationAction = {
@@ -150,6 +151,7 @@ export type AdminReportDetailResponse = {
   creator: AdminReportActor | null;
   related_reports: AdminRecentReport[];
   moderation_actions: AdminModerationAction[];
+  moderation_actions_timeline?: AdminModerationAction[];
 };
 
 export type ModerationVisibilitySummary = Record<ModerationVisibilityStatus, number> & {
@@ -308,6 +310,7 @@ export type ModerationActionType =
   | "unsuspend_user"
   | "dismiss_report"
   | "mark_reviewed"
+  | "reopen_report"
   | "remove_content";
 
 async function accessToken() {
@@ -447,7 +450,13 @@ export function applyModerationAction(payload: {
   action_type: ModerationActionType;
   notes?: string;
 }) {
-  return apiFetch<{ ok: true; action_id: string; report: AdminReport | null }>(
+  return apiFetch<{
+    ok: true;
+    action_id: string;
+    action: AdminModerationAction;
+    report: AdminReport | null;
+    target: AdminReportTarget | null;
+  }>(
     "/api/admin/moderation/action",
     {
       method: "POST",
@@ -462,6 +471,16 @@ export function hideVideo(videoId: string, reportId?: string, notes?: string) {
     target_type: "video",
     target_id: videoId,
     action_type: "hide_video",
+    notes,
+  });
+}
+
+export function reopenReport(report: AdminReport, notes?: string) {
+  return applyModerationAction({
+    report_id: report.id,
+    target_type: report.content_type,
+    target_id: report.content_id,
+    action_type: "reopen_report",
     notes,
   });
 }

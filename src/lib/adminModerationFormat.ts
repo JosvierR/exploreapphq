@@ -1,6 +1,7 @@
 import type {
   AdminReportActor,
   AdminReport,
+  ModerationActionType,
   ModerationVisibilityStatus,
   ReportContentType,
   ReportReason,
@@ -207,7 +208,7 @@ export function actorDisplayName(actor: AdminReportActor | null | undefined, fal
 export function videoVisibilitySummary(report: AdminReport) {
   const status = report.target.moderation_status || report.target.visibility || "unknown";
   const state = report.target.state || "unknown";
-  const globallyVisible = Boolean(report.target.globally_visible);
+  const globallyVisible = Boolean(report.target.is_publicly_visible ?? report.target.globally_visible);
 
   if (status === "hidden") {
     return {
@@ -262,13 +263,84 @@ export function videoVisibilitySummary(report: AdminReport) {
 }
 
 export function videoActionAvailability(report: AdminReport) {
-  const status = report.target.moderation_status || report.target.visibility || "";
+  return getVideoModerationActionMatrix(report).video;
+}
+
+export function getVideoModerationActionMatrix(report: AdminReport) {
+  const status = String(report.target.moderation_status || report.target.visibility || "").toLowerCase();
+  const state = String(report.target.state || "").toLowerCase();
+  const isVideo = report.target.type === "video" || report.content_type === "video";
+  const isClosedReport = report.status === "reviewed" || report.status === "dismissed" || report.status === "removed";
+  const notPublished = Boolean(state && !["published", "active", "public", "ready"].includes(state));
+  const showRestore = restoreVideoActionCopy(report);
 
   return {
-    canHide: status !== "hidden" && status !== "removed",
-    canRemove: status !== "removed",
-    canRestore: status !== "active",
+    report: {
+      canMarkReviewed: report.status !== "reviewed",
+      canDismiss: report.status !== "dismissed",
+      canReopen: isClosedReport,
+      isClosed: isClosedReport,
+      lifecycleLabel: isClosedReport ? "Closed" : "Open",
+    },
+    video: {
+      canHide: isVideo && (status === "active" || status === "under_review" || !status),
+      canRemove: isVideo && status !== "removed",
+      canRestore: isVideo && (status === "hidden" || status === "removed"),
+      restoreLabel: showRestore.label,
+      restoreHelp: showRestore.help,
+      alreadyVisibleNote:
+        status === "active" || status === "under_review" ? "Video is already visible." : "",
+      publicationNote: notPublished
+        ? "Restoring moderation_status will not make this public unless the video state is published."
+        : "",
+    },
   };
+}
+
+export function restoreVideoActionCopy(report: AdminReport) {
+  const status = String(report.target.moderation_status || report.target.visibility || "").toLowerCase();
+
+  if (status === "hidden") {
+    return {
+      label: "Show video",
+      help: "Make this hidden video visible again to users.",
+      result: "Video is visible again.",
+    };
+  }
+
+  if (status === "removed") {
+    return {
+      label: "Restore video",
+      help: "Restore this removed video to active visibility.",
+      result: "Video restored to active visibility.",
+    };
+  }
+
+  return {
+    label: "Restore video",
+    help: "Video is already visible.",
+    result: "Video is visible again.",
+  };
+}
+
+export function actionResultMessage(actionType: ModerationActionType, report?: AdminReport) {
+  if (actionType === "hide_video") return "Video hidden globally.";
+  if (actionType === "remove_content" && report?.content_type === "video") {
+    return "Video removed from public visibility.";
+  }
+  if (actionType === "restore_video") return report ? restoreVideoActionCopy(report).result : "Video is visible again.";
+  if (actionType === "mark_reviewed") return "Report marked reviewed.";
+  if (actionType === "dismiss_report") return "Report dismissed.";
+  if (actionType === "reopen_report") return "Report reopened for review.";
+  return "Moderation action completed.";
+}
+
+export function recoveryActionFor(actionType: ModerationActionType): ModerationActionType | null {
+  if (actionType === "hide_video") return "restore_video";
+  if (actionType === "remove_content") return "restore_video";
+  if (actionType === "restore_video") return "hide_video";
+  if (actionType === "mark_reviewed" || actionType === "dismiss_report") return "reopen_report";
+  return null;
 }
 
 export function safeMetadataPreview(metadata: Record<string, unknown> | null | undefined, maxItems = 4) {

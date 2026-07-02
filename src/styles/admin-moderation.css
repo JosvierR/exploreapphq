@@ -620,6 +620,27 @@
   font-size: 0.9rem;
 }
 
+.admin-alert--success {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin-alert__action {
+  min-height: 30px;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid #bfe8cd;
+  border-radius: var(--admin-radius-sm);
+  background: #fff;
+  color: #126f34;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
 .admin-alert--error {
   color: #9f1f1f;
   background: var(--admin-red-soft);
@@ -2133,6 +2154,64 @@
   background: var(--admin-blue-soft);
 }
 
+.admin-lifecycle-card {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1rem;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: var(--admin-radius);
+  background: #fff;
+}
+
+.admin-lifecycle-card span {
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-lifecycle-card strong {
+  color: var(--admin-ink);
+  font-size: 1rem;
+}
+
+.admin-lifecycle-card p {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.admin-lifecycle-card dl {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.admin-lifecycle-card dl div {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 0.65rem;
+  align-items: center;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--admin-border-soft);
+}
+
+.admin-lifecycle-card dt,
+.admin-lifecycle-card dd {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.admin-lifecycle-card dt {
+  color: var(--admin-muted);
+  font-weight: 900;
+}
+
+.admin-lifecycle-card dd {
+  color: var(--admin-ink);
+}
+
 .admin-visibility-card span {
   color: #075ca8;
   font-size: 0.74rem;
@@ -2184,6 +2263,10 @@
 
 .admin-field--note {
   margin-top: 0;
+}
+
+.admin-field--confirmation-note {
+  margin: 0 0 1rem;
 }
 
 .admin-related-report-list {
@@ -2351,6 +2434,18 @@
   background: linear-gradient(180deg, #fff7f7, #fff) !important;
 }
 
+.admin-action-group--recovery {
+  border-color: #c8e2ff !important;
+  background: linear-gradient(180deg, var(--admin-blue-soft), #fff) !important;
+}
+
+.admin-action-note {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 .admin-action-group__header {
   display: grid;
   gap: 0.15rem;
@@ -2443,6 +2538,86 @@
 .admin-history-list p {
   margin: 0;
   line-height: 1.45;
+}
+
+.admin-timeline {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-timeline li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 0.7rem;
+}
+
+.admin-timeline li > div {
+  min-width: 0;
+  display: grid;
+  gap: 0.18rem;
+  padding: 0 0 0.75rem;
+  border-bottom: 1px solid var(--admin-border-soft);
+}
+
+.admin-timeline li:last-child > div {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.admin-timeline__icon {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--admin-surface-soft);
+  color: var(--admin-blue);
+  border: 1px solid #c8e2ff;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.admin-timeline__icon--hide_video,
+.admin-timeline__icon--remove_content {
+  color: #9f1f1f;
+  background: var(--admin-red-soft);
+  border-color: #ffc9c9;
+}
+
+.admin-timeline__icon--restore_video,
+.admin-timeline__icon--reopen_report {
+  color: #126f34;
+  background: var(--admin-green-soft);
+  border-color: #bfe8cd;
+}
+
+.admin-timeline strong {
+  color: var(--admin-ink);
+  font-size: 0.88rem;
+}
+
+.admin-timeline small,
+.admin-timeline p,
+.admin-timeline em {
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.admin-timeline p,
+.admin-timeline em {
+  margin: 0;
+}
+
+.admin-timeline em {
+  padding: 0.45rem 0.55rem;
+  border-radius: var(--admin-radius-sm);
+  background: var(--admin-surface-soft);
+  font-style: normal;
+  overflow-wrap: anywhere;
 }
 
 .admin-confirmation {
@@ -2946,6 +3121,10 @@
   }
 
   .admin-visibility-card dl div {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-lifecycle-card dl div {
     grid-template-columns: 1fr;
   }
 

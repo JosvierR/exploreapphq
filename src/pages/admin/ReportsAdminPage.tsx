@@ -9,6 +9,7 @@ import {
   hideVideo,
   markReportReviewed,
   removeVideo,
+  reopenReport,
   restoreVideo,
   type AdminModerationAction,
   type AdminReport,
@@ -32,13 +33,16 @@ import {
   formatRelativeTime,
   formatStatusLabel,
   formatVisibilityLabel,
+  actionResultMessage,
   getReportPriority,
+  getVideoModerationActionMatrix,
+  recoveryActionFor,
+  restoreVideoActionCopy,
   safeMetadataPreview,
   shortId,
   targetImage,
   targetSubtitle,
   targetTitle,
-  videoActionAvailability,
   videoVisibilitySummary,
   type ReportPriority,
 } from "@/lib/adminModerationFormat";
@@ -109,6 +113,13 @@ type ConfirmAction = {
   actionType: ModerationActionType;
 };
 
+type ActionToast = {
+  message: string;
+  report: AdminReport;
+  followUpAction?: ModerationActionType;
+  followUpLabel?: string;
+};
+
 export function ReportsAdminPage() {
   return (
     <AdminAuthGate>
@@ -137,7 +148,7 @@ function ReportsAdminContent() {
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<ActionToast | null>(null);
 
   useEffect(() => {
     const nextStatus = readStatus(searchParams);
@@ -235,8 +246,10 @@ function ReportsAdminContent() {
     try {
       const data = await getAdminReportDetail(reportId);
       setSelected(data.report);
+      return data.report;
     } catch {
       setSelectedError("Unable to load the full report detail. The row data is still available.");
+      return null;
     } finally {
       setSelectedLoading(false);
     }
@@ -246,6 +259,16 @@ function ReportsAdminContent() {
     setSelected(report);
     setSelectedError(null);
     void refreshReportDetail(report.id);
+  }
+
+  function showActionToast(report: AdminReport, actionType: ModerationActionType) {
+    const followUpAction = recoveryActionFor(actionType);
+    setToast({
+      message: actionResultMessage(actionType, report),
+      report,
+      followUpAction: followUpAction ?? undefined,
+      followUpLabel: followUpAction ? actionLabelForReport(followUpAction, report) : undefined,
+    });
   }
 
   async function runReportStatus(report: AdminReport, nextStatus: "reviewed" | "dismissed") {
@@ -258,11 +281,7 @@ function ReportsAdminContent() {
       } else {
         await markReportReviewed(report.id, notes || undefined);
       }
-      setToast(
-        nextStatus === "dismissed"
-          ? "Report dismissed. Content visibility was not changed."
-          : "Report reviewed. Content visibility was not changed.",
-      );
+      showActionToast(report, nextStatus === "dismissed" ? "dismiss_report" : "mark_reviewed");
       await load();
       if (selected?.id === report.id) await refreshReportDetail(report.id);
     } catch {
@@ -273,7 +292,7 @@ function ReportsAdminContent() {
   }
 
   async function runModerationAction(report: AdminReport, actionType: ModerationActionType) {
-    setBusyAction({ reportId: report.id, label: actionLabel(actionType) });
+    setBusyAction({ reportId: report.id, label: actionLabelForReport(actionType, report) });
     setActionError(null);
     setToast(null);
     try {
@@ -283,6 +302,8 @@ function ReportsAdminContent() {
         await removeVideo(report.content_id, report.id, notes || undefined);
       } else if (report.content_type === "video" && actionType === "restore_video") {
         await restoreVideo(report.content_id, report.id, notes || undefined);
+      } else if (actionType === "reopen_report") {
+        await reopenReport(report, notes || undefined);
       } else {
         await applyModerationAction({
           report_id: report.id,
@@ -292,7 +313,7 @@ function ReportsAdminContent() {
           notes: notes || undefined,
         });
       }
-      setToast("Global visibility action completed.");
+      showActionToast(report, actionType);
       await load();
       if (selected?.id === report.id) await refreshReportDetail(report.id);
     } catch {
@@ -533,7 +554,16 @@ function ReportsAdminContent() {
       <div className="admin-alert-stack" aria-live="polite">
         {toast && (
           <p className="admin-alert admin-alert--success" role="status">
-            {toast}
+            <span>{toast.message}</span>
+            {toast.followUpAction && toast.followUpLabel && (
+              <button
+                type="button"
+                className="admin-alert__action"
+                onClick={() => requestModerationAction(selected?.id === toast.report.id ? selected : toast.report, toast.followUpAction!)}
+              >
+                {toast.followUpLabel}
+              </button>
+            )}
           </p>
         )}
         {actionError && (
@@ -639,6 +669,7 @@ function ReportsAdminContent() {
                           onDetails={() => openReport(report)}
                           onReview={() => void runReportStatus(report, "reviewed")}
                           onDismiss={() => void runReportStatus(report, "dismissed")}
+                          onModerationAction={(actionType) => requestModerationAction(report, actionType)}
                         />
                       </td>
                     </tr>
@@ -656,6 +687,7 @@ function ReportsAdminContent() {
                   onDetails={() => openReport(report)}
                   onReview={() => void runReportStatus(report, "reviewed")}
                   onDismiss={() => void runReportStatus(report, "dismissed")}
+                  onModerationAction={(actionType) => requestModerationAction(report, actionType)}
                 />
               ))}
             </div>
@@ -683,7 +715,9 @@ function ReportsAdminContent() {
         <ConfirmationModal
           report={confirmAction.report}
           actionType={confirmAction.actionType}
+          notes={notes}
           busy={busyAction?.reportId === confirmAction.report.id}
+          onNotesChange={setNotes}
           onCancel={() => setConfirmAction(null)}
           onConfirm={() => {
             const nextAction = confirmAction;
@@ -769,36 +803,62 @@ function ReportActions({
   onDetails,
   onReview,
   onDismiss,
+  onModerationAction,
 }: {
   report: AdminReport;
   busyAction: BusyAction;
   onDetails: () => void;
   onReview: () => void;
   onDismiss: () => void;
+  onModerationAction: (actionType: ModerationActionType) => void;
 }) {
   const busy = busyAction?.reportId === report.id;
+  const matrix = report.content_type === "video" ? getVideoModerationActionMatrix(report) : null;
 
   return (
     <div className="admin-row-actions">
       <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm" onClick={onDetails} aria-label="Open report details">
         {report.content_type === "video" ? "Review video" : "Details"}
       </button>
-      <button
-        type="button"
-        className="admin-btn admin-btn--secondary admin-btn--sm"
-        disabled={busy || report.status === "reviewed"}
-        onClick={onReview}
-      >
-        {busy ? "Working..." : "Review"}
-      </button>
-      <button
-        type="button"
-        className="admin-btn admin-btn--secondary admin-btn--sm"
-        disabled={busy || report.status === "dismissed"}
-        onClick={onDismiss}
-      >
-        Dismiss
-      </button>
+      {matrix?.report.canReopen ? (
+        <button
+          type="button"
+          className="admin-btn admin-btn--secondary admin-btn--sm"
+          disabled={busy}
+          onClick={() => onModerationAction("reopen_report")}
+        >
+          Reopen
+        </button>
+      ) : (
+        <>
+          <button
+            type="button"
+            className="admin-btn admin-btn--secondary admin-btn--sm"
+            disabled={busy || report.status === "reviewed"}
+            onClick={onReview}
+          >
+            {busy ? "Working..." : "Review"}
+          </button>
+          <button
+            type="button"
+            className="admin-btn admin-btn--secondary admin-btn--sm"
+            disabled={busy || report.status === "dismissed"}
+            onClick={onDismiss}
+          >
+            Dismiss
+          </button>
+        </>
+      )}
+      {matrix?.video.canRestore && (
+        <button
+          type="button"
+          className="admin-btn admin-btn--ghost admin-btn--sm"
+          disabled={busy}
+          onClick={() => onModerationAction("restore_video")}
+        >
+          {matrix.video.restoreLabel}
+        </button>
+      )}
     </div>
   );
 }
@@ -809,12 +869,14 @@ function ReportCard({
   onDetails,
   onReview,
   onDismiss,
+  onModerationAction,
 }: {
   report: AdminReport;
   busyAction: BusyAction;
   onDetails: () => void;
   onReview: () => void;
   onDismiss: () => void;
+  onModerationAction: (actionType: ModerationActionType) => void;
 }) {
   return (
     <article className="admin-report-card">
@@ -840,6 +902,7 @@ function ReportCard({
         onDetails={onDetails}
         onReview={onReview}
         onDismiss={onDismiss}
+        onModerationAction={onModerationAction}
       />
     </article>
   );
@@ -1091,12 +1154,20 @@ function VideoReportDrawer({
   const panelRef = useRef<HTMLElement | null>(null);
   const busy = busyAction?.reportId === report.id;
   const visibility = videoVisibilitySummary(report);
-  const availability = videoActionAvailability(report);
+  const matrix = getVideoModerationActionMatrix(report);
+  const availability = matrix.video;
   const publicLink = report.target.public_deep_link || `https://www.exploreapphq.com/v/${encodeURIComponent(report.content_id)}`;
   const videoUnavailable = !report.target.video_available || !report.target.video_url || videoFailed;
   const targetUnavailable = Boolean(report.target.target_unavailable);
   const history = report.recent_moderation_actions ?? report.actions ?? [];
   const relatedReports = report.related_reports ?? report.previous_reports_for_target ?? [];
+  const lastReportAction = latestAction(history, ["mark_reviewed", "dismiss_report", "reopen_report", "mark_removed"]);
+  const destructiveAction = latestAction(history, ["hide_video", "remove_content"]);
+  const showRecoveryGroup =
+    matrix.report.isClosed ||
+    report.target.moderation_status === "hidden" ||
+    report.target.moderation_status === "removed" ||
+    Boolean(destructiveAction);
 
   useEffect(() => {
     setVideoFailed(false);
@@ -1287,11 +1358,49 @@ function VideoReportDrawer({
           </main>
 
           <aside className="admin-video-workspace__side" aria-label="Video moderation controls">
+            <section className="admin-lifecycle-card" aria-label="Report case lifecycle">
+              <span>Report case lifecycle</span>
+              <strong>{matrix.report.lifecycleLabel}</strong>
+              <dl>
+                <div>
+                  <dt>Report status</dt>
+                  <dd>
+                    <StatusBadge status={report.status} />
+                  </dd>
+                </div>
+                <div>
+                  <dt>Report decision</dt>
+                  <dd>{report.status === "pending" ? "Awaiting review" : formatStatusLabel(report.status)}</dd>
+                </div>
+                <div>
+                  <dt>Reviewed by</dt>
+                  <dd>{report.reviewed_by ? shortId(report.reviewed_by) : "Not reviewed yet"}</dd>
+                </div>
+                <div>
+                  <dt>Reviewed at</dt>
+                  <dd>{report.reviewed_at ? formatDateTime(report.reviewed_at) : "Not reviewed yet"}</dd>
+                </div>
+                <div>
+                  <dt>Last report action</dt>
+                  <dd>{lastReportAction ? actionLabel(lastReportAction.action_type) : "Report created"}</dd>
+                </div>
+              </dl>
+              <p>Reviewed does not mean the video is hidden. Dismissed does not mean the video is restored.</p>
+            </section>
+
             <section className="admin-visibility-card">
-              <span>Current video visibility</span>
+              <span>Video visibility lifecycle</span>
               <strong>{visibility.title}</strong>
               <p>{visibility.body}</p>
               <dl>
+                <div>
+                  <dt>Video state</dt>
+                  <dd>{report.target.state || "Not available"}</dd>
+                </div>
+                <div>
+                  <dt>moderation_status</dt>
+                  <dd>{report.target.moderation_status || "Not available"}</dd>
+                </div>
                 <div>
                   <dt>Normal users</dt>
                   <dd>{visibility.globallyVisible ? "Can see this video" : "Cannot see this video"}</dd>
@@ -1301,6 +1410,8 @@ function VideoReportDrawer({
                   <dd>{report.reporter_hidden_for_target ? "Hidden for this reporter" : "Not hidden for this reporter"}</dd>
                 </div>
               </dl>
+              {availability.publicationNote && <p>{availability.publicationNote}</p>}
+              <p>Hidden and Removed affect everyone. Show video only changes global visibility back to active.</p>
             </section>
 
             <label className="admin-field admin-field--note">
@@ -1323,7 +1434,7 @@ function VideoReportDrawer({
                 <button
                   type="button"
                   className="admin-btn admin-btn--secondary"
-                  disabled={busy || report.status === "reviewed"}
+                  disabled={busy || !matrix.report.canMarkReviewed}
                   aria-label="Mark report reviewed without changing video visibility"
                   onClick={onReview}
                 >
@@ -1332,12 +1443,23 @@ function VideoReportDrawer({
                 <button
                   type="button"
                   className="admin-btn admin-btn--secondary"
-                  disabled={busy || report.status === "dismissed"}
+                  disabled={busy || !matrix.report.canDismiss}
                   aria-label="Dismiss report without changing video visibility"
                   onClick={onDismiss}
                 >
                   Dismiss report
                 </button>
+                {matrix.report.canReopen && (
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn--ghost"
+                    disabled={busy}
+                    aria-label="Reopen report without changing video visibility"
+                    onClick={() => onModerationAction("reopen_report")}
+                  >
+                    Reopen report
+                  </button>
+                )}
               </div>
             </section>
 
@@ -1346,42 +1468,81 @@ function VideoReportDrawer({
                 <h4>Global video visibility</h4>
                 <p>Hide video: This hides the video from Explore for everyone.</p>
                 <p>Remove video: This removes the video from public visibility. The video is not hard-deleted.</p>
-                <p>Restore video: This makes the video visible again if its publication state allows it.</p>
+                <p>{availability.restoreLabel}: {availability.restoreHelp}</p>
               </div>
               <div className="admin-action-group__buttons">
-                <button
-                  type="button"
-                  className="admin-btn admin-btn--danger"
-                  disabled={busy || targetUnavailable || !availability.canHide}
-                  aria-label="Hide video globally"
-                  onClick={() => onModerationAction("hide_video")}
-                >
-                  {busy ? "Working..." : "Hide video globally"}
-                </button>
-                <button
-                  type="button"
-                  className="admin-btn admin-btn--danger"
-                  disabled={busy || targetUnavailable || !availability.canRemove}
-                  aria-label="Remove video globally"
-                  onClick={() => onModerationAction("remove_content")}
-                >
-                  {busy ? "Working..." : "Remove video globally"}
-                </button>
-                <button
-                  type="button"
-                  className="admin-btn admin-btn--secondary"
-                  disabled={busy || targetUnavailable || !availability.canRestore}
-                  aria-label="Restore video to active visibility"
-                  onClick={() => onModerationAction("restore_video")}
-                >
-                  {busy ? "Working..." : "Restore video"}
-                </button>
+                {availability.canHide && (
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn--danger"
+                    disabled={busy || targetUnavailable}
+                    aria-label="Hide video globally"
+                    onClick={() => onModerationAction("hide_video")}
+                  >
+                    {busy ? "Working..." : "Hide video globally"}
+                  </button>
+                )}
+                {availability.canRemove && (
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn--danger"
+                    disabled={busy || targetUnavailable}
+                    aria-label="Remove video globally"
+                    onClick={() => onModerationAction("remove_content")}
+                  >
+                    {busy ? "Working..." : "Remove video globally"}
+                  </button>
+                )}
+                {availability.canRestore ? (
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn--secondary"
+                    disabled={busy || targetUnavailable}
+                    aria-label={`${availability.restoreLabel} to active visibility`}
+                    onClick={() => onModerationAction("restore_video")}
+                  >
+                    {busy ? "Working..." : availability.restoreLabel}
+                  </button>
+                ) : (
+                  <p className="admin-action-note">{availability.alreadyVisibleNote || "No restore action is needed."}</p>
+                )}
               </div>
             </section>
 
+            {showRecoveryGroup && (
+              <section className="admin-action-group admin-action-group--recovery" aria-label="Recovery actions">
+                <div className="admin-action-group__header">
+                  <h4>Recovery</h4>
+                  <p>Use these controls to recover from accidental report decisions or visibility changes.</p>
+                </div>
+                <div className="admin-action-group__buttons">
+                  {matrix.report.canReopen && (
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--ghost"
+                      disabled={busy}
+                      onClick={() => onModerationAction("reopen_report")}
+                    >
+                      Reopen report
+                    </button>
+                  )}
+                  {availability.canRestore && (
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--secondary"
+                      disabled={busy || targetUnavailable}
+                      onClick={() => onModerationAction("restore_video")}
+                    >
+                      {availability.restoreLabel}
+                    </button>
+                  )}
+                </div>
+              </section>
+            )}
+
             <section className="admin-drawer__section admin-video-section">
-              <h4>Moderation history</h4>
-              <ActionHistory actions={history} />
+              <h4>Action timeline</h4>
+              <ActionTimeline report={report} actions={history} />
             </section>
           </aside>
         </div>
@@ -1406,6 +1567,49 @@ function RelatedReports({ reports }: { reports: NonNullable<AdminReport["related
           <small>
             {formatDateTime(report.created_at)} / reporter {shortId(report.reporter_id)}
           </small>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function ActionTimeline({ report, actions }: { report: AdminReport; actions: AdminModerationAction[] }) {
+  const items = [
+    {
+      id: `created-${report.id}`,
+      action_type: "report_created",
+      title: "Report created",
+      actor: actorDisplayName(report.reporter, shortId(report.reporter_id)),
+      created_at: report.created_at,
+      notes: report.details,
+      result: "Report case opened. Video visibility did not change.",
+    },
+    ...actions.map((action) => ({
+      id: action.id,
+      action_type: action.action_type,
+      title: actionLabel(action.action_type),
+      actor: shortId(action.admin_id),
+      created_at: action.created_at,
+      notes: action.notes,
+      result: actionResultDescription(action.action_type),
+    })),
+  ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+  return (
+    <ol className="admin-timeline">
+      {items.map((item) => (
+        <li key={item.id}>
+          <span className={`admin-timeline__icon admin-timeline__icon--${badgeClassValue(item.action_type)}`} aria-hidden="true">
+            {timelineIcon(item.action_type)}
+          </span>
+          <div>
+            <strong>{item.title}</strong>
+            <small>
+              {item.actor} / {formatDateTime(item.created_at)} {formatRelativeTime(item.created_at)}
+            </small>
+            <p>{item.result}</p>
+            {item.notes && <em>{item.notes}</em>}
+          </div>
         </li>
       ))}
     </ol>
@@ -1531,17 +1735,21 @@ function InlineError({ onRetry }: { onRetry: () => void }) {
 function ConfirmationModal({
   report,
   actionType,
+  notes,
   busy,
+  onNotesChange,
   onCancel,
   onConfirm,
 }: {
   report: AdminReport;
   actionType: ModerationActionType;
+  notes: string;
   busy: boolean;
+  onNotesChange: (value: string) => void;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  const details = confirmationDetails(actionType, report.content_type);
+  const details = confirmationDetails(actionType, report);
   const dialogRef = useRef<HTMLElement | null>(null);
   const imageUrl = targetImage(report);
 
@@ -1601,6 +1809,15 @@ function ConfirmationModal({
             <dd>{details.consequence}</dd>
           </div>
         </dl>
+        <label className="admin-field admin-field--confirmation-note">
+          <span>Add internal note</span>
+          <textarea
+            rows={3}
+            value={notes}
+            onChange={(event) => onNotesChange(event.target.value)}
+            placeholder="Why are you taking this action?"
+          />
+        </label>
         <div className="admin-confirmation__actions">
           <button type="button" className="admin-btn admin-btn--ghost" onClick={onCancel} disabled={busy}>
             Cancel
@@ -1681,10 +1898,54 @@ function actionLabel(actionType: ModerationActionType | string) {
     dismiss_report: "Dismiss report",
     mark_reviewed: "Mark reviewed",
     mark_removed: "Mark removed",
+    reopen_report: "Reopen report",
     remove_content: "Remove content",
   };
 
   return labels[actionType] ?? fallbackLabel(String(actionType));
+}
+
+function actionLabelForReport(actionType: ModerationActionType, report: AdminReport) {
+  if (actionType === "restore_video" && report.content_type === "video") {
+    return restoreVideoActionCopy(report).label;
+  }
+
+  if (actionType === "remove_content" && report.content_type === "video") {
+    return "Remove video";
+  }
+
+  return actionLabel(actionType);
+}
+
+function actionResultDescription(actionType: string) {
+  const descriptions: Record<string, string> = {
+    mark_reviewed: "Report case was marked reviewed. Video visibility did not change.",
+    dismiss_report: "Report case was dismissed. Video visibility did not change.",
+    reopen_report: "Report case was reopened. Video visibility did not change.",
+    hide_video: "Video was hidden globally for everyone.",
+    remove_content: "Video was removed from public visibility. No hard delete was performed.",
+    restore_video: "Video moderation_status was restored to active.",
+  };
+
+  return descriptions[actionType] ?? "Moderation audit event recorded.";
+}
+
+function timelineIcon(actionType: string) {
+  if (actionType === "report_created") return "C";
+  if (actionType === "mark_reviewed") return "R";
+  if (actionType === "dismiss_report") return "D";
+  if (actionType === "reopen_report") return "O";
+  if (actionType === "hide_video") return "H";
+  if (actionType === "remove_content") return "!";
+  if (actionType === "restore_video") return "S";
+  return "A";
+}
+
+function latestAction(actions: AdminModerationAction[], types: string[]) {
+  const typeSet = new Set(types);
+  return actions
+    .filter((action) => typeSet.has(action.action_type))
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
 }
 
 function requiresConfirmation(actionType: ModerationActionType) {
@@ -1693,12 +1954,14 @@ function requiresConfirmation(actionType: ModerationActionType) {
     actionType === "hide_place" ||
     actionType === "restore_video" ||
     actionType === "restore_place" ||
+    actionType === "reopen_report" ||
     actionType === "remove_content" ||
     actionType === "suspend_user"
   );
 }
 
-function confirmationDetails(actionType: ModerationActionType, contentType?: AdminReport["content_type"]) {
+function confirmationDetails(actionType: ModerationActionType, report?: AdminReport) {
+  const contentType = report?.content_type;
   if (actionType === "hide_video") {
     return {
       title: "Hide video globally",
@@ -1732,9 +1995,13 @@ function confirmationDetails(actionType: ModerationActionType, contentType?: Adm
   }
 
   if (actionType === "restore_video") {
+    const restoreCopy = report ? restoreVideoActionCopy(report) : { label: "Restore video" };
     return {
-      title: "Restore video",
-      consequence: "You are about to restore this video to active visibility. Users who personally hid it may still not see it.",
+      title: restoreCopy.label,
+      consequence:
+        restoreCopy.label === "Show video"
+          ? "You are about to show this hidden video again. Users who personally hid it may still not see it."
+          : "You are about to restore this video to active visibility. Users who personally hid it may still not see it.",
       variant: "secondary" as const,
     };
   }
@@ -1752,6 +2019,14 @@ function confirmationDetails(actionType: ModerationActionType, contentType?: Adm
       title: "Suspend user",
       consequence: "This changes the user's ability to participate if the user table supports suspension.",
       variant: "danger" as const,
+    };
+  }
+
+  if (actionType === "reopen_report") {
+    return {
+      title: "Reopen report",
+      consequence: "You are reopening this report. The video visibility will not change.",
+      variant: "secondary" as const,
     };
   }
 
