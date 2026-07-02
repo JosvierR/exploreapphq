@@ -8,6 +8,22 @@ Mobile clients send analytics batches to the web backend. Mobile must not insert
 
 The backend validates, enriches, redacts, rate limits, optionally authenticates, and inserts into `public.analytics_events` with server-side Supabase credentials.
 
+## Schema Setup (required once)
+
+Apply the migration before calling `POST /api/events` in production:
+
+1. Open [Supabase SQL Editor](https://supabase.com/dashboard/project/ookbeuiavzjhvezvamfu/sql/new) for the Explore project.
+2. Paste and run `supabase/migrations/20260701120000_analytics_events.sql`.
+
+Without these tables, ingestion returns `503` with `"Analytics schema not installed."`
+
+Tables created:
+
+- `public.analytics_events` — validated event rows (deduped by `event_id`)
+- `public.analytics_event_dead_letters` — rejected events for debugging
+
+Inserts use the Vercel `SUPABASE_SECRET_KEY` service role. Mobile clients must not write to these tables directly.
+
 ## Auth Behavior
 
 `Authorization: Bearer <supabase-user-token>` is optional.
