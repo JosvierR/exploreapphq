@@ -16,6 +16,8 @@ function isModerationRoute(route) {
     route === "admin/me" ||
     route === "admin/reports" ||
     route === "admin/moderation/summary" ||
+    route === "admin/ops/summary" ||
+    route === "admin/users" ||
     /^admin\/reports\/[^/]+$/.test(route) ||
     route === "admin/moderation/action"
   );

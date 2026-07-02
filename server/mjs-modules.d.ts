@@ -18,8 +18,11 @@ declare module "*.mjs" {
   export const buildWaitlistWelcomeEmail: (email: string, links: EmailLinks) => EmailTemplate;
   export const handleAdminMe: (request: Request) => Promise<Response>;
   export const handleAdminModerationAction: (request: Request) => Promise<Response>;
+  export const handleAdminModerationSummary: (request: Request) => Promise<Response>;
+  export const handleAdminOpsSummary: (request: Request) => Promise<Response>;
   export const handleAdminReportById: (request: Request, id?: string) => Promise<Response>;
   export const handleAdminReports: (request: Request) => Promise<Response>;
+  export const handleAdminUsers: (request: Request) => Promise<Response>;
   export const handleHealth: (request: Request) => Promise<Response>;
   export const handleReports: (request: Request) => Promise<Response>;
   export const handleUserHiddenContent: (request: Request) => Promise<Response>;

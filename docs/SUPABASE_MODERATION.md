@@ -65,6 +65,8 @@ All moderation and legacy API routes are served by **one** Vercel function: `api
 - `POST /api/user/hidden-content/unhide`
 - `GET /api/admin/reports`
 - `GET /api/admin/moderation/summary` for dashboard metrics, visibility counts, and recent admin actions
+- `GET /api/admin/ops/summary` for the full admin operations console summary
+- `GET /api/admin/users` for recent/searchable user operations rows
 - `PATCH /api/admin/reports/:id`
 - `POST /api/admin/moderation/action`
 - `GET /api/admin/me` for the admin UI role check

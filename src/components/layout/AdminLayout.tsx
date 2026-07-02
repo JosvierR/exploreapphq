@@ -17,17 +17,73 @@ type NavItem = {
 };
 
 const moderationItems: NavItem[] = [
-  { label: "Dashboard", to: "/admin" },
+  { label: "Moderation Home", to: "/admin?section=moderation" },
   { label: "Reports", to: "/admin/reports?status=all", exactQuery: true },
   { label: "Pending Queue", to: "/admin/reports?status=pending" },
   { label: "Reviewed", to: "/admin/reports?status=reviewed" },
   { label: "Removed/Hidden", to: "/admin/reports?status=all&visibility=hidden_removed" },
-  { label: "Admins", disabled: true, note: "Soon" },
 ];
 
-const operationsItems: NavItem[] = [{ label: "Waitlist", to: "/admin/waitlist" }];
+const overviewItems: NavItem[] = [{ label: "Dashboard", to: "/admin?section=overview", exactQuery: true }];
+
+const operationsItems: NavItem[] = [
+  { label: "Users", to: "/admin?section=users", exactQuery: true },
+  { label: "Content", to: "/admin?section=content", exactQuery: true },
+  { label: "Places", to: "/admin?section=content&content=places" },
+  { label: "Routes", to: "/admin?section=content&content=routes" },
+  { label: "Waitlist", to: "/admin/waitlist" },
+];
+
+const insightsItems: NavItem[] = [
+  { label: "Product Insights", to: "/admin?section=insights", exactQuery: true },
+  { label: "Analytics Foundation", to: "/admin?section=analytics", exactQuery: true },
+];
+
+const systemItems: NavItem[] = [
+  { label: "Health", to: "/admin?section=system", exactQuery: true },
+  { label: "Admins", to: "/admin?section=admins", exactQuery: true },
+];
 
 function routeMeta(pathname: string, search: string) {
+  if (pathname === "/admin") {
+    const section = new URLSearchParams(search).get("section") || "overview";
+    if (section === "users") {
+      return {
+        title: "Users",
+        description: "Review account growth, recent users, and profile health.",
+      };
+    }
+    if (section === "content") {
+      return {
+        title: "Content operations",
+        description: "Monitor videos, places, routes, and publication state.",
+      };
+    }
+    if (section === "moderation") {
+      return {
+        title: "Moderation home",
+        description: "Keep report workflow separate from public content visibility.",
+      };
+    }
+    if (section === "insights" || section === "analytics") {
+      return {
+        title: "Product insights",
+        description: "Use available operational data and identify analytics gaps.",
+      };
+    }
+    if (section === "system" || section === "admins") {
+      return {
+        title: "System health",
+        description: "Check API, Supabase, domain, and admin authorization status.",
+      };
+    }
+
+    return {
+      title: "Explore Admin Console",
+      description: "Operate users, content, moderation, and product health.",
+    };
+  }
+
   if (pathname.startsWith("/admin/reports")) {
     const params = new URLSearchParams(search);
     const status = params.get("status");
@@ -68,8 +124,8 @@ function routeMeta(pathname: string, search: string) {
   }
 
   return {
-    title: "Moderation dashboard",
-    description: "Monitor the Explore moderation queue.",
+    title: "Explore Admin Console",
+    description: "Operate users, content, moderation, and product health.",
   };
 }
 
@@ -239,12 +295,15 @@ export function AdminLayout() {
         </div>
 
         <nav className="admin-console__nav" aria-label="Admin sections">
-          <NavGroup title="Moderation" items={moderationItems} onNavigate={() => setNavOpen(false)} />
+          <NavGroup title="Overview" items={overviewItems} onNavigate={() => setNavOpen(false)} />
           <NavGroup title="Operations" items={operationsItems} onNavigate={() => setNavOpen(false)} />
+          <NavGroup title="Moderation" items={moderationItems} onNavigate={() => setNavOpen(false)} />
+          <NavGroup title="Insights" items={insightsItems} onNavigate={() => setNavOpen(false)} />
+          <NavGroup title="System" items={systemItems} onNavigate={() => setNavOpen(false)} />
         </nav>
 
         <div className="admin-console__sidebar-footer">
-          <p>Report status decisions are separate from global content visibility actions.</p>
+          <p>Explore Admin Console for operations, content, moderation, and product health.</p>
           <Link to="/" className="admin-console__utility-link" onClick={() => setNavOpen(false)}>
             View public site
           </Link>
@@ -267,7 +326,7 @@ export function AdminLayout() {
           </button>
 
           <div className="admin-console__page-title">
-            <span>Explore admin</span>
+            <span>Explore Admin Console</span>
             <h1>{meta.title}</h1>
             <p>{meta.description}</p>
           </div>
