@@ -5,6 +5,11 @@ import jwt from "jsonwebtoken";
 // Plain ESM handlers are shared with Vercel serverless functions.
 // @ts-ignore
 import {
+  handleAdminAnalyticsOverview,
+  handleEvents,
+} from "../api/lib/analyticsRouter.mjs";
+// @ts-ignore
+import {
   handleAdminModerationAction,
   handleAdminModerationSummary,
   handleAdminMe,
@@ -120,6 +125,10 @@ app.all("/api/reports", (req, res) => {
   void sendFetchResponse(handleReports, req, res);
 });
 
+app.all("/api/events", (req, res) => {
+  void sendFetchResponse(handleEvents, req, res);
+});
+
 app.all("/api/user/hidden-content", (req, res) => {
   void sendFetchResponse(handleUserHiddenContent, req, res);
 });
@@ -146,6 +155,10 @@ app.all("/api/admin/ops/summary", (req, res) => {
 
 app.all("/api/admin/users", (req, res) => {
   void sendFetchResponse(handleAdminUsers, req, res);
+});
+
+app.all("/api/admin/analytics/overview", (req, res) => {
+  void sendFetchResponse(handleAdminAnalyticsOverview, req, res);
 });
 
 app.all("/api/admin/system/health", (req, res) => {

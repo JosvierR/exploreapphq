@@ -3,6 +3,7 @@ import adminWaitlist from "../../netlify/functions/admin-waitlist.mjs";
 import adminNotifyLaunch from "../../netlify/functions/admin-notify-launch.mjs";
 import adminBroadcast from "../../netlify/functions/admin-broadcast.mjs";
 import feedbackSubmit from "../../netlify/functions/feedback-submit.mjs";
+import { handleAdminAnalyticsOverview, handleEvents } from "./analyticsRouter.mjs";
 import { dispatchModerationApi } from "./moderationRouter.mjs";
 import { resolveApiRoute } from "./resolveApiRoute.mjs";
 import {
@@ -47,6 +48,10 @@ export async function dispatchApi(incomingRequest) {
   try {
     if (isModerationRoute(route)) {
       response = await dispatchModerationApi(request, route);
+    } else if (route === "events") {
+      response = await handleEvents(request);
+    } else if (route === "admin/analytics/overview") {
+      response = await handleAdminAnalyticsOverview(request);
     } else if (route === "admin/system/health") {
       response = await handleAdminSystemHealth(request);
     } else if (route === "admin/system/metrics") {

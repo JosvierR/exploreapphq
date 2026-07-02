@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import WebSocket from "ws";
 import { appEnvironment, appVersion, errorSummary, logger, requestLogMeta } from "./logger.mjs";
 import { recordAdminAction, recordModerationAction, recordSupabaseError } from "./metrics.mjs";
 import { requestIdFromRequest } from "./requestContext.mjs";
@@ -163,6 +164,9 @@ function createServiceClient() {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
+    },
+    realtime: {
+      transport: WebSocket,
     },
   });
 }

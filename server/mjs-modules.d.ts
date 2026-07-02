@@ -16,6 +16,7 @@ declare module "*.mjs" {
 
   export const buildAppLaunchEmail: (email: string, links: EmailLinks) => EmailTemplate;
   export const buildWaitlistWelcomeEmail: (email: string, links: EmailLinks) => EmailTemplate;
+  export const handleAdminAnalyticsOverview: (request: Request) => Promise<Response>;
   export const handleAdminMe: (request: Request) => Promise<Response>;
   export const handleAdminModerationAction: (request: Request) => Promise<Response>;
   export const handleAdminModerationSummary: (request: Request) => Promise<Response>;
@@ -29,6 +30,7 @@ declare module "*.mjs" {
   export const handleHealth: (request: Request) => Promise<Response>;
   export const handleTokenMetrics: (request: Request) => Promise<Response>;
   export const ensureRequestId: (request: Request) => { request: Request; requestId: string };
+  export const handleEvents: (request: Request) => Promise<Response>;
   export const handleReports: (request: Request) => Promise<Response>;
   export const handleUserHiddenContent: (request: Request) => Promise<Response>;
   export const handleUserHiddenContentUnhide: (request: Request) => Promise<Response>;
