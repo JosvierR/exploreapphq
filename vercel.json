@@ -25,7 +25,7 @@
   ],
   "functions": {
     "api/index.js": {
-      "includeFiles": "netlify/functions/**,server/emails/**,api/lib/**",
+      "includeFiles": "netlify/functions/**,server/emails/**,server/api-lib/**",
       "maxDuration": 10
     }
   }

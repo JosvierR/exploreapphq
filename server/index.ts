@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 import {
   handleAdminAnalyticsOverview,
   handleEvents,
-} from "../api/lib/analyticsRouter.mjs";
+} from "./api-lib/analyticsRouter.mjs";
 // @ts-ignore
 import {
   handleAdminModerationAction,
@@ -21,16 +21,16 @@ import {
   handleReports,
   handleUserHiddenContent,
   handleUserHiddenContentUnhide,
-} from "../api/lib/supabaseModeration.mjs";
+} from "./api-lib/supabaseModeration.mjs";
 // @ts-ignore
 import {
   handleAdminSystemHealth,
   handleAdminSystemMetrics,
   handleBootstrapBoardAdmins,
   handleTokenMetrics,
-} from "../api/lib/systemRouter.mjs";
+} from "./api-lib/systemRouter.mjs";
 // @ts-ignore
-import { ensureRequestId } from "../api/lib/requestContext.mjs";
+import { ensureRequestId } from "./api-lib/requestContext.mjs";
 import { requireAdmin } from "./adminAuth.js";
 import { config } from "./config.js";
 import {

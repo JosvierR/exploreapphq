@@ -30,11 +30,11 @@ Current frontend entry points:
 Vercel keeps one consolidated function:
 
 - `api/index.js`
-- `api/lib/vercelAdapter.mjs`
-- `api/lib/apiRouter.mjs`
-- `api/lib/moderationRouter.mjs`
-- `api/lib/supabaseModeration.mjs`
-- `api/lib/systemRouter.mjs`
+- `server/api-lib/vercelAdapter.mjs`
+- `server/api-lib/apiRouter.mjs`
+- `server/api-lib/moderationRouter.mjs`
+- `server/api-lib/supabaseModeration.mjs`
+- `server/api-lib/systemRouter.mjs`
 
 `vercel.json` rewrites `/api/(.*)` to `/api/index.js`, preserving the single serverless function pattern.
 

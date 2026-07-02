@@ -27,7 +27,7 @@ async function main() {
   loadEnvFile(resolve(ROOT, "vercel.env"));
   loadEnvFile(resolve(ROOT, ".env"));
 
-  const { provisionBoardAdminAccounts } = await import("../api/lib/boardAdminProvision.mjs");
+  const { provisionBoardAdminAccounts } = await import("../server/api-lib/boardAdminProvision.mjs");
   const result = await provisionBoardAdminAccounts();
 
   const lines = [
