@@ -5,6 +5,7 @@ const SERVICE = "explore-web-admin";
 const REDACTED = "[redacted]";
 const SENSITIVE_KEY_RE =
   /(authorization|access[_-]?token|refresh[_-]?token|service[_-]?role|secret|password|cookie|api[_-]?key|grafana.*token|loki.*token)/i;
+const SAFE_DIAGNOSTIC_KEYS = new Set(["service_role_configured", "service_key_looks_like_jwt"]);
 
 export function appEnvironment() {
   const raw = (process.env.APP_ENV || process.env.VERCEL_ENV || process.env.NODE_ENV || "").toLowerCase();
@@ -50,6 +51,10 @@ export function redact(value, seen = new WeakSet()) {
 
     const out = {};
     for (const [key, item] of Object.entries(value)) {
+      if (SAFE_DIAGNOSTIC_KEYS.has(key) && typeof item === "boolean") {
+        out[key] = item;
+        continue;
+      }
       out[key] = SENSITIVE_KEY_RE.test(key) ? REDACTED : redact(item, seen);
     }
     return out;
@@ -113,7 +118,19 @@ export function errorSummary(error) {
       message: error.message,
       status: error.status,
       code: error.code,
+      details: error.details,
+      hint: error.hint,
     };
+  }
+  if (error && typeof error === "object") {
+    return redact({
+      name: error.name,
+      message: error.message,
+      status: error.status,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
   }
   return { message: String(error) };
 }

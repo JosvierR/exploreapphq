@@ -14,8 +14,12 @@ Apply the migration before calling `POST /api/events` in production:
 
 1. Open [Supabase SQL Editor](https://supabase.com/dashboard/project/ookbeuiavzjhvezvamfu/sql/new) for the Explore project.
 2. Paste and run `supabase/migrations/20260701120000_analytics_events.sql`.
+3. Paste and run `supabase/migrations/20260702120000_analytics_events_data001_compat.sql`.
 
-Without these tables, ingestion returns `503` with `"Analytics schema not installed."`
+Without these tables, ingestion returns `503` with `"Analytics schema not installed."`.
+Other Supabase readiness problems return a safe error code, for example
+`analytics_column_mismatch`, while the server log records the full safe
+Supabase error fields under the same `request_id`.
 
 Tables created:
 
@@ -23,6 +27,59 @@ Tables created:
 - `public.analytics_event_dead_letters` — rejected events for debugging
 
 Inserts use the Vercel `SUPABASE_SECRET_KEY` service role. Mobile clients must not write to these tables directly.
+
+## DATA-001 Insert Contract
+
+`POST /api/events` only inserts the DATA-001 analytics event columns:
+
+- `event_id`
+- `user_id`
+- `anonymous_id`
+- `session_id`
+- `event_name`
+- `event_version`
+- `entity_type`
+- `entity_id`
+- `source`
+- `platform`
+- `app_version`
+- `build_number`
+- `device_os`
+- `locale`
+- `timezone`
+- `country`
+- `region`
+- `city`
+- `properties`
+- `context`
+- `occurred_at`
+
+The ingestion API does not insert `id`, `received_at`, `created_at`, `batch_id`,
+or `request_id` into `analytics_events`.
+
+Dead-letter inserts use only:
+
+- `event_id`
+- `user_id`
+- `anonymous_id`
+- `reason`
+- `payload`
+- `source`
+
+Dead-letter `payload` is sanitized before storage. Authorization headers, service
+keys, tokens, email, raw `user_id` fields inside payloads, and exact GPS fields
+are removed.
+
+## Required Environment Variables
+
+Production ingestion requires:
+
+- `SUPABASE_URL` or `VITE_SUPABASE_URL`
+- `SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY`
+
+The service key must be a Supabase service-role JWT. The API logs only booleans
+for `service_role_configured` and `service_key_looks_like_jwt`; it never logs the
+key value.
 
 ## Auth Behavior
 
@@ -194,6 +251,20 @@ Allowed coarse location fields:
 
 `request_id` is also returned in the `x-request-id` response header.
 
+Safe error response for Supabase readiness failures:
+
+```json
+{
+  "ok": false,
+  "error": "Analytics ingestion is not ready.",
+  "code": "analytics_column_mismatch",
+  "request_id": "request-id"
+}
+```
+
+`"Analytics schema not installed."` is used only for
+`analytics_schema_missing`.
+
 ## Duplicate Behavior
 
 The backend checks existing `event_id` values before insert. Duplicate `event_id` records do not crash the batch and are returned in `duplicates`.
@@ -219,9 +290,82 @@ Admin-only. Returns basic ingestion health and counts if `analytics_events` exis
 {
   "ok": true,
   "overview": null,
+  "diagnostics": {
+    "analytics_events_exists": false,
+    "analytics_dead_letters_exists": null,
+    "analytics_events_selectable": false,
+    "analytics_dead_letters_selectable": null,
+    "analytics_events_columns": [],
+    "analytics_dead_letter_columns": [],
+    "supabase_project_ref": "ookbeuiavzjhvezvamfu",
+    "service_role_configured": true,
+    "service_key_looks_like_jwt": true,
+    "warnings": ["analytics_events: analytics_schema_missing"]
+  },
   "warnings": ["analytics schema not installed"]
 }
 ```
+
+Diagnostics are admin-only and safe to show in the admin console. They do not
+include secrets, bearer tokens, or raw event payload values.
+
+## Troubleshooting `503` from `POST /api/events`
+
+1. Copy the response `request_id` or the `x-request-id` response header.
+2. Search Vercel logs for that `request_id`.
+3. Check the structured log fields:
+   - `operation`
+   - `table`
+   - `error_code`
+   - `error_message`
+   - `error_details`
+   - `error_hint`
+   - `classified_code`
+   - `project_ref`
+   - `service_role_configured`
+   - `service_key_looks_like_jwt`
+4. Open `GET /api/admin/analytics/overview` as an admin and inspect
+   `diagnostics`.
+
+The previous `[object Object]` log issue was caused by stringifying plain
+Supabase/PostgREST error objects with `String(error)`. The router now serializes
+known Supabase fields directly: `name`, `message`, `code`, `status`, `details`,
+and `hint`.
+
+### Error Code Meanings
+
+- `analytics_schema_missing`: table or relation is missing.
+- `analytics_column_mismatch`: the table exists, but an inserted or selected
+  column is not available through PostgREST.
+- `analytics_permission_denied`: service role is not allowed to select/insert.
+- `analytics_schema_cache_stale`: PostgREST schema cache likely needs reload.
+- `analytics_constraint_failed`: row failed a database constraint.
+- `analytics_duplicate_conflict`: duplicate `event_id` conflict after retry.
+- `analytics_service_role_missing`: server Supabase credentials are missing.
+- `analytics_unknown_supabase_error`: Supabase returned an unclassified error;
+  use the request log fields above.
+
+### Verify Schema with SQL
+
+Run in Supabase SQL Editor:
+
+```sql
+select column_name
+from information_schema.columns
+where table_schema = 'public'
+  and table_name = 'analytics_events'
+order by ordinal_position;
+
+select column_name
+from information_schema.columns
+where table_schema = 'public'
+  and table_name = 'analytics_event_dead_letters'
+order by ordinal_position;
+```
+
+Verify the event insert columns listed in this document exist. If the columns
+were added recently and PostgREST still returns `PGRST204` or mentions schema
+cache, reload the Supabase API schema cache from the Supabase dashboard.
 
 ## Local Testing
 
