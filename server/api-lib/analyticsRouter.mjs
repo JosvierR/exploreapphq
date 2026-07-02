@@ -101,6 +101,7 @@ const EVENT_NAMES = new Set([
 
 const ENTITY_TYPES = new Set(["video", "place", "route", "profile", "user", "search", "screen", "notification", "system", null]);
 const PLATFORMS = new Set(["ios", "android", "web", "server", null]);
+const ANALYTICS_SOURCES = new Set(["mobile", "web", "backend", "admin"]);
 const SENSITIVE_KEY_RE =
   /(token|secret|password|authorization|refresh[_-]?token|access[_-]?token|service[_-]?role|api[_-]?key|email|user[_-]?id)/i;
 const LOCATION_KEYS = new Set(["lat", "lng", "latitude", "longitude", "coordinates"]);
@@ -425,6 +426,58 @@ function normalizeOptionalEnum(value, allowed) {
   return allowed.has(text) ? text : null;
 }
 
+function hasExplicitValue(value) {
+  if (value === undefined || value === null) return false;
+  return typeof value !== "string" || value.trim().length > 0;
+}
+
+export function normalizeAnalyticsSource(inputSource, platform) {
+  const source = cleanString(inputSource, 80);
+  if (!source) {
+    if (hasExplicitValue(inputSource)) return null;
+    return platform === "web" ? "web" : "mobile";
+  }
+
+  const normalized = source.toLowerCase();
+  return ANALYTICS_SOURCES.has(normalized) ? normalized : null;
+}
+
+function deadLetterSource(event) {
+  if (!isPlainObject(event)) return "backend";
+  const platform = normalizeOptionalEnum(event.platform, PLATFORMS);
+  const source = normalizeAnalyticsSource(event.source, platform);
+  if (source) return source;
+  return platform === "web" ? "web" : "mobile";
+}
+
+function forbiddenTopLevelKey(value) {
+  if (!isPlainObject(value)) return null;
+  return (
+    Object.keys(value).find((key) => {
+      const normalizedKey = key.toLowerCase();
+      return SENSITIVE_KEY_RE.test(normalizedKey) || LOCATION_KEYS.has(normalizedKey);
+    }) || null
+  );
+}
+
+export function validateAnalyticsEventRow(row) {
+  if (!isPlainObject(row)) return { valid: false, reason: "invalid_row" };
+  if (!cleanString(row.event_id, MAX_ID_LENGTH)) return { valid: false, reason: "event_id is required" };
+  if (!cleanString(row.session_id, MAX_ID_LENGTH)) return { valid: false, reason: "session_id is required" };
+  if (!cleanString(row.event_name, 80)) return { valid: false, reason: "event_name is required" };
+  if (!Number.isInteger(row.event_version) || row.event_version <= 0) {
+    return { valid: false, reason: "event_version is invalid" };
+  }
+  if (!ANALYTICS_SOURCES.has(row.source)) return { valid: false, reason: "invalid_source" };
+  if (!ENTITY_TYPES.has(row.entity_type ?? null)) return { valid: false, reason: "entity_type is invalid" };
+  if (!PLATFORMS.has(row.platform ?? null)) return { valid: false, reason: "platform is invalid" };
+  if (!isPlainObject(row.properties)) return { valid: false, reason: "properties must be a JSON object" };
+  if (!isPlainObject(row.context)) return { valid: false, reason: "context must be a JSON object" };
+  if (forbiddenTopLevelKey(row.properties)) return { valid: false, reason: "properties contain forbidden keys" };
+  if (forbiddenTopLevelKey(row.context)) return { valid: false, reason: "context contains forbidden keys" };
+  return { valid: true, reason: null };
+}
+
 function sanitizeJson(value, path = "root", depth = 0) {
   const warnings = [];
   if (depth > MAX_JSON_DEPTH) {
@@ -525,11 +578,11 @@ function reject(reason, event, userId = null) {
     user_id: userId || null,
     anonymous_id: typeof event?.anonymous_id === "string" ? event.anonymous_id.slice(0, MAX_ID_LENGTH) : null,
     payload: sanitizedDeadLetterPayload(event),
-    source: cleanString(event?.source, 80) || "api_events",
+    source: deadLetterSource(event),
   };
 }
 
-function validateEvent(event, { userId }) {
+export function normalizeAnalyticsEvent(event, { userId = null } = {}) {
   if (!isPlainObject(event)) return { rejected: reject("event must be a JSON object", event, userId), warnings: [] };
 
   const eventId = cleanString(event.event_id, MAX_ID_LENGTH);
@@ -539,6 +592,7 @@ function validateEvent(event, { userId }) {
   const occurredAt = isoTimestamp(event.occurred_at);
   const entityType = normalizeOptionalEnum(event.entity_type, ENTITY_TYPES);
   const platform = normalizeOptionalEnum(event.platform, PLATFORMS);
+  const source = normalizeAnalyticsSource(event.source, platform);
 
   if (!eventId) return { rejected: reject("event_id is required", event, userId), warnings: [] };
   if (!eventName) return { rejected: reject("event_name is required", event, userId), warnings: [] };
@@ -548,6 +602,7 @@ function validateEvent(event, { userId }) {
   if (!occurredAt) return { rejected: reject("occurred_at must be an ISO timestamp", event, userId), warnings: [] };
   if (event.entity_type && !entityType) return { rejected: reject("entity_type is invalid", event, userId), warnings: [] };
   if (event.platform && !platform) return { rejected: reject("platform is invalid", event, userId), warnings: [] };
+  if (!source) return { rejected: reject("invalid_source", event, userId), warnings: [] };
 
   const properties = sanitizeRootObject(event.properties, "properties");
   if (properties.rejected) {
@@ -569,7 +624,7 @@ function validateEvent(event, { userId }) {
     session_id: sessionId,
     entity_type: entityType,
     entity_id: cleanString(event.entity_id, MAX_ID_LENGTH),
-    source: cleanString(event.source, 80),
+    source,
     platform,
     app_version: cleanString(event.app_version, 80),
     build_number: cleanString(event.build_number, 80),
@@ -584,7 +639,16 @@ function validateEvent(event, { userId }) {
     occurred_at: occurredAt,
   };
 
+  const rowValidation = validateAnalyticsEventRow(row);
+  if (!rowValidation.valid) {
+    return { rejected: reject(rowValidation.reason || "invalid_row", event, userId), warnings: [] };
+  }
+
   return { row, warnings: [...properties.warnings, ...context.warnings] };
+}
+
+function validateEvent(event, context) {
+  return normalizeAnalyticsEvent(event, context);
 }
 
 async function authContext(request, supabase) {

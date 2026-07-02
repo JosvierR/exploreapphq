@@ -70,6 +70,26 @@ Dead-letter `payload` is sanitized before storage. Authorization headers, servic
 keys, tokens, email, raw `user_id` fields inside payloads, and exact GPS fields
 are removed.
 
+## Source Normalization
+
+`source` is optional for clients. The backend derives a safe value before insert:
+
+- missing `source` with `platform: "web"` becomes `source: "web"`
+- missing `source` with `platform: "ios"` or `platform: "android"` becomes `source: "mobile"`
+- missing `source` without a platform becomes `source: "mobile"`
+
+Accepted explicit source values:
+
+- `mobile`
+- `web`
+- `backend`
+- `admin`
+
+Mobile apps should normally omit `source` or send `mobile`. Web clients can send
+`web`, but can also omit it when `platform` is `web`. Invalid explicit source
+values are rejected before database insert with reason `invalid_source`; they do
+not fail the whole batch.
+
 ## Required Environment Variables
 
 Production ingestion requires:
