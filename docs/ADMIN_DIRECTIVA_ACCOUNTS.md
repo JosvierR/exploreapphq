@@ -25,7 +25,9 @@ El código expone:
 
 Protegido por header `X-Admin-Bootstrap-Secret` = `ADMIN_BOOTSTRAP_SECRET` (solo en Vercel).
 
-### 2. Configurar secreto en Vercel
+### 2. Configurar secreto en Vercel (obligatorio)
+
+Si `npm run admin:bootstrap` devuelve **Not found**, es porque falta esta variable en producción.
 
 Vercel → Project → Settings → Environment Variables → **Production**:
 
@@ -33,7 +35,9 @@ Vercel → Project → Settings → Environment Variables → **Production**:
 ADMIN_BOOTSTRAP_SECRET=<secreto-largo-aleatorio>
 ```
 
-Redeploy.
+**Importante:** el valor debe ser **idéntico** al que uses en PowerShell al ejecutar el script.
+
+Redeploy después de guardar la variable.
 
 ### 3. Ejecutar bootstrap
 

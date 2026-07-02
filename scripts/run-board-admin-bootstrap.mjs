@@ -41,6 +41,21 @@ async function main() {
 
   const body = await response.json().catch(() => ({}));
   if (!response.ok || !body.ok) {
+    if (response.status === 404 && body.error === "Not found.") {
+      throw new Error(
+        [
+          "Bootstrap endpoint is not enabled in production.",
+          "Set ADMIN_BOOTSTRAP_SECRET in Vercel → Production → Environment Variables, redeploy, then re-run:",
+          '  $env:ADMIN_BOOTSTRAP_SECRET="same-secret-as-vercel"',
+          "  npm run admin:bootstrap",
+        ].join("\n"),
+      );
+    }
+    if (response.status === 403) {
+      throw new Error(
+        "Bootstrap secret rejected. Use the exact same ADMIN_BOOTSTRAP_SECRET value configured in Vercel Production.",
+      );
+    }
     throw new Error(body.error || `Bootstrap failed (${response.status})`);
   }
 
