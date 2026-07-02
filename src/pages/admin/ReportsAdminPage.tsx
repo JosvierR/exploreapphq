@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AdminAuthGate } from "@/pages/admin/AdminAuthGate";
 import {
   applyModerationAction,
-  fetchReports,
-  updateReportStatus,
+  dismissReport,
+  getAdminReportDetail,
+  getAdminReports,
+  hideVideo,
+  markReportReviewed,
+  removeVideo,
+  restoreVideo,
   type AdminModerationAction,
   type AdminReport,
   type ModerationActionType,
@@ -17,9 +22,11 @@ import {
   type ReportStatusFilter,
 } from "@/lib/moderationAdminApi";
 import {
+  actorDisplayName,
   formatAge,
   formatContentTypeLabel,
   formatDateTime,
+  formatDurationSeconds,
   formatPriorityLabel,
   formatReasonLabel,
   formatRelativeTime,
@@ -31,6 +38,8 @@ import {
   targetImage,
   targetSubtitle,
   targetTitle,
+  videoActionAvailability,
+  videoVisibilitySummary,
   type ReportPriority,
 } from "@/lib/adminModerationFormat";
 import "@/styles/admin-moderation.css";
@@ -53,6 +62,14 @@ const contentTypeFilters: { value: ReportContentTypeFilter; label: string }[] = 
   { value: "user", label: "User" },
   { value: "place", label: "Place" },
   { value: "place_photo", label: "Place photo" },
+];
+
+const reportViewTabs: { value: ReportContentTypeFilter; label: string }[] = [
+  { value: "video", label: "Video Reports" },
+  { value: "all", label: "All Reports" },
+  { value: "place", label: "Place Reports" },
+  { value: "user", label: "User Reports" },
+  { value: "place_photo", label: "Photo Reports" },
 ];
 
 const reasonFilters: { value: ReportReasonFilter; label: string }[] = [
@@ -112,6 +129,8 @@ function ReportsAdminContent() {
   const [reports, setReports] = useState<AdminReport[]>([]);
   const [total, setTotal] = useState(0);
   const [selected, setSelected] = useState<AdminReport | null>(null);
+  const [selectedLoading, setSelectedLoading] = useState(false);
+  const [selectedError, setSelectedError] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<BusyAction>(null);
@@ -139,7 +158,7 @@ function ReportsAdminContent() {
     setLoading(true);
     setLoadError(false);
     try {
-      const data = await fetchReports({
+      const data = await getAdminReports({
         status,
         contentType,
         reason,
@@ -201,28 +220,51 @@ function ReportsAdminContent() {
   }, [reports, search, sort, visibility]);
 
   const hasActiveFilters =
-    status !== "all" ||
-    contentType !== "all" ||
+    status !== "pending" ||
+    contentType !== "video" ||
     reason !== "all" ||
     visibility !== "all" ||
-    sort !== "newest" ||
+    sort !== "priority" ||
     search.trim().length > 0;
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  async function runReportStatus(report: AdminReport, nextStatus: Exclude<ReportStatus, "pending">) {
+  const refreshReportDetail = useCallback(async (reportId: string) => {
+    setSelectedLoading(true);
+    setSelectedError(null);
+    try {
+      const data = await getAdminReportDetail(reportId);
+      setSelected(data.report);
+    } catch {
+      setSelectedError("Unable to load the full report detail. The row data is still available.");
+    } finally {
+      setSelectedLoading(false);
+    }
+  }, []);
+
+  function openReport(report: AdminReport) {
+    setSelected(report);
+    setSelectedError(null);
+    void refreshReportDetail(report.id);
+  }
+
+  async function runReportStatus(report: AdminReport, nextStatus: "reviewed" | "dismissed") {
     setBusyAction({ reportId: report.id, label: formatStatusLabel(nextStatus) });
     setActionError(null);
     setToast(null);
     try {
-      await updateReportStatus(report.id, nextStatus, notes || undefined);
+      if (nextStatus === "dismissed") {
+        await dismissReport(report.id, notes || undefined);
+      } else {
+        await markReportReviewed(report.id, notes || undefined);
+      }
       setToast(
         nextStatus === "dismissed"
           ? "Report dismissed. Content visibility was not changed."
           : "Report reviewed. Content visibility was not changed.",
       );
       await load();
-      if (selected?.id === report.id) setSelected(null);
+      if (selected?.id === report.id) await refreshReportDetail(report.id);
     } catch {
       setActionError("We couldn't update this report. Please try again.");
     } finally {
@@ -235,16 +277,24 @@ function ReportsAdminContent() {
     setActionError(null);
     setToast(null);
     try {
-      await applyModerationAction({
-        report_id: report.id,
-        target_type: report.content_type,
-        target_id: report.content_id,
-        action_type: actionType,
-        notes: notes || undefined,
-      });
+      if (report.content_type === "video" && actionType === "hide_video") {
+        await hideVideo(report.content_id, report.id, notes || undefined);
+      } else if (report.content_type === "video" && actionType === "remove_content") {
+        await removeVideo(report.content_id, report.id, notes || undefined);
+      } else if (report.content_type === "video" && actionType === "restore_video") {
+        await restoreVideo(report.content_id, report.id, notes || undefined);
+      } else {
+        await applyModerationAction({
+          report_id: report.id,
+          target_type: report.content_type,
+          target_id: report.content_id,
+          action_type: actionType,
+          notes: notes || undefined,
+        });
+      }
       setToast("Global visibility action completed.");
       await load();
-      if (selected?.id === report.id) setSelected(null);
+      if (selected?.id === report.id) await refreshReportDetail(report.id);
     } catch {
       setActionError("We couldn't complete this moderation action. Please try again.");
     } finally {
@@ -276,14 +326,14 @@ function ReportsAdminContent() {
   }
 
   function resetFilters() {
-    setStatus("all");
-    setContentType("all");
+    setStatus("pending");
+    setContentType("video");
     setReason("all");
     setVisibility("all");
-    setSort("newest");
+    setSort("priority");
     setSearch("");
     setOffset(0);
-    setSearchParams(new URLSearchParams({ status: "all", content_type: "all", reason: "all", visibility: "all", sort: "newest" }));
+    setSearchParams(new URLSearchParams({ status: "pending", content_type: "video", reason: "all", visibility: "all", sort: "priority" }));
   }
 
   function setStatusFilter(nextStatus: ReportStatusFilter) {
@@ -295,6 +345,20 @@ function ReportsAdminContent() {
   function setTypeFilter(nextType: ReportContentTypeFilter) {
     setContentType(nextType);
     setOffset(0);
+    updateQuery({ content_type: nextType });
+  }
+
+  function setReportView(nextType: ReportContentTypeFilter) {
+    setContentType(nextType);
+    setOffset(0);
+
+    if (nextType === "video") {
+      setStatus("pending");
+      setSort("priority");
+      updateQuery({ content_type: nextType, status: "pending", sort: "priority" });
+      return;
+    }
+
     updateQuery({ content_type: nextType });
   }
 
@@ -321,7 +385,7 @@ function ReportsAdminContent() {
       <header className="admin-page-header">
         <div>
           <p className="admin-eyebrow">Moderation workspace</p>
-          <h2>Reports console</h2>
+          <h2>{contentType === "video" ? "Video Reports" : "Reports console"}</h2>
           <p>
             Report decisions update the case lifecycle. Hide, remove, and restore actions change public visibility for
             everyone.
@@ -348,6 +412,20 @@ function ReportsAdminContent() {
           <span>Reporting content only hides it for the reporter through user_hidden_content.</span>
         </div>
       </section>
+
+      <nav className="admin-report-tabs" aria-label="Moderation report views">
+        {reportViewTabs.map((tab) => (
+          <button
+            type="button"
+            className={contentType === tab.value ? "is-active" : ""}
+            aria-pressed={contentType === tab.value}
+            onClick={() => setReportView(tab.value)}
+            key={tab.value}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
 
       <section className="admin-filter-bar admin-filter-bar--dense" aria-label="Report filters">
         <label className="admin-field">
@@ -418,6 +496,38 @@ function ReportsAdminContent() {
         <button type="button" className="admin-btn admin-btn--ghost" onClick={resetFilters} disabled={!hasActiveFilters}>
           Clear filters
         </button>
+      </section>
+
+      <section className="admin-quick-filters" aria-label="Quick report filters">
+        {(["pending", "reviewed", "dismissed"] as const).map((value) => (
+          <button
+            type="button"
+            className={status === value ? "is-active" : ""}
+            onClick={() => setStatusFilter(value)}
+            key={value}
+          >
+            {formatStatusLabel(value)}
+          </button>
+        ))}
+        <button
+          type="button"
+          className={visibility === "hidden_removed" ? "is-active" : ""}
+          onClick={() => setVisibilityFilter("hidden_removed")}
+        >
+          Hidden/Removed
+        </button>
+        {reasonFilters
+          .filter((filter) => filter.value !== "all")
+          .map((filter) => (
+            <button
+              type="button"
+              className={reason === filter.value ? "is-active" : ""}
+              onClick={() => setReasonFilter(filter.value)}
+              key={filter.value}
+            >
+              {filter.label}
+            </button>
+          ))}
       </section>
 
       <div className="admin-alert-stack" aria-live="polite">
@@ -505,7 +615,10 @@ function ReportsAdminContent() {
                         <TargetPreview report={report} />
                       </td>
                       <td>
-                        <span className="admin-code">{shortId(report.reporter_id)}</span>
+                        <span className="admin-reporter-cell">
+                          <strong>{actorDisplayName(report.reporter, shortId(report.reporter_id))}</strong>
+                          <small>{shortId(report.reporter_id)}</small>
+                        </span>
                       </td>
                       <td>
                         <span className="admin-date-cell">
@@ -523,7 +636,7 @@ function ReportsAdminContent() {
                         <ReportActions
                           report={report}
                           busyAction={busyAction}
-                          onDetails={() => setSelected(report)}
+                          onDetails={() => openReport(report)}
                           onReview={() => void runReportStatus(report, "reviewed")}
                           onDismiss={() => void runReportStatus(report, "dismissed")}
                         />
@@ -540,7 +653,7 @@ function ReportsAdminContent() {
                   key={report.id}
                   report={report}
                   busyAction={busyAction}
-                  onDetails={() => setSelected(report)}
+                  onDetails={() => openReport(report)}
                   onReview={() => void runReportStatus(report, "reviewed")}
                   onDismiss={() => void runReportStatus(report, "dismissed")}
                 />
@@ -553,10 +666,13 @@ function ReportsAdminContent() {
       {selected && (
         <ReportDrawer
           report={selected}
+          detailLoading={selectedLoading}
+          detailError={selectedError}
           notes={notes}
           busyAction={busyAction}
           onNotesChange={setNotes}
           onClose={() => setSelected(null)}
+          onRetry={() => void refreshReportDetail(selected.id)}
           onReview={() => void runReportStatus(selected, "reviewed")}
           onDismiss={() => void runReportStatus(selected, "dismissed")}
           onModerationAction={(actionType) => requestModerationAction(selected, actionType)}
@@ -624,6 +740,7 @@ function VisibilityBadge({ report }: { report: AdminReport }) {
 
 function TargetPreview({ report }: { report: AdminReport }) {
   const imageUrl = targetImage(report);
+  const count = report.report_count_for_target ?? report.target_report_count ?? 1;
 
   return (
     <div className="admin-target">
@@ -639,7 +756,7 @@ function TargetPreview({ report }: { report: AdminReport }) {
         <small>{targetSubtitle(report)}</small>
         <span>
           {shortId(report.content_id)}
-          {(report.target_report_count ?? 1) > 1 ? ` / ${report.target_report_count} reports` : ""}
+          {count > 1 ? ` / ${count} reports` : ""}
         </span>
       </span>
     </div>
@@ -664,7 +781,7 @@ function ReportActions({
   return (
     <div className="admin-row-actions">
       <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm" onClick={onDetails} aria-label="Open report details">
-        Details
+        {report.content_type === "video" ? "Review video" : "Details"}
       </button>
       <button
         type="button"
@@ -713,7 +830,8 @@ function ReportCard({
           <VisibilityBadge report={report} />
         </span>
         <span className="admin-report-card__meta">
-          Reporter {shortId(report.reporter_id)} / {formatDateTime(report.created_at)} / {formatAge(report.created_at)}
+          Reporter {actorDisplayName(report.reporter, shortId(report.reporter_id))} / {formatDateTime(report.created_at)} /{" "}
+          {formatAge(report.created_at)}
         </span>
       </button>
       <ReportActions
@@ -729,23 +847,47 @@ function ReportCard({
 
 function ReportDrawer({
   report,
+  detailLoading,
+  detailError,
   notes,
   busyAction,
   onNotesChange,
   onClose,
+  onRetry,
   onReview,
   onDismiss,
   onModerationAction,
 }: {
   report: AdminReport;
+  detailLoading: boolean;
+  detailError: string | null;
   notes: string;
   busyAction: BusyAction;
   onNotesChange: (value: string) => void;
   onClose: () => void;
+  onRetry: () => void;
   onReview: () => void;
   onDismiss: () => void;
   onModerationAction: (actionType: ModerationActionType) => void;
 }) {
+  if (report.content_type === "video") {
+    return (
+      <VideoReportDrawer
+        report={report}
+        detailLoading={detailLoading}
+        detailError={detailError}
+        notes={notes}
+        busyAction={busyAction}
+        onNotesChange={onNotesChange}
+        onClose={onClose}
+        onRetry={onRetry}
+        onReview={onReview}
+        onDismiss={onDismiss}
+        onModerationAction={onModerationAction}
+      />
+    );
+  }
+
   const busy = busyAction?.reportId === report.id;
   const actions = contentActions(report);
 
@@ -771,6 +913,16 @@ function ReportDrawer({
             Close
           </button>
         </div>
+
+        {detailLoading && <p className="admin-inline-status">Refreshing report detail...</p>}
+        {detailError && (
+          <div className="admin-inline-error" role="alert">
+            <span>{detailError}</span>
+            <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm" onClick={onRetry}>
+              Retry
+            </button>
+          </div>
+        )}
 
         <div className="admin-drawer__section">
           <TargetPreview report={report} />
@@ -910,6 +1062,378 @@ function ReportDrawer({
   );
 }
 
+function VideoReportDrawer({
+  report,
+  detailLoading,
+  detailError,
+  notes,
+  busyAction,
+  onNotesChange,
+  onClose,
+  onRetry,
+  onReview,
+  onDismiss,
+  onModerationAction,
+}: {
+  report: AdminReport;
+  detailLoading: boolean;
+  detailError: string | null;
+  notes: string;
+  busyAction: BusyAction;
+  onNotesChange: (value: string) => void;
+  onClose: () => void;
+  onRetry: () => void;
+  onReview: () => void;
+  onDismiss: () => void;
+  onModerationAction: (actionType: ModerationActionType) => void;
+}) {
+  const [videoFailed, setVideoFailed] = useState(false);
+  const panelRef = useRef<HTMLElement | null>(null);
+  const busy = busyAction?.reportId === report.id;
+  const visibility = videoVisibilitySummary(report);
+  const availability = videoActionAvailability(report);
+  const publicLink = report.target.public_deep_link || `https://www.exploreapphq.com/v/${encodeURIComponent(report.content_id)}`;
+  const videoUnavailable = !report.target.video_available || !report.target.video_url || videoFailed;
+  const targetUnavailable = Boolean(report.target.target_unavailable);
+  const history = report.recent_moderation_actions ?? report.actions ?? [];
+  const relatedReports = report.related_reports ?? report.previous_reports_for_target ?? [];
+
+  useEffect(() => {
+    setVideoFailed(false);
+  }, [report.id, report.target.video_url]);
+
+  useEffect(() => {
+    panelRef.current?.focus();
+  }, []);
+
+  return (
+    <div
+      className="admin-drawer admin-drawer--video"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.currentTarget === event.target) onClose();
+      }}
+    >
+      <aside
+        ref={panelRef}
+        className="admin-drawer__panel admin-drawer__panel--video"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="video-report-drawer-title"
+        tabIndex={-1}
+        onKeyDown={(event) => trapDialogFocus(event, panelRef.current)}
+      >
+        <div className="admin-video-drawer__header">
+          <div>
+            <p className="admin-eyebrow">Video report</p>
+            <h3 id="video-report-drawer-title">{targetTitle(report)}</h3>
+            <div className="admin-video-drawer__badges" aria-label="Report and visibility status">
+              <PriorityBadge report={report} />
+              <StatusBadge status={report.status} />
+              <VisibilityBadge report={report} />
+              <span className="admin-age-cell">{formatAge(report.created_at)}</span>
+            </div>
+            <p>
+              Created {formatDateTime(report.created_at)} / Report ID <code>{shortId(report.id)}</code>
+            </p>
+          </div>
+          <div className="admin-video-drawer__header-actions">
+            <CopyButton value={report.id} label="Copy report ID" />
+            <button type="button" className="admin-drawer__close" aria-label="Close video report" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        </div>
+
+        {detailLoading && <p className="admin-inline-status">Refreshing video report detail...</p>}
+        {detailError && (
+          <div className="admin-inline-error" role="alert">
+            <span>{detailError}</span>
+            <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm" onClick={onRetry}>
+              Retry
+            </button>
+          </div>
+        )}
+
+        <div className="admin-video-workspace">
+          <main className="admin-video-workspace__main">
+            <section className="admin-video-review" aria-label="Reported video preview">
+              {videoUnavailable ? (
+                <div className="admin-video-fallback">
+                  {report.target.thumbnail_url ? <img src={report.target.thumbnail_url} alt="" /> : <span aria-hidden="true">V</span>}
+                  <div>
+                    <strong>Video could not be loaded.</strong>
+                    <p>{report.target.unavailable_message || "It may be unavailable or storage-protected."}</p>
+                  </div>
+                </div>
+              ) : (
+                <video
+                  className="admin-video-player"
+                  controls
+                  preload="metadata"
+                  poster={report.target.thumbnail_url || undefined}
+                  aria-label={`Reported video ${report.content_id}`}
+                  onError={() => setVideoFailed(true)}
+                >
+                  <source src={report.target.video_url || undefined} />
+                  Video could not be loaded. It may be unavailable or storage-protected.
+                </video>
+              )}
+
+              <div className="admin-video-review__tools">
+                <a href={publicLink} target="_blank" rel="noreferrer" className="admin-btn admin-btn--secondary admin-btn--sm">
+                  Open public fallback
+                </a>
+                <CopyButton value={report.content_id} label="Copy video ID" />
+                {report.target.video_url && <CopyButton value={report.target.video_url} label="Copy video URL" />}
+              </div>
+            </section>
+
+            <section className="admin-drawer__section admin-video-section">
+              <h4>Video metadata</h4>
+              <dl className="admin-video-meta-grid">
+                <div>
+                  <dt>Video ID</dt>
+                  <dd>
+                    <code>{report.content_id}</code> <CopyButton value={report.content_id} label="Copy video ID" compact />
+                  </dd>
+                </div>
+                <div>
+                  <dt>Description</dt>
+                  <dd>{report.target.description || "No description provided."}</dd>
+                </div>
+                <div>
+                  <dt>Tags</dt>
+                  <dd>{report.target.tags?.length ? report.target.tags.join(", ") : "No tags"}</dd>
+                </div>
+                <div>
+                  <dt>Duration</dt>
+                  <dd>{formatDurationSeconds(report.target.duration_seconds)}</dd>
+                </div>
+                <div>
+                  <dt>Created</dt>
+                  <dd>{formatDateTime(report.target.created_at)}</dd>
+                </div>
+                <div>
+                  <dt>Updated</dt>
+                  <dd>{formatDateTime(report.target.updated_at)}</dd>
+                </div>
+                <div>
+                  <dt>State</dt>
+                  <dd>{report.target.state || "Not available"}</dd>
+                </div>
+                <div>
+                  <dt>moderation_status</dt>
+                  <dd>{report.target.moderation_status || "Not available"}</dd>
+                </div>
+                <div>
+                  <dt>Likes/comments</dt>
+                  <dd>
+                    {report.target.total_likes ?? "Not available"} likes / {report.target.total_comments ?? "Not available"} comments
+                  </dd>
+                </div>
+                <div>
+                  <dt>Creator</dt>
+                  <dd>
+                    {actorDisplayName(report.target.creator, report.target.owner_id ? shortId(report.target.owner_id) : "Not available")}
+                    {report.target.owner_id && <small>{shortId(report.target.owner_id)}</small>}
+                  </dd>
+                </div>
+              </dl>
+            </section>
+
+            <section className="admin-drawer__section admin-video-section">
+              <h4>Report details</h4>
+              <dl className="admin-video-meta-grid">
+                <div>
+                  <dt>Reason</dt>
+                  <dd>{formatReasonLabel(report.reason)}</dd>
+                </div>
+                <div>
+                  <dt>Details</dt>
+                  <dd>{report.details || "No details provided."}</dd>
+                </div>
+                <div>
+                  <dt>Reporter</dt>
+                  <dd>
+                    {actorDisplayName(report.reporter, shortId(report.reporter_id))}
+                    <small>{shortId(report.reporter_id)}</small>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Reporter ID</dt>
+                  <dd>
+                    <code>{report.reporter_id}</code> <CopyButton value={report.reporter_id} label="Copy reporter ID" compact />
+                  </dd>
+                </div>
+                <div>
+                  <dt>Reported</dt>
+                  <dd>
+                    {formatDateTime(report.created_at)} <small>{formatRelativeTime(report.created_at)}</small>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Related reports</dt>
+                  <dd>{report.report_count_for_target ?? report.target_report_count ?? 1}</dd>
+                </div>
+              </dl>
+              <MetadataSummary metadata={report.metadata} />
+            </section>
+
+            <section className="admin-drawer__section admin-video-section">
+              <h4>Related reports</h4>
+              <RelatedReports reports={relatedReports} />
+            </section>
+          </main>
+
+          <aside className="admin-video-workspace__side" aria-label="Video moderation controls">
+            <section className="admin-visibility-card">
+              <span>Current video visibility</span>
+              <strong>{visibility.title}</strong>
+              <p>{visibility.body}</p>
+              <dl>
+                <div>
+                  <dt>Normal users</dt>
+                  <dd>{visibility.globallyVisible ? "Can see this video" : "Cannot see this video"}</dd>
+                </div>
+                <div>
+                  <dt>Reporter hidden</dt>
+                  <dd>{report.reporter_hidden_for_target ? "Hidden for this reporter" : "Not hidden for this reporter"}</dd>
+                </div>
+              </dl>
+            </section>
+
+            <label className="admin-field admin-field--note">
+              <span>Reason for action</span>
+              <textarea
+                rows={4}
+                value={notes}
+                onChange={(event) => onNotesChange(event.target.value)}
+                placeholder="Optional note for the moderation log"
+              />
+            </label>
+
+            <section className="admin-action-group admin-action-group--decision" aria-label="Report decision">
+              <div className="admin-action-group__header">
+                <h4>Report decision</h4>
+                <p>Mark reviewed: This only updates the report case. The video remains visible unless a separate content action is taken.</p>
+                <p>Dismiss report: This dismisses the report. The video remains visible unless hidden separately.</p>
+              </div>
+              <div className="admin-action-group__buttons">
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--secondary"
+                  disabled={busy || report.status === "reviewed"}
+                  aria-label="Mark report reviewed without changing video visibility"
+                  onClick={onReview}
+                >
+                  {busy ? "Working..." : "Mark reviewed"}
+                </button>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--secondary"
+                  disabled={busy || report.status === "dismissed"}
+                  aria-label="Dismiss report without changing video visibility"
+                  onClick={onDismiss}
+                >
+                  Dismiss report
+                </button>
+              </div>
+            </section>
+
+            <section className="admin-action-group admin-action-group--global" aria-label="Global video visibility">
+              <div className="admin-action-group__header">
+                <h4>Global video visibility</h4>
+                <p>Hide video: This hides the video from Explore for everyone.</p>
+                <p>Remove video: This removes the video from public visibility. The video is not hard-deleted.</p>
+                <p>Restore video: This makes the video visible again if its publication state allows it.</p>
+              </div>
+              <div className="admin-action-group__buttons">
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--danger"
+                  disabled={busy || targetUnavailable || !availability.canHide}
+                  aria-label="Hide video globally"
+                  onClick={() => onModerationAction("hide_video")}
+                >
+                  {busy ? "Working..." : "Hide video globally"}
+                </button>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--danger"
+                  disabled={busy || targetUnavailable || !availability.canRemove}
+                  aria-label="Remove video globally"
+                  onClick={() => onModerationAction("remove_content")}
+                >
+                  {busy ? "Working..." : "Remove video globally"}
+                </button>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--secondary"
+                  disabled={busy || targetUnavailable || !availability.canRestore}
+                  aria-label="Restore video to active visibility"
+                  onClick={() => onModerationAction("restore_video")}
+                >
+                  {busy ? "Working..." : "Restore video"}
+                </button>
+              </div>
+            </section>
+
+            <section className="admin-drawer__section admin-video-section">
+              <h4>Moderation history</h4>
+              <ActionHistory actions={history} />
+            </section>
+          </aside>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function RelatedReports({ reports }: { reports: NonNullable<AdminReport["related_reports"]> }) {
+  if (reports.length === 0) {
+    return <p className="admin-muted">No duplicate or related reports found for this video.</p>;
+  }
+
+  return (
+    <ol className="admin-related-report-list">
+      {reports.map((report) => (
+        <li key={report.id}>
+          <span>
+            <strong>{formatReasonLabel(report.reason)}</strong>
+            <StatusBadge status={report.status} />
+          </span>
+          <small>
+            {formatDateTime(report.created_at)} / reporter {shortId(report.reporter_id)}
+          </small>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function CopyButton({ value, label, compact = false }: { value: string; label: string; compact?: boolean }) {
+  async function copyValue() {
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      // Clipboard can be unavailable in non-secure local contexts.
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className={`admin-copy-btn ${compact ? "admin-copy-btn--compact" : ""}`}
+      aria-label={label}
+      title={label}
+      onClick={() => void copyValue()}
+    >
+      Copy
+    </button>
+  );
+}
+
 function MetadataSummary({ metadata }: { metadata: Record<string, unknown> }) {
   const entries = Object.entries(metadata ?? {});
 
@@ -973,10 +1497,10 @@ function ReportsSkeleton() {
 }
 
 function ReportsEmptyState({ status, hasActiveFilters }: { status: ReportStatusFilter; hasActiveFilters: boolean }) {
-  const title = status === "pending" && !hasActiveFilters ? "No pending reports" : "No reports match your filters";
+  const title = status === "pending" && !hasActiveFilters ? "No pending video reports" : "No reports match your filters";
   const message =
     status === "pending" && !hasActiveFilters
-      ? "The moderation queue is clear. New reports will appear here when users submit them."
+      ? "The video moderation queue is clear. New video reports will appear here when users submit them."
       : "Adjust filters or search terms to broaden the report set.";
 
   return (
@@ -1017,18 +1541,55 @@ function ConfirmationModal({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  const details = confirmationDetails(actionType);
+  const details = confirmationDetails(actionType, report.content_type);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const imageUrl = targetImage(report);
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
 
   return (
     <div className="admin-confirmation" role="presentation" onMouseDown={(event) => event.currentTarget === event.target && onCancel()}>
-      <section className="admin-confirmation__dialog" role="dialog" aria-modal="true" aria-labelledby="admin-confirmation-title">
+      <section
+        ref={dialogRef}
+        className="admin-confirmation__dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="admin-confirmation-title"
+        tabIndex={-1}
+        onKeyDown={(event) => trapDialogFocus(event, dialogRef.current)}
+      >
         <p className="admin-eyebrow">Confirmation required</p>
         <h3 id="admin-confirmation-title">{details.title}</h3>
+        {report.content_type === "video" && (
+          <div className="admin-confirmation__video">
+            {imageUrl ? <img src={imageUrl} alt="" /> : <span aria-hidden="true">V</span>}
+            <div>
+              <strong>{targetTitle(report)}</strong>
+              <small>Video ID {shortId(report.content_id)}</small>
+            </div>
+          </div>
+        )}
         <dl className="admin-confirmation__details">
           <div>
             <dt>Target content type</dt>
             <dd>{formatContentTypeLabel(report.content_type)}</dd>
           </div>
+          {report.content_type === "video" && (
+            <>
+              <div>
+                <dt>Video ID</dt>
+                <dd>
+                  <code>{report.content_id}</code>
+                </dd>
+              </div>
+              <div>
+                <dt>Report reason</dt>
+                <dd>{formatReasonLabel(report.reason)}</dd>
+              </div>
+            </>
+          )}
           <div>
             <dt>Target</dt>
             <dd>
@@ -1067,9 +1628,9 @@ type ContentAction = {
 function contentActions(report: AdminReport): ContentAction[] {
   if (report.content_type === "video") {
     return [
-      { type: "hide_video", label: "Hide content globally", variant: "danger" },
-      { type: "remove_content", label: "Remove content globally", variant: "danger" },
-      { type: "restore_video", label: "Restore content" },
+      { type: "hide_video", label: "Hide video globally", variant: "danger" },
+      { type: "remove_content", label: "Remove video globally", variant: "danger" },
+      { type: "restore_video", label: "Restore video" },
     ];
   }
 
@@ -1137,11 +1698,27 @@ function requiresConfirmation(actionType: ModerationActionType) {
   );
 }
 
-function confirmationDetails(actionType: ModerationActionType) {
-  if (actionType === "hide_video" || actionType === "hide_place") {
+function confirmationDetails(actionType: ModerationActionType, contentType?: AdminReport["content_type"]) {
+  if (actionType === "hide_video") {
+    return {
+      title: "Hide video globally",
+      consequence: "You are about to hide this video from Explore for all users. The report will remain in the audit trail.",
+      variant: "danger" as const,
+    };
+  }
+
+  if (actionType === "hide_place") {
     return {
       title: "Hide content globally",
       consequence: "This hides the content from Explore for everyone.",
+      variant: "danger" as const,
+    };
+  }
+
+  if (actionType === "remove_content" && contentType === "video") {
+    return {
+      title: "Remove video globally",
+      consequence: "You are about to remove this video from public visibility. This does not hard-delete the video.",
       variant: "danger" as const,
     };
   }
@@ -1154,7 +1731,15 @@ function confirmationDetails(actionType: ModerationActionType) {
     };
   }
 
-  if (actionType === "restore_video" || actionType === "restore_place") {
+  if (actionType === "restore_video") {
+    return {
+      title: "Restore video",
+      consequence: "You are about to restore this video to active visibility. Users who personally hid it may still not see it.",
+      variant: "secondary" as const,
+    };
+  }
+
+  if (actionType === "restore_place") {
     return {
       title: "Restore content globally",
       consequence: "This makes the content globally visible again if its publication state allows it.",
@@ -1191,6 +1776,8 @@ function visibilityMatches(report: AdminReport, filter: VisibilityFilter) {
 
 function compareReports(a: AdminReport, b: AdminReport, sort: ReportsSort) {
   if (sort === "priority") {
+    const statusDelta = reportWorkflowRank(a.status) - reportWorkflowRank(b.status);
+    if (statusDelta !== 0) return statusDelta;
     const priorityDelta = priorityRank(getReportPriority(a)) - priorityRank(getReportPriority(b));
     if (priorityDelta !== 0) return priorityDelta;
     return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
@@ -1199,6 +1786,13 @@ function compareReports(a: AdminReport, b: AdminReport, sort: ReportsSort) {
   const aTime = new Date(a.created_at).getTime();
   const bTime = new Date(b.created_at).getTime();
   return sort === "oldest" ? aTime - bTime : bTime - aTime;
+}
+
+function reportWorkflowRank(status: ReportStatus) {
+  if (status === "pending") return 0;
+  if (status === "reviewed") return 1;
+  if (status === "dismissed") return 2;
+  return 3;
 }
 
 function priorityRank(priority: ReportPriority) {
@@ -1227,10 +1821,14 @@ function searchableReportText(report: AdminReport) {
     report.details,
     report.status,
     report.reporter_id,
+    actorDisplayName(report.reporter, ""),
+    actorDisplayName(report.target.creator, ""),
     report.reviewed_by,
     report.target.moderation_status,
     report.target.state,
     report.target.visibility,
+    report.target.description,
+    report.target.tags?.join(" "),
     targetTitle(report),
     targetSubtitle(report),
     safeMetadataPreview(report.metadata, 20),
@@ -1246,8 +1844,8 @@ function readStatus(params: URLSearchParams): ReportStatusFilter {
 }
 
 function readContentType(params: URLSearchParams): ReportContentTypeFilter {
-  const value = params.get("content_type") ?? "all";
-  return contentTypeFilters.some((filter) => filter.value === value) ? (value as ReportContentTypeFilter) : "all";
+  const value = params.get("content_type") ?? "video";
+  return contentTypeFilters.some((filter) => filter.value === value) ? (value as ReportContentTypeFilter) : "video";
 }
 
 function readReason(params: URLSearchParams): ReportReasonFilter {
@@ -1261,8 +1859,8 @@ function readVisibility(params: URLSearchParams): VisibilityFilter {
 }
 
 function readSort(params: URLSearchParams): ReportsSort {
-  const value = params.get("sort") ?? "newest";
-  return sortOptions.some((option) => option.value === value) ? (value as ReportsSort) : "newest";
+  const value = params.get("sort") ?? "priority";
+  return sortOptions.some((option) => option.value === value) ? (value as ReportsSort) : "priority";
 }
 
 function formatMetadataKey(value: string) {
@@ -1288,4 +1886,31 @@ function formatMetadataValue(value: unknown) {
 
 function truncate(value: string, max = 120) {
   return value.length > max ? `${value.slice(0, max)}...` : value;
+}
+
+function trapDialogFocus(event: ReactKeyboardEvent, container: HTMLElement | null) {
+  if (event.key !== "Tab" || !container) return;
+
+  const focusable = Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), video[controls], [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((element) => !element.hasAttribute("disabled") && element.getAttribute("aria-hidden") !== "true");
+
+  if (focusable.length === 0) {
+    event.preventDefault();
+    container.focus();
+    return;
+  }
+
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
 }

@@ -1,4 +1,5 @@
 import type {
+  AdminReportActor,
   AdminReport,
   ModerationVisibilityStatus,
   ReportContentType,
@@ -89,6 +90,21 @@ export function formatVisibilityLabel(status: ModerationVisibilityStatus | strin
 
 export function formatPriorityLabel(priority: ReportPriority | string) {
   return priorityLabels[priority as ReportPriority] ?? fallbackLabel(priority);
+}
+
+export function formatDurationSeconds(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "Not available";
+
+  const totalSeconds = Math.max(0, Math.floor(value));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 export function formatDateTime(value: string | null | undefined) {
@@ -182,6 +198,79 @@ export function getReportPriority(report: AdminReport, now = Date.now()): Report
   return "low";
 }
 
+export function actorDisplayName(actor: AdminReportActor | null | undefined, fallback = "Not available") {
+  if (!actor) return fallback;
+  if (actor.handle) return `@${actor.handle}`;
+  return actor.display_name || actor.email || actor.id || fallback;
+}
+
+export function videoVisibilitySummary(report: AdminReport) {
+  const status = report.target.moderation_status || report.target.visibility || "unknown";
+  const state = report.target.state || "unknown";
+  const globallyVisible = Boolean(report.target.globally_visible);
+
+  if (status === "hidden") {
+    return {
+      title: "Hidden globally",
+      body: "This video is hidden from Explore for everyone.",
+      globallyVisible,
+    };
+  }
+
+  if (status === "removed") {
+    return {
+      title: "Removed from public visibility",
+      body: "This video is removed from public visibility and has not been hard-deleted.",
+      globallyVisible,
+    };
+  }
+
+  if (status === "under_review") {
+    return {
+      title: state === "published" ? "Published and under review" : "Under review",
+      body:
+        state === "published"
+          ? "Published videos remain visible while they are under review."
+          : "Visibility depends on the publication state while review is active.",
+      globallyVisible,
+    };
+  }
+
+  if (status === "active" && state === "published") {
+    return {
+      title: "Published and active",
+      body: "This video is visible publicly to normal users.",
+      globallyVisible,
+    };
+  }
+
+  if (report.reporter_hidden_for_target) {
+    return {
+      title: "Hidden for the reporter",
+      body: "The reporter has this content hidden through user_hidden_content. That does not hide it globally.",
+      globallyVisible,
+    };
+  }
+
+  return {
+    title: `${formatVisibilityLabel(String(status))} / ${fallbackLabel(String(state))}`,
+    body: globallyVisible
+      ? "This video appears globally visible based on its state and moderation status."
+      : "This video does not appear publicly visible based on its state and moderation status.",
+    globallyVisible,
+  };
+}
+
+export function videoActionAvailability(report: AdminReport) {
+  const status = report.target.moderation_status || report.target.visibility || "";
+
+  return {
+    canHide: status !== "hidden" && status !== "removed",
+    canRemove: status !== "removed",
+    canRestore: status !== "active",
+  };
+}
+
 export function safeMetadataPreview(metadata: Record<string, unknown> | null | undefined, maxItems = 4) {
   const entries = Object.entries(metadata ?? {}).filter(([, value]) => value !== undefined);
   if (entries.length === 0) return "No metadata";
@@ -199,7 +288,7 @@ export function shortId(value: string | null | undefined, head = 8, tail = 4) {
 
 export function targetTitle(report: AdminReport) {
   if (report.content_type === "video") {
-    return report.target.title || report.target.video_url || "Video";
+    return report.target.title || report.target.description || report.target.video_url || "Video";
   }
 
   if (report.content_type === "user") {
@@ -215,7 +304,8 @@ export function targetTitle(report: AdminReport) {
 
 export function targetSubtitle(report: AdminReport) {
   if (report.content_type === "video") {
-    return report.target.owner_id ? `Owner ${shortId(report.target.owner_id)}` : shortId(report.content_id);
+    if (report.target.creator) return `Creator ${actorDisplayName(report.target.creator)}`;
+    return report.target.owner_id ? `Creator ${shortId(report.target.owner_id)}` : shortId(report.content_id);
   }
 
   if (report.content_type === "user") {

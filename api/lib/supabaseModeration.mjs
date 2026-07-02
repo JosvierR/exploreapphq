@@ -619,6 +619,81 @@ async function fetchActionHistoryForReports(supabase, reports) {
   }
 }
 
+function relatedReportRow(report) {
+  return {
+    id: report.id,
+    content_type: report.content_type,
+    content_id: report.content_id,
+    reason: report.reason,
+    status: report.status,
+    reporter_id: report.reporter_id,
+    created_at: report.created_at,
+  };
+}
+
+async function fetchRelatedReportsForTargets(supabase, reports) {
+  if (reports.length === 0) return new Map();
+
+  const grouped = groupReportIds(reports);
+  const relatedMap = new Map();
+
+  await Promise.all(
+    [...grouped.entries()].map(async ([contentType, ids]) => {
+      const idList = [...ids];
+      if (idList.length === 0) return;
+
+      const { data, error } = await supabase
+        .from("content_reports")
+        .select("id, content_type, content_id, reason, status, reporter_id, created_at")
+        .eq("content_type", contentType)
+        .in("content_id", idList)
+        .order("created_at", { ascending: false })
+        .limit(500);
+
+      if (error || !data) return;
+
+      for (const row of data) {
+        const key = reportTargetKey(row.content_type, row.content_id);
+        if (!relatedMap.has(key)) relatedMap.set(key, []);
+        relatedMap.get(key).push(relatedReportRow(row));
+      }
+    }),
+  );
+
+  return relatedMap;
+}
+
+async function fetchReporterHiddenTargets(supabase, reports) {
+  if (reports.length === 0) return new Map();
+
+  const hiddenMap = new Map();
+  const grouped = groupReportIds(reports);
+  const reporterIds = [...new Set(reports.map((report) => report.reporter_id).filter(Boolean))];
+  if (reporterIds.length === 0) return hiddenMap;
+
+  await Promise.all(
+    [...grouped.entries()].map(async ([contentType, ids]) => {
+      const idList = [...ids];
+      if (idList.length === 0) return;
+
+      const { data, error } = await supabase
+        .from("user_hidden_content")
+        .select("user_id, content_type, content_id")
+        .in("user_id", reporterIds)
+        .eq("content_type", contentType)
+        .in("content_id", idList);
+
+      if (error || !data) return;
+
+      for (const row of data) {
+        hiddenMap.set(`${row.user_id}:${row.content_type}:${row.content_id}`, true);
+      }
+    }),
+  );
+
+  return hiddenMap;
+}
+
 function firstField(row, names) {
   if (!row) return undefined;
 
@@ -632,22 +707,157 @@ function firstField(row, names) {
   return undefined;
 }
 
-function targetVisibilityFields(row) {
+function nullableString(value) {
+  return value === undefined || value === null || value === "" ? null : String(value);
+}
+
+function nullableNumber(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function stringList(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function publicMediaUrl(value) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+  return null;
+}
+
+function normalizeModerationStatus(value) {
+  const status = nullableString(value);
+  return VISIBILITY_STATUSES.includes(status) ? status : status;
+}
+
+function creatorIdFromTargetRow(row) {
+  return nullableString(firstField(row, ["created_by", "creator_id", "owner_id", "user_id", "profile_id"]));
+}
+
+function serializeAdminActor(row, fallbackId = null) {
+  if (!row) {
+    return fallbackId
+      ? {
+          id: fallbackId,
+          handle: null,
+          display_name: null,
+          avatar_url: null,
+          email: null,
+        }
+      : null;
+  }
+
+  const id = nullableString(firstField(row, ["id", "user_id", "uid"])) || fallbackId;
+  if (!id) return null;
+
   return {
-    moderation_status: firstField(row, ["moderation_status"]),
-    state: firstField(row, ["state"]),
-    visibility: firstField(row, ["visibility"]),
+    id,
+    handle: nullableString(firstField(row, ["handle", "username"])),
+    display_name: nullableString(firstField(row, ["display_name", "full_name", "name"])),
+    avatar_url: publicMediaUrl(firstField(row, ["avatar_url", "avatarUrl", "photo_url", "image_url"])),
+    email: nullableString(firstField(row, ["email"])),
   };
 }
 
-function targetPreview(contentType, contentId, row) {
-  if (!row) return { title: contentId };
+async function fetchUserSummaryMap(supabase, ids) {
+  const userIds = [...new Set(ids.map((id) => nullableString(id)).filter(Boolean))];
+  const users = new Map();
+  if (userIds.length === 0) return users;
+
+  for (const table of ["profiles", "users"]) {
+    const rows = await fetchRowsById(supabase, table, userIds);
+    for (const [id, row] of rows) {
+      const existing = users.get(id) || {};
+      users.set(id, {
+        ...existing,
+        ...serializeAdminActor(row, id),
+      });
+    }
+  }
+
+  for (const id of userIds) {
+    if (!users.has(id)) users.set(id, serializeAdminActor(null, id));
+  }
+
+  return users;
+}
+
+async function fetchUserSummaryMapForReports(supabase, reports, previewMap) {
+  const ids = [];
+
+  for (const report of reports) {
+    ids.push(report.reporter_id);
+    const targetRow = previewMap.get(`${report.content_type}:${report.content_id}`);
+    const creatorId = creatorIdFromTargetRow(targetRow);
+    if (creatorId) ids.push(creatorId);
+  }
+
+  return fetchUserSummaryMap(supabase, ids);
+}
+
+function visibilityLabelForTarget(target) {
+  if (target?.moderation_status) return target.moderation_status;
+  if (target?.visibility) return target.visibility;
+  if (target?.state) return target.state;
+  return "unknown";
+}
+
+function isGloballyVisibleTarget(target) {
+  const moderationStatus = String(target?.moderation_status || "").toLowerCase();
+  if (moderationStatus === "hidden" || moderationStatus === "removed") return false;
+
+  const state = String(target?.state || "").toLowerCase();
+  if (!state) return moderationStatus === "active" || moderationStatus === "under_review" || !moderationStatus;
+  if (["deleted", "removed", "draft", "processing", "failed", "private"].includes(state)) return false;
+
+  return ["published", "active", "public", "ready"].includes(state);
+}
+
+function targetVisibilityFields(row) {
+  return {
+    moderation_status: normalizeModerationStatus(firstField(row, ["moderation_status"])),
+    state: nullableString(firstField(row, ["state", "status"])),
+    visibility: nullableString(firstField(row, ["visibility"])),
+  };
+}
+
+function targetPreview(contentType, contentId, row, userMap = new Map()) {
+  if (!row) {
+    const unavailable = {
+      type: contentType,
+      id: contentId,
+      title: contentId,
+      target_unavailable: true,
+      video_available: false,
+      unavailable_message: "Report target was not found. It may have been deleted or migrated.",
+      visibility_label: "Not available",
+      globally_visible: false,
+    };
+
+    return unavailable;
+  }
 
   if (contentType === "video") {
-    return {
-      ...targetVisibilityFields(row),
-      title: firstField(row, ["title", "caption", "description", "name"]),
-      thumbnail_url: firstField(row, [
+    const visibility = targetVisibilityFields(row);
+    const rawVideoUrl = firstField(row, ["video_url", "videoUrl", "url", "media_url", "file_url"]);
+    const videoUrl = publicMediaUrl(rawVideoUrl);
+    const thumbnailUrl = publicMediaUrl(
+      firstField(row, [
         "thumbnail_url",
         "thumbnailUrl",
         "thumbnail",
@@ -655,22 +865,56 @@ function targetPreview(contentType, contentId, row) {
         "coverUrl",
         "cover_image_url",
       ]),
-      video_url: firstField(row, ["video_url", "videoUrl", "url", "media_url"]),
-      owner_id: firstField(row, ["owner_id", "user_id", "profile_id", "creator_id"]),
+    );
+    const creatorId = creatorIdFromTargetRow(row);
+    const target = {
+      type: "video",
+      id: contentId,
+      ...visibility,
+      title: nullableString(firstField(row, ["title", "caption", "description", "name"])) || "Video",
+      thumbnail_url: thumbnailUrl,
+      video_url: videoUrl,
+      video_available: Boolean(videoUrl),
+      unavailable_message: videoUrl
+        ? null
+        : rawVideoUrl
+          ? "Video could not be loaded. It may be unavailable or storage-protected."
+          : "Video could not be loaded. No playable video URL is available.",
+      description: nullableString(firstField(row, ["description", "caption", "title"])),
+      tags: stringList(firstField(row, ["tags", "tag_list"])),
+      duration_seconds: nullableNumber(firstField(row, ["duration_seconds", "duration", "durationSeconds"])),
+      total_likes: nullableNumber(firstField(row, ["total_likes", "likes_count", "like_count"])),
+      total_comments: nullableNumber(firstField(row, ["total_comments", "comments_count", "comment_count"])),
+      created_at: nullableString(firstField(row, ["created_at", "createdAt", "inserted_at"])),
+      updated_at: nullableString(firstField(row, ["updated_at", "updatedAt", "modified_at"])),
+      owner_id: creatorId,
+      creator: creatorId ? userMap.get(creatorId) || serializeAdminActor(null, creatorId) : null,
+      public_deep_link: `https://www.exploreapphq.com/v/${encodeURIComponent(contentId)}`,
+      target_unavailable: false,
+    };
+
+    return {
+      ...target,
+      visibility_label: visibilityLabelForTarget(target),
+      globally_visible: isGloballyVisibleTarget(target),
     };
   }
 
   if (contentType === "user") {
     return {
+      type: "user",
+      id: contentId,
       ...targetVisibilityFields(row),
       username: firstField(row, ["username", "handle"]),
       display_name: firstField(row, ["display_name", "full_name", "name"]),
-      avatar_url: firstField(row, ["avatar_url", "avatarUrl", "photo_url", "image_url"]),
+      avatar_url: publicMediaUrl(firstField(row, ["avatar_url", "avatarUrl", "photo_url", "image_url"])),
     };
   }
 
   if (contentType === "place") {
     return {
+      type: "place",
+      id: contentId,
       ...targetVisibilityFields(row),
       place_name: firstField(row, ["place_name", "name", "title"]),
       city: firstField(row, ["city", "locality", "municipality"]),
@@ -679,15 +923,33 @@ function targetPreview(contentType, contentId, row) {
   }
 
   return {
+    type: "place_photo",
+    id: contentId,
     ...targetVisibilityFields(row),
-    photo_url: firstField(row, ["photo_url", "image_url", "url", "media_url"]),
+    photo_url: publicMediaUrl(firstField(row, ["photo_url", "image_url", "url", "media_url"])),
     place_id: firstField(row, ["place_id", "location_id"]),
   };
 }
 
-function serializeReport(report, previewMap, reportCountMap = new Map(), actionMap = new Map()) {
+function serializeReport(
+  report,
+  previewMap,
+  reportCountMap = new Map(),
+  actionMap = new Map(),
+  userMap = new Map(),
+  relatedMap = new Map(),
+  reporterHiddenMap = new Map(),
+) {
   const row = previewMap.get(`${report.content_type}:${report.content_id}`);
   const targetKey = reportTargetKey(report.content_type, report.content_id);
+  const target = targetPreview(report.content_type, report.content_id, row, userMap);
+  const reporter = userMap.get(report.reporter_id) || serializeAdminActor(null, report.reporter_id);
+  const relatedReports = (relatedMap.get(targetKey) || [])
+    .filter((relatedReport) => relatedReport.id !== report.id)
+    .slice(0, 12);
+  const actions = (actionMap.get(report.id) || []).slice(0, 12);
+  const reporterHidden = reporterHiddenMap.get(`${report.reporter_id}:${report.content_type}:${report.content_id}`) || false;
+
   return {
     id: report.id,
     content_type: report.content_type,
@@ -700,10 +962,33 @@ function serializeReport(report, previewMap, reportCountMap = new Map(), actionM
     created_at: report.created_at,
     reviewed_by: report.reviewed_by,
     reviewed_at: report.reviewed_at,
-    target: targetPreview(report.content_type, report.content_id, row),
+    reporter,
+    target,
     target_report_count: reportCountMap.get(targetKey) || 1,
-    actions: actionMap.get(report.id) || [],
+    report_count_for_target: reportCountMap.get(targetKey) || 1,
+    previous_reports_for_target: relatedReports,
+    related_reports: relatedReports,
+    recent_moderation_actions: actions,
+    actions,
+    reporter_hidden_for_target: reporterHidden,
   };
+}
+
+async function serializeReportsWithContext(supabase, reports) {
+  if (reports.length === 0) return [];
+
+  const previewMap = await fetchTargetPreviewMaps(supabase, reports);
+  const [reportCountMap, actionMap, userMap, relatedMap, reporterHiddenMap] = await Promise.all([
+    fetchReportCountsByTarget(supabase, reports),
+    fetchActionHistoryForReports(supabase, reports),
+    fetchUserSummaryMapForReports(supabase, reports, previewMap),
+    fetchRelatedReportsForTargets(supabase, reports),
+    fetchReporterHiddenTargets(supabase, reports),
+  ]);
+
+  return reports.map((report) =>
+    serializeReport(report, previewMap, reportCountMap, actionMap, userMap, relatedMap, reporterHiddenMap),
+  );
 }
 
 export async function handleAdminReports(request) {
@@ -738,14 +1023,10 @@ export async function handleAdminReports(request) {
     if (error) throw error;
 
     const reports = data || [];
-    const [previewMap, reportCountMap, actionMap] = await Promise.all([
-      fetchTargetPreviewMaps(supabase, reports),
-      fetchReportCountsByTarget(supabase, reports),
-      fetchActionHistoryForReports(supabase, reports),
-    ]);
+    const serializedReports = await serializeReportsWithContext(supabase, reports);
 
     return jsonResponse(200, {
-      reports: reports.map((report) => serializeReport(report, previewMap, reportCountMap, actionMap)),
+      reports: serializedReports,
       total: count || 0,
     });
   } catch (error) {
@@ -1554,12 +1835,30 @@ async function insertModerationAction(supabase, action) {
 export async function handleAdminReportById(request, explicitId) {
   try {
     if (request.method === "OPTIONS") return optionsResponse();
-    if (request.method !== "PATCH") return methodNotAllowed();
+    if (request.method !== "GET" && request.method !== "PATCH") return methodNotAllowed();
 
     const id = reportIdFromRequest(request, explicitId);
     if (!id) throw new HttpError(400, "Report id is required.");
 
     const { supabase, user } = await requireAdmin(request);
+
+    if (request.method === "GET") {
+      const current = await supabase.from("content_reports").select("*").eq("id", id).maybeSingle();
+      if (current.error) throw current.error;
+      if (!current.data) throw new HttpError(404, "Report not found.");
+
+      const [report] = await serializeReportsWithContext(supabase, [current.data]);
+      return jsonResponse(200, {
+        ok: true,
+        report,
+        target: report.target,
+        reporter: report.reporter,
+        creator: report.target?.creator || null,
+        related_reports: report.related_reports || [],
+        moderation_actions: report.recent_moderation_actions || [],
+      });
+    }
+
     const input = validateReportStatusBody(await readJson(request));
 
     const current = await supabase.from("content_reports").select("*").eq("id", id).maybeSingle();
@@ -1739,14 +2038,6 @@ async function applyModerationAction(supabase, input) {
 
 function reportStatusForAction(actionType) {
   if (actionType === "dismiss_report") return "dismissed";
-  if (
-    actionType === "hide_video" ||
-    actionType === "hide_place" ||
-    actionType === "suspend_user" ||
-    actionType === "remove_content"
-  ) {
-    return "removed";
-  }
   if (actionType === "mark_reviewed") return "reviewed";
   return null;
 }
