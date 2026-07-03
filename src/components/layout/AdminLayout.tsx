@@ -35,7 +35,7 @@ const operationsItems: NavItem[] = [
 
 const insightsItems: NavItem[] = [
   { label: "Product Insights", to: "/admin?section=insights", exactQuery: true },
-  { label: "Analytics Foundation", to: "/admin?section=analytics", exactQuery: true },
+  { label: "Analytics", to: "/admin/analytics" },
 ];
 
 const systemItems: NavItem[] = [
@@ -80,6 +80,13 @@ function routeMeta(pathname: string, search: string) {
     return {
       title: "Explore Admin Console",
       description: "Operate users, content, moderation, and product health.",
+    };
+  }
+
+  if (pathname === "/admin/analytics") {
+    return {
+      title: "Analytics",
+      description: "Product and ingestion insights from Explore event pipelines.",
     };
   }
 

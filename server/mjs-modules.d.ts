@@ -17,6 +17,7 @@ declare module "*.mjs" {
   export const buildAppLaunchEmail: (email: string, links: EmailLinks) => EmailTemplate;
   export const buildWaitlistWelcomeEmail: (email: string, links: EmailLinks) => EmailTemplate;
   export const handleAdminAnalyticsOverview: (request: Request) => Promise<Response>;
+  export const dispatchAdminAnalyticsApi: (request: Request, route: string) => Promise<Response>;
   export const handleAdminMe: (request: Request) => Promise<Response>;
   export const handleAdminModerationAction: (request: Request) => Promise<Response>;
   export const handleAdminModerationSummary: (request: Request) => Promise<Response>;
