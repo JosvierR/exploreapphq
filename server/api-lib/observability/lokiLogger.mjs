@@ -2,6 +2,10 @@ function enabled() {
   return String(process.env.GRAFANA_LOGS_ENABLED || "").toLowerCase() === "true";
 }
 
+function isLocalLoki(url) {
+  return /localhost|127\.0\.0\.1|host\.docker\.internal/i.test(url);
+}
+
 function config() {
   return {
     enabled: enabled(),
@@ -11,9 +15,15 @@ function config() {
   };
 }
 
+function ready(next = config()) {
+  if (!next.enabled || !next.url) return false;
+  // Local Loki (OSS docker stack) can run without auth.
+  if (isLocalLoki(next.url)) return true;
+  return Boolean(next.token);
+}
+
 export function lokiConfigured() {
-  const next = config();
-  return Boolean(next.enabled && next.url && next.token);
+  return ready();
 }
 
 export function observabilityConfigStatus() {
@@ -23,7 +33,7 @@ export function observabilityConfigStatus() {
     loki_url_configured: Boolean(next.url),
     loki_username_configured: Boolean(next.username),
     loki_token_configured: Boolean(next.token),
-    loki_ready: Boolean(next.enabled && next.url && next.token),
+    loki_ready: ready(next),
     grafana_logs_enabled: next.enabled,
   };
 }
@@ -40,15 +50,15 @@ function labelsFor(entry) {
 
 export async function pushLokiLog(entry) {
   const next = config();
-  if (!next.enabled || !next.url || !next.token) return;
+  if (!ready(next)) return;
 
   const headers = {
     "Content-Type": "application/json",
   };
 
-  if (next.username) {
+  if (next.token && next.username) {
     headers.Authorization = `Basic ${Buffer.from(`${next.username}:${next.token}`).toString("base64")}`;
-  } else {
+  } else if (next.token) {
     headers.Authorization = `Bearer ${next.token}`;
   }
 

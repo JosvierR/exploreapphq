@@ -73,4 +73,4 @@ Vercel → **Domains** → Add → sigue DNS. Luego actualiza `SITE_URL` y `VITE
 | `POST /api/admin/moderation/action` | Apply moderation action |
 
 La lógica está en `netlify/functions/` (reutilizada vía `api/`).
-La moderación Supabase está en `server/api-lib/supabaseModeration.mjs` y `supabase/migrations/20260629170000_moderation.sql`.
+La moderación Supabase está en `server/api-lib/moderation/supabaseModeration.mjs` y `supabase/migrations/20260629170000_moderation.sql`.

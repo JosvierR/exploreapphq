@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: explore-api
+    metrics_path: /api/metrics
+    scheme: http
+    # Match METRICS_TOKEN in local .env (override for production scrapers).
+    authorization:
+      type: Bearer
+      credentials: local-dev-metrics-token
+    static_configs:
+      - targets: ["host.docker.internal:3001"]
+        labels:
+          service: explore-web-admin
+          environment: local
