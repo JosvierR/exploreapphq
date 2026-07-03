@@ -13,6 +13,7 @@ import { FeedbackPage } from "@/pages/marketing/FeedbackPage";
 import { NotFoundPage } from "@/pages/marketing/NotFoundPage";
 import { DeepLinkFallbackPage } from "@/pages/marketing/DeepLinkFallbackPage";
 import { AdminDashboardPage } from "@/pages/admin/AdminDashboardPage";
+import { AdminAnalyticsPage } from "@/pages/admin/AdminAnalyticsPage";
 import { ReportsAdminPage } from "@/pages/admin/ReportsAdminPage";
 import { WaitlistAdminPage } from "@/pages/admin/WaitlistAdminPage";
 
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
         ),
         children: [
           { path: "/admin", element: <AdminDashboardPage /> },
+          { path: "/admin/analytics", element: <AdminAnalyticsPage /> },
           { path: "/admin/reports", element: <ReportsAdminPage /> },
           { path: "/admin/waitlist", element: <WaitlistAdminPage /> },
         ],

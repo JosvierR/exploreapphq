@@ -3,11 +3,11 @@ import express from "express";
 import type { Request as ExpressRequest, Response as ExpressResponse } from "express";
 import jwt from "jsonwebtoken";
 // Plain ESM handlers are shared with Vercel serverless functions.
-// @ts-ignore
 import {
-  handleAdminAnalyticsOverview,
-  handleEvents,
-} from "./api-lib/analyticsRouter.mjs";
+  dispatchAdminAnalyticsApi,
+} from "./api-lib/analyticsAdminApi.mjs";
+// @ts-ignore
+import { handleEvents } from "./api-lib/analyticsRouter.mjs";
 // @ts-ignore
 import {
   handleAdminModerationAction,
@@ -157,8 +157,33 @@ app.all("/api/admin/users", (req, res) => {
   void sendFetchResponse(handleAdminUsers, req, res);
 });
 
-app.all("/api/admin/analytics/overview", (req, res) => {
-  void sendFetchResponse(handleAdminAnalyticsOverview, req, res);
+const analyticsRouteSegments = [
+  "overview",
+  "timeseries",
+  "top-content",
+  "search",
+  "events",
+  "health",
+  "dead-letters",
+  "aggregate",
+] as const;
+
+for (const segment of analyticsRouteSegments) {
+  app.all(`/api/admin/analytics/${segment}`, (req, res) => {
+    void sendFetchResponse(
+      (request) => dispatchAdminAnalyticsApi(request, `admin/analytics/${segment}`),
+      req,
+      res,
+    );
+  });
+}
+
+app.all("/api/admin/analytics/events/:eventId", (req, res) => {
+  void sendFetchResponse(
+    (request) => dispatchAdminAnalyticsApi(request, `admin/analytics/events/${req.params.eventId}`),
+    req,
+    res,
+  );
 });
 
 app.all("/api/admin/system/health", (req, res) => {

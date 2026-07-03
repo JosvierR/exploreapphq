@@ -134,7 +134,15 @@ function AdminDashboardContent() {
       {section === "content" && <ContentSection summary={summary} loading={loading} />}
       {section === "moderation" && <ModerationSection summary={summary} pending={pending} loading={loading} />}
       {section === "insights" && <InsightsSection summary={summary} loading={loading} />}
-      {section === "analytics" && <AnalyticsFoundationSection />}
+      {section === "analytics" && (
+        <section className="admin-panel admin-panel--foundation">
+          <PanelHeader kicker="Analytics" title="Insights dashboard" />
+          <p>Explore analytics events, ingestion health, search insights, and top content.</p>
+          <Link className="admin-btn admin-btn--secondary" to="/admin/analytics">
+            Open Analytics dashboard
+          </Link>
+        </section>
+      )}
       {section === "system" && <AdminSystemPage adminEmail={admin.user?.email ?? "Not signed in"} />}
       {section === "admins" && (
         <ComingSoonSection

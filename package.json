@@ -11,6 +11,7 @@
     "build:api": "tsc -p tsconfig.server.json",
     "preview": "vite preview",
     "lint": "tsc -b --noEmit",
+    "test": "node server/api-lib/analyticsRouter.source.test.mjs && node server/api-lib/analyticsAdminApi.test.mjs",
     "waitlist:notify": "tsx server/scripts/notify-launch.ts",
     "waitlist:notify:dry": "tsx server/scripts/notify-launch.ts -- --dry-run",
     "email:test": "tsx server/scripts/send-test-email.ts",
