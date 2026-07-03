@@ -46,7 +46,7 @@ Primary tables:
 - `analytics_events`
 - `analytics_event_dead_letters`
 
-Optional daily views (used when present, otherwise server aggregates from events):
+Optional daily views (preferred when present, but never required):
 
 - `admin_analytics_overview_daily`
 - `admin_top_content_daily`
@@ -83,6 +83,15 @@ UI buttons:
 - Run yesterday aggregation
 
 If RPC is unavailable, API returns a safe error with `request_id`.
+If the RPC returns `null` / `void` without an error, the API still returns success:
+
+```json
+{
+  "ok": true,
+  "day": "2026-07-03",
+  "message": "Aggregation completed"
+}
+```
 
 ## Manual QA checklist
 
@@ -150,9 +159,20 @@ select
   source,
   count(*) as count
 from public.analytics_event_dead_letters
-where received_at >= now() - interval '7 days'
+where created_at >= now() - interval '7 days'
 group by reason, source
 order by count desc;
+```
+
+```sql
+select
+  count(*) as dead_letters_last_24h
+from public.analytics_event_dead_letters
+where created_at >= now() - interval '24 hours';
+```
+
+```sql
+select public.aggregate_analytics_events_for_day(current_date);
 ```
 
 ## Troubleshooting
@@ -165,6 +185,51 @@ order by count desc;
 | `403` | User not in `admin_users` or allowlist |
 | Timeseries sparse | Low event volume or daily views not populated yet |
 | Vercel deploy fails on function limit | Ensure no new files under `/api` except `api/index.js` |
+
+### Overview / Timeseries / Health failures
+
+- These sections now **prefer** daily views such as `admin_analytics_overview_daily`, `admin_top_content_daily`, `admin_search_insights_daily`, and `admin_metrics_daily`.
+- If a view is missing, empty, has unexpected columns, or errors, the backend returns `200` with warnings and falls back to `analytics_events`.
+- Raw fallback computes:
+  - total events in range
+  - app/source/platform/entity_type breakdowns
+  - anonymous/authenticated/session counts
+  - day/hour buckets for timeseries
+
+### DATA-001 / DATA-004 schema compatibility
+
+- Some production environments still expose `analytics_event_dead_letters.created_at` instead of `received_at`.
+- Health and dead-letter endpoints detect the available timestamp column and use it automatically.
+- Dead-letter payload/source fields are treated as optional; missing columns no longer crash the dashboard.
+
+### How to verify fallback behavior
+
+Run:
+
+```sql
+select
+  event_name,
+  source,
+  platform,
+  entity_type,
+  count(*) as count
+from public.analytics_events
+where received_at >= now() - interval '7 days'
+group by event_name, source, platform, entity_type
+order by count desc
+limit 50;
+```
+
+If only `analytics_events` has data, Overview and Timeseries should still render from that result set.
+
+### Reading `request_id` from the UI
+
+- Section error cards append the backend `request_id` when the API returns an error.
+- Use that `request_id` to filter Vercel logs:
+
+```bash
+npx vercel logs https://www.exploreapphq.com --request-id <request_id> --expand
+```
 
 ## Client module
 

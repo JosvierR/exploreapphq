@@ -1,5 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
 import WebSocket from "ws";
+import {
+  buildAggregateSuccessBody,
+  buildHealthPayload,
+  buildOverviewFromEvents,
+  buildTimeseriesFromEvents,
+  makeAnalyticsWarning,
+} from "./analyticsAdminShapes.mjs";
 import { classifySupabaseAnalyticsError, serializeErrorForLog } from "./analyticsRouter.mjs";
 import { logger, requestLogMeta } from "./logger.mjs";
 import { requestIdFromRequest } from "./requestContext.mjs";
@@ -41,6 +48,8 @@ const EVENTS_COLUMNS = [
 ];
 
 const DEAD_LETTER_COLUMNS = ["id", "event_id", "user_id", "anonymous_id", "reason", "payload", "source", "received_at"];
+const EVENTS_PROBE_COLUMNS = ["event_id", "event_name", "platform", "source", "received_at"];
+const DEAD_LETTER_PROBE_COLUMNS = ["event_id", "reason"];
 
 class AdminAnalyticsError extends Error {
   constructor(status, message, options = {}) {
@@ -116,6 +125,26 @@ function analyticsSchemaMissing(error) {
   return classifySupabaseAnalyticsError(error?.cause || error) === "analytics_schema_missing";
 }
 
+function analyticsColumnMismatch(error) {
+  return classifySupabaseAnalyticsError(error?.cause || error) === "analytics_column_mismatch";
+}
+
+function routeFailureCode(route) {
+  if (route.endsWith("/overview")) return "analytics_overview_query_failed";
+  if (route.endsWith("/timeseries")) return "analytics_timeseries_query_failed";
+  if (route.endsWith("/health")) return "analytics_health_query_failed";
+  if (route.endsWith("/aggregate")) return "analytics_aggregate_failed";
+  return "analytics_admin_query_failed";
+}
+
+function routeFailureMessage(route) {
+  if (route.endsWith("/overview")) return "Analytics overview unavailable.";
+  if (route.endsWith("/timeseries")) return "Analytics timeseries unavailable.";
+  if (route.endsWith("/health")) return "Analytics health unavailable.";
+  if (route.endsWith("/aggregate")) return "Analytics aggregation unavailable.";
+  return "Analytics admin request failed.";
+}
+
 function adminFailure(request, route, error, diagnostics = null) {
   if (analyticsSchemaMissing(error)) {
     return jsonResponse(200, {
@@ -131,13 +160,24 @@ function adminFailure(request, route, error, diagnostics = null) {
   logger.warn("Admin analytics request failed", {
     ...requestLogMeta(request, route),
     status,
+    code: error?.code || classifySupabaseAnalyticsError(error?.cause || error),
     error: serializeErrorForLog(error?.cause || error),
     ...analyticsSupabaseConfigMeta(),
   });
 
   return jsonResponse(status, {
     ok: false,
-    error: status === 401 ? "Authentication required." : status === 403 ? "Access denied." : status === 400 ? error.message : "Internal server error",
+    error:
+      status === 401
+        ? "Authentication required."
+        : status === 403
+          ? "Access denied."
+          : status === 400
+            ? error.message
+            : routeFailureMessage(route),
+    code:
+      error?.code ||
+      (status === 500 || status === 503 ? routeFailureCode(route) : classifySupabaseAnalyticsError(error?.cause || error)),
     request_id: requestIdFromRequest(request),
     diagnostics,
   });
@@ -236,11 +276,21 @@ async function countEventsSince(supabase, since, until = null) {
   return count || 0;
 }
 
-async function countDeadLettersSince(supabase, since) {
+async function detectTimestampColumn(supabase, table, candidates) {
+  for (const column of candidates) {
+    const { error } = await supabase.from(table).select(column, { count: "exact", head: true }).limit(1);
+    if (!error) return column;
+    if (!analyticsColumnMismatch(error)) return null;
+  }
+  return null;
+}
+
+async function countDeadLettersSince(supabase, since, timestampColumn) {
+  if (!timestampColumn) return 0;
   const { count, error } = await supabase
     .from(DEAD_LETTERS_TABLE)
     .select("id", { count: "exact", head: true })
-    .gte("received_at", since);
+    .gte(timestampColumn, since);
   if (error) throw error;
   return count || 0;
 }
@@ -258,17 +308,24 @@ async function probeTable(supabase, table, columns) {
 }
 
 export async function buildAdminAnalyticsDiagnostics(supabase, request) {
-  const [events, deadLetters] = await Promise.all([
-    probeTable(supabase, EVENTS_TABLE, EVENTS_COLUMNS),
-    probeTable(supabase, DEAD_LETTERS_TABLE, DEAD_LETTER_COLUMNS),
+  const [events, deadLetters, deadLettersTimestampColumn] = await Promise.all([
+    probeTable(supabase, EVENTS_TABLE, EVENTS_PROBE_COLUMNS),
+    probeTable(supabase, DEAD_LETTERS_TABLE, DEAD_LETTER_PROBE_COLUMNS),
+    detectTimestampColumn(supabase, DEAD_LETTERS_TABLE, ["received_at", "created_at"]),
   ]);
-  const warnings = [events.warning, deadLetters.warning].filter(Boolean);
+  const warnings = [events.warning, deadLetters.warning].filter(Boolean).map((message, index) =>
+    makeAnalyticsWarning(`analytics_probe_${index + 1}`, message),
+  );
+  if (!deadLettersTimestampColumn) {
+    warnings.push(makeAnalyticsWarning("dead_letters_time_column_unavailable", "Dead-letter timestamp column unavailable."));
+  }
 
   return {
     analytics_events_exists: events.exists,
     analytics_dead_letters_exists: deadLetters.exists,
     analytics_events_selectable: events.selectable,
     analytics_dead_letters_selectable: deadLetters.selectable,
+    analytics_dead_letters_time_column: deadLettersTimestampColumn,
     supabase_project_ref: supabaseProjectRef(),
     service_role_configured: serviceRoleConfigured(),
     service_key_looks_like_jwt: serviceKeyLooksLikeJwt(),
@@ -276,16 +333,32 @@ export async function buildAdminAnalyticsDiagnostics(supabase, request) {
   };
 }
 
-async function queryViewRows(supabase, viewName, { since, until, limit = 31, orderColumn = "day" } = {}) {
+async function queryViewRows(supabase, request, route, viewName, { since, until, limit = 31, orderColumn = "day" } = {}) {
   let query = supabase.from(viewName).select("*").order(orderColumn, { ascending: false }).limit(limit);
   if (since) query = query.gte(orderColumn, since.slice(0, 10));
   if (until) query = query.lte(orderColumn, until.slice(0, 10));
   const { data, error } = await query;
   if (error) {
-    if (analyticsSchemaMissing(error)) return { available: false, rows: [] };
-    throw error;
+    const code = classifySupabaseAnalyticsError(error);
+    logger.warn("Optional analytics view unavailable", {
+      ...requestLogMeta(request, route),
+      view: viewName,
+      order_column: orderColumn,
+      code,
+      error: serializeErrorForLog(error),
+      ...analyticsSupabaseConfigMeta(),
+    });
+    return {
+      available: false,
+      rows: [],
+      warning: makeAnalyticsWarning(
+        `${viewName}_unavailable`,
+        `Optional analytics view ${viewName} unavailable; using raw events fallback.`,
+        { classified_code: code },
+      ),
+    };
   }
-  return { available: true, rows: data || [] };
+  return { available: true, rows: data || [], warning: null };
 }
 
 function aggregateRowsByDay(rows, dateKey = "received_at") {
@@ -354,13 +427,77 @@ function mapEventRow(row) {
 
 function mapDeadLetterRow(row) {
   return {
-    received_at: row.received_at,
+    received_at: row.received_at || row.created_at || null,
     event_id: row.event_id,
     anonymous_id_short: shortenId(row.anonymous_id),
     user_id_present: Boolean(row.user_id),
     reason: row.reason,
     source: row.source || "unknown",
     payload_summary: payloadSummary(row.payload),
+  };
+}
+
+async function fetchDeadLetterReasonRows(supabase, timestampColumn, since) {
+  if (!timestampColumn) return [];
+
+  const fullQuery = await supabase
+    .from(DEAD_LETTERS_TABLE)
+    .select("reason, source")
+    .gte(timestampColumn, since)
+    .limit(500);
+  if (!fullQuery.error) return fullQuery.data || [];
+  if (!analyticsColumnMismatch(fullQuery.error)) throw fullQuery.error;
+
+  const minimalQuery = await supabase
+    .from(DEAD_LETTERS_TABLE)
+    .select("reason")
+    .gte(timestampColumn, since)
+    .limit(500);
+  if (minimalQuery.error) throw minimalQuery.error;
+  return (minimalQuery.data || []).map((row) => ({ ...row, source: "unknown" }));
+}
+
+async function fetchDeadLetterRows(supabase, { timestampColumn, since, until, offset, limit, reason, source }) {
+  if (!timestampColumn) return { data: [], count: 0 };
+
+  let query = supabase
+    .from(DEAD_LETTERS_TABLE)
+    .select("id, event_id, user_id, anonymous_id, reason, payload, source, received_at, created_at", { count: "exact" })
+    .gte(timestampColumn, since)
+    .lte(timestampColumn, until)
+    .order(timestampColumn, { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (reason) query = query.eq("reason", reason);
+  if (source) query = query.eq("source", source);
+
+  const full = await query;
+  if (!full.error) return full;
+  if (!analyticsColumnMismatch(full.error)) throw full.error;
+
+  let minimal = supabase
+    .from(DEAD_LETTERS_TABLE)
+    .select(`id, event_id, reason, ${timestampColumn}`, { count: "exact" })
+    .gte(timestampColumn, since)
+    .lte(timestampColumn, until)
+    .order(timestampColumn, { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (reason) minimal = minimal.eq("reason", reason);
+
+  const fallback = await minimal;
+  if (fallback.error) throw fallback.error;
+  return {
+    ...fallback,
+    data: (fallback.data || []).map((row) => ({
+      ...row,
+      user_id: null,
+      anonymous_id: null,
+      source: "unknown",
+      payload: null,
+      received_at: row[timestampColumn] || null,
+      created_at: row[timestampColumn] || null,
+    })),
   };
 }
 
@@ -393,57 +530,48 @@ export async function handleAdminAnalyticsOverview(request) {
     const { range, since, until } = parseRange(request);
     const sinceToday = startOfUtcDayIso();
     const since24h = lastMinutes(24 * 60);
+    const warnings = [...(diagnostics?.warnings || [])];
 
-    const [eventsToday, events24h, events7d, events30d, deadLetters24h, sample, latest] = await Promise.all([
+    const [eventsToday, events24h, events7d, events30d, deadLetters24h, deadLettersInRange, sample, latest, dailyView] = await Promise.all([
       countEventsSince(supabase, sinceToday),
       countEventsSince(supabase, since24h),
       countEventsSince(supabase, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
       countEventsSince(supabase, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
-      countDeadLettersSince(supabase, since24h),
+      countDeadLettersSince(supabase, since24h, diagnostics?.analytics_dead_letters_time_column),
+      countDeadLettersSince(supabase, since, diagnostics?.analytics_dead_letters_time_column),
       fetchSampleEvents(supabase, since, until),
       supabase.from(EVENTS_TABLE).select("received_at, occurred_at").order("received_at", { ascending: false }).limit(1),
+      queryViewRows(supabase, request, "admin/analytics/overview", "admin_analytics_overview_daily", { since, until, limit: 14 }),
     ]);
 
     if (latest.error) throw latest.error;
     const rangeRows = sample;
-    const rows24h = sample.filter((row) => row.received_at >= since24h);
+    const rows24h = sample.filter((row) => row.received_at && row.received_at >= since24h);
+    if (dailyView.warning) warnings.push(dailyView.warning);
 
-    const dailyView = await queryViewRows(supabase, "admin_analytics_overview_daily", { since, until, limit: 14 });
+    const body = buildOverviewFromEvents({
+      rangeRows,
+      rows24h,
+      eventsToday,
+      events24h,
+      events7d,
+      events30d,
+      deadLetters24h,
+      deadLettersInRange,
+      latestReceivedAt: latest.data?.[0]?.received_at || null,
+      latestOccurredAt: latest.data?.[0]?.occurred_at || null,
+      dailyView: dailyView.available ? dailyView.rows : null,
+      warnings,
+    });
 
     return jsonResponse(200, {
       ok: true,
       request_id: requestIdFromRequest(request),
       range,
-      overview: {
-        events_today: eventsToday,
-        events_last_24h: events24h,
-        events_last_7d: events7d,
-        events_last_30d: events30d,
-        events_in_range: rangeRows.length >= SAMPLE_LIMIT ? `${SAMPLE_LIMIT}+` : rangeRows.length,
-        active_anonymous_ids: uniqueCount(rows24h, "anonymous_id"),
-        active_authenticated_users: uniqueCount(rows24h, "user_id"),
-        sessions: uniqueCount(rows24h, "session_id"),
-        avg_events_per_session: avgEventsPerSession(rows24h),
-        dead_letters_last_24h: deadLetters24h,
-        ingestion_health: computeHealthStatus({
-          events5m: rows24h.filter((row) => row.received_at >= lastMinutes(5)).length,
-          events1h: rows24h.filter((row) => row.received_at >= lastMinutes(60)).length,
-          deadLetters24h,
-          diagnostics,
-        }),
-        latest_received_at: latest.data?.[0]?.received_at || null,
-        latest_occurred_at: latest.data?.[0]?.occurred_at || null,
-        breakdowns: {
-          event_name: countBy(rangeRows, "event_name"),
-          source: countBy(rangeRows, "source"),
-          platform: countBy(rangeRows, "platform"),
-          entity_type: countBy(rangeRows, "entity_type"),
-          auth_share: authShare(rangeRows),
-        },
-        daily_view: dailyView.available ? dailyView.rows : null,
-      },
+      overview: body.overview,
+      data: body.overview,
       diagnostics,
-      warnings: diagnostics.warnings,
+      warnings: body.warnings,
     });
   } catch (error) {
     return adminFailure(request, "admin/analytics/overview", error, diagnostics);
@@ -459,13 +587,30 @@ export async function handleAdminAnalyticsTimeseries(request) {
     const { supabase, diagnostics: diag } = await requireAdminContext(request);
     diagnostics = diag;
     const { range, since, until } = parseRange(request);
+    const warnings = [...(diagnostics?.warnings || [])];
 
-    const [eventsDailyView, sessionsDailyView, usersDailyView, sample] = await Promise.all([
-      queryViewRows(supabase, "admin_analytics_overview_daily", { since, until, limit: TIMESERIES_DAYS }),
-      queryViewRows(supabase, "analytics_session_daily", { since, until, limit: TIMESERIES_DAYS }),
-      queryViewRows(supabase, "analytics_user_daily", { since, until, limit: TIMESERIES_DAYS }),
+    const [eventsDailyView, sessionsDailyView, usersDailyView, sample, deadLettersInRange] = await Promise.all([
+      queryViewRows(supabase, request, "admin/analytics/timeseries", "admin_analytics_overview_daily", {
+        since,
+        until,
+        limit: TIMESERIES_DAYS,
+      }),
+      queryViewRows(supabase, request, "admin/analytics/timeseries", "analytics_session_daily", {
+        since,
+        until,
+        limit: TIMESERIES_DAYS,
+      }),
+      queryViewRows(supabase, request, "admin/analytics/timeseries", "analytics_user_daily", {
+        since,
+        until,
+        limit: TIMESERIES_DAYS,
+      }),
       fetchSampleEvents(supabase, since, until),
+      countDeadLettersSince(supabase, since, diagnostics?.analytics_dead_letters_time_column),
     ]);
+    if (eventsDailyView.warning) warnings.push(eventsDailyView.warning);
+    if (sessionsDailyView.warning) warnings.push(sessionsDailyView.warning);
+    if (usersDailyView.warning) warnings.push(usersDailyView.warning);
 
     const eventsByDay =
       eventsDailyView.available && eventsDailyView.rows.length > 0
@@ -475,15 +620,12 @@ export async function handleAdminAnalyticsTimeseries(request) {
               count: row.event_count ?? row.events ?? row.total_events ?? 0,
             }))
             .reverse()
-        : aggregateRowsByDay(sample, "received_at");
+        : buildTimeseriesFromEvents(sample, range).timeseries.events_by_day;
 
     const sessionsByDay =
       sessionsDailyView.available && sessionsDailyView.rows.length > 0
         ? sessionsDailyView.rows.map((row) => ({ day: row.day, count: row.session_count ?? row.sessions ?? 0 })).reverse()
-        : aggregateRowsByDay(
-            sample.map((row) => ({ day: row.received_at?.slice(0, 10), session_id: row.session_id })),
-            "day",
-          );
+        : buildTimeseriesFromEvents(sample, range).timeseries.sessions_by_day;
 
     const usersByDay =
       usersDailyView.available && usersDailyView.rows.length > 0
@@ -494,12 +636,9 @@ export async function handleAdminAnalyticsTimeseries(request) {
               anonymous: row.anonymous_ids ?? row.anonymous_users ?? 0,
             }))
             .reverse()
-        : aggregateRowsByDay(
-            sample.map((row) => ({ day: row.received_at?.slice(0, 10), user_id: row.user_id || row.anonymous_id })),
-            "day",
-          );
+        : buildTimeseriesFromEvents(sample, range).timeseries.users_by_day;
 
-    const deadLetters = await countDeadLettersSince(supabase, since);
+    const fallback = buildTimeseriesFromEvents(sample, range, warnings);
 
     return jsonResponse(200, {
       ok: true,
@@ -507,13 +646,14 @@ export async function handleAdminAnalyticsTimeseries(request) {
       range,
       timeseries: {
         events_by_day: eventsByDay,
+        events_by_bucket: fallback.timeseries.events_by_bucket,
         sessions_by_day: sessionsByDay,
         users_by_day: usersByDay,
-        top_event_names: countBy(sample, "event_name", 8),
-        dead_letters_in_range: deadLetters,
+        top_event_names: fallback.timeseries.top_event_names,
+        dead_letters_in_range: deadLettersInRange,
       },
       diagnostics,
-      warnings: diagnostics.warnings,
+      warnings,
     });
   } catch (error) {
     return adminFailure(request, "admin/analytics/timeseries", error, diagnostics);
@@ -530,8 +670,14 @@ export async function handleAdminAnalyticsTopContent(request) {
     diagnostics = diag;
     const { range, since, until } = parseRange(request);
     const entityType = new URL(request.url).searchParams.get("entity_type");
+    const warnings = [...(diagnostics?.warnings || [])];
 
-    const view = await queryViewRows(supabase, "admin_top_content_daily", { since, until, limit: 100 });
+    const view = await queryViewRows(supabase, request, "admin/analytics/top-content", "admin_top_content_daily", {
+      since,
+      until,
+      limit: 100,
+    });
+    if (view.warning) warnings.push(view.warning);
     let items = [];
 
     if (view.available && view.rows.length > 0) {
@@ -595,7 +741,7 @@ export async function handleAdminAnalyticsTopContent(request) {
       range,
       top_content: sections,
       diagnostics,
-      warnings: diagnostics.warnings,
+      warnings,
     });
   } catch (error) {
     return adminFailure(request, "admin/analytics/top-content", error, diagnostics);
@@ -611,8 +757,14 @@ export async function handleAdminAnalyticsSearch(request) {
     const { supabase, diagnostics: diag } = await requireAdminContext(request);
     diagnostics = diag;
     const { range, since, until } = parseRange(request);
+    const warnings = [...(diagnostics?.warnings || [])];
 
-    const view = await queryViewRows(supabase, "admin_search_insights_daily", { since, until, limit: 31 });
+    const view = await queryViewRows(supabase, request, "admin/analytics/search", "admin_search_insights_daily", {
+      since,
+      until,
+      limit: 31,
+    });
+    if (view.warning) warnings.push(view.warning);
     if (view.available && view.rows.length > 0) {
       const totals = view.rows.reduce(
         (acc, row) => {
@@ -640,7 +792,7 @@ export async function handleAdminAnalyticsSearch(request) {
           top_clicked_entities: [],
         },
         diagnostics,
-        warnings: diagnostics.warnings,
+        warnings,
       });
     }
 
@@ -694,7 +846,7 @@ export async function handleAdminAnalyticsSearch(request) {
           .slice(0, 20),
       },
       diagnostics,
-      warnings: diagnostics.warnings,
+      warnings,
     });
   } catch (error) {
     return adminFailure(request, "admin/analytics/search", error, diagnostics);
@@ -799,40 +951,68 @@ export async function handleAdminAnalyticsHealth(request) {
 
     const { supabase, diagnostics: diag } = await requireAdminContext(request);
     diagnostics = diag;
-
-    const [events5m, events1h, events24h, deadLetters24h, latest, deadReasons] = await Promise.all([
+    const warnings = [...(diagnostics?.warnings || [])];
+    const deadLettersTimeColumn = diagnostics?.analytics_dead_letters_time_column;
+    const [events5m, events1h, events24h, deadLetters1h, deadLetters24h, latest, deadReasons, overviewDaily, topContentDaily, searchDaily, adminMetricsDaily] = await Promise.all([
       countEventsSince(supabase, lastMinutes(5)),
       countEventsSince(supabase, lastMinutes(60)),
       countEventsSince(supabase, lastMinutes(24 * 60)),
-      countDeadLettersSince(supabase, lastMinutes(24 * 60)),
+      countDeadLettersSince(supabase, lastMinutes(60), deadLettersTimeColumn),
+      countDeadLettersSince(supabase, lastMinutes(24 * 60), deadLettersTimeColumn),
       supabase.from(EVENTS_TABLE).select("received_at").order("received_at", { ascending: false }).limit(1),
-      supabase
-        .from(DEAD_LETTERS_TABLE)
-        .select("reason, source")
-        .gte("received_at", lastMinutes(24 * 60))
-        .limit(500),
+      fetchDeadLetterReasonRows(supabase, deadLettersTimeColumn, lastMinutes(24 * 60)),
+      queryViewRows(supabase, request, "admin/analytics/health", "admin_analytics_overview_daily", { limit: 1 }),
+      queryViewRows(supabase, request, "admin/analytics/health", "admin_top_content_daily", { limit: 1 }),
+      queryViewRows(supabase, request, "admin/analytics/health", "admin_search_insights_daily", { limit: 1 }),
+      queryViewRows(supabase, request, "admin/analytics/health", "admin_metrics_daily", { limit: 1 }),
     ]);
 
     if (latest.error) throw latest.error;
-    if (deadReasons.error && !analyticsSchemaMissing(deadReasons.error)) throw deadReasons.error;
+    for (const probe of [overviewDaily, topContentDaily, searchDaily, adminMetricsDaily]) {
+      if (probe.warning) warnings.push(probe.warning);
+    }
+    const usingRawEventsFallback = !overviewDaily.available || overviewDaily.rows.length === 0;
+    if (usingRawEventsFallback) {
+      warnings.push(makeAnalyticsWarning("using_raw_events_fallback", "Using raw events fallback for admin analytics."));
+    }
 
-    const status = computeHealthStatus({ events5m, events1h, deadLetters24h, diagnostics });
+    const payload = buildHealthPayload({
+      events5m,
+      events1h,
+      events24h,
+      deadLetters1h,
+      deadLetters24h,
+      latestEventReceivedAt: latest.data?.[0]?.received_at || null,
+      latestAggregationDay: adminMetricsDaily.available ? adminMetricsDaily.rows?.[0]?.day ?? null : null,
+      rejectionReasons: countBy(deadReasons || [], "reason"),
+      rejectionSources: countBy(deadReasons || [], "source"),
+      diagnostics: {
+        ...diagnostics,
+        overview_daily_view_available: overviewDaily.available,
+        top_content_daily_view_available: topContentDaily.available,
+        search_insights_daily_view_available: searchDaily.available,
+        admin_metrics_daily_available: adminMetricsDaily.available,
+        using_raw_events_fallback: usingRawEventsFallback,
+      },
+      warnings,
+    });
 
     return jsonResponse(200, {
       ok: true,
       request_id: requestIdFromRequest(request),
-      health: {
-        status,
-        events_last_5m: events5m,
-        events_last_1h: events1h,
-        events_last_24h: events24h,
-        dead_letters_last_24h: deadLetters24h,
-        rejection_reasons: countBy(deadReasons.data || [], "reason"),
-        rejection_sources: countBy(deadReasons.data || [], "source"),
-        last_successful_received_at: latest.data?.[0]?.received_at || null,
-      },
-      diagnostics,
-      warnings: diagnostics.warnings,
+      health: payload.health,
+      diagnostics: payload.health
+        ? {
+            ...diagnostics,
+            overview_daily_view_available: overviewDaily.available,
+            top_content_daily_view_available: topContentDaily.available,
+            search_insights_daily_view_available: searchDaily.available,
+            admin_metrics_daily_available: adminMetricsDaily.available,
+            using_raw_events_fallback: usingRawEventsFallback,
+            warnings,
+          }
+        : diagnostics,
+      warnings,
     });
   } catch (error) {
     return adminFailure(request, "admin/analytics/health", error, diagnostics);
@@ -853,19 +1033,15 @@ export async function handleAdminAnalyticsDeadLetters(request) {
     const offset = Math.max(Number(url.searchParams.get("offset") || 0), 0);
     const reason = url.searchParams.get("reason");
     const source = url.searchParams.get("source");
-
-    let query = supabase
-      .from(DEAD_LETTERS_TABLE)
-      .select("id, event_id, user_id, anonymous_id, reason, payload, source, received_at", { count: "exact" })
-      .gte("received_at", since)
-      .lte("received_at", until)
-      .order("received_at", { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (reason) query = query.eq("reason", reason);
-    if (source) query = query.eq("source", source);
-
-    const { data, error, count } = await query;
+    const { data, error, count } = await fetchDeadLetterRows(supabase, {
+      timestampColumn: diagnostics?.analytics_dead_letters_time_column,
+      since,
+      until,
+      offset,
+      limit,
+      reason,
+      source,
+    });
     if (error) throw error;
 
     return jsonResponse(200, {
@@ -916,11 +1092,10 @@ export async function handleAdminAnalyticsAggregate(request) {
       result: safeAggregateResult(data),
     });
 
+    const responseBody = buildAggregateSuccessBody(day);
     return jsonResponse(200, {
-      ok: true,
+      ...responseBody,
       request_id: requestIdFromRequest(request),
-      day,
-      result: safeAggregateResult(data),
       diagnostics,
     });
   } catch (error) {

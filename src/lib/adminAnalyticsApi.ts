@@ -3,15 +3,27 @@ import { AdminApiError } from "@/lib/moderationAdminApi";
 
 export type AnalyticsRange = "24h" | "7d" | "30d";
 
+export type AnalyticsWarning = {
+  code: string;
+  message: string;
+  classified_code?: string;
+};
+
 export type AnalyticsDiagnostics = {
   analytics_events_exists: boolean | null;
   analytics_dead_letters_exists: boolean | null;
   analytics_events_selectable: boolean;
   analytics_dead_letters_selectable: boolean;
+  analytics_dead_letters_time_column?: string | null;
+  overview_daily_view_available?: boolean | null;
+  top_content_daily_view_available?: boolean | null;
+  search_insights_daily_view_available?: boolean | null;
+  admin_metrics_daily_available?: boolean | null;
+  using_raw_events_fallback?: boolean;
   supabase_project_ref: string | null;
   service_role_configured: boolean;
   service_key_looks_like_jwt: boolean;
-  warnings: string[];
+  warnings: AnalyticsWarning[];
 };
 
 export type BreakdownEntry = { value: string; count: number };
@@ -22,19 +34,28 @@ export type AnalyticsOverview = {
   events_last_7d: number;
   events_last_30d: number;
   events_in_range: number | string;
+  total_events_in_range?: number;
   active_anonymous_ids: number;
   active_authenticated_users: number;
+  anonymous_ids_in_range?: number;
+  authenticated_users_in_range?: number;
   sessions: number;
+  sessions_in_range?: number;
   avg_events_per_session: number | null;
   dead_letters_last_24h: number;
+  dead_letters_in_range?: number;
   ingestion_health: "healthy" | "warning" | "critical" | string;
   latest_received_at: string | null;
   latest_occurred_at: string | null;
   breakdowns: {
     event_name: BreakdownEntry[];
+    event_names?: BreakdownEntry[];
     source: BreakdownEntry[];
+    sources?: BreakdownEntry[];
     platform: BreakdownEntry[];
+    platforms?: BreakdownEntry[];
     entity_type: BreakdownEntry[];
+    entity_types?: BreakdownEntry[];
     auth_share: {
       authenticated: number;
       anonymous: number;
@@ -47,6 +68,7 @@ export type AnalyticsOverview = {
 
 export type AnalyticsTimeseries = {
   events_by_day: Array<{ day: string; count: number }>;
+  events_by_bucket?: Array<{ bucket: string; events: number }>;
   sessions_by_day: Array<{ day: string; count: number }>;
   users_by_day: Array<{ day: string; count?: number; authenticated?: number; anonymous?: number }>;
   top_event_names: BreakdownEntry[];
@@ -114,10 +136,12 @@ export type AnalyticsHealth = {
   events_last_5m: number;
   events_last_1h: number;
   events_last_24h: number;
+  dead_letters_last_1h?: number;
   dead_letters_last_24h: number;
   rejection_reasons: BreakdownEntry[];
   rejection_sources: BreakdownEntry[];
   last_successful_received_at: string | null;
+  latest_aggregation_day?: string | null;
 };
 
 type RangeParams = {
@@ -162,7 +186,7 @@ async function analyticsFetch<T>(path: string, init: RequestInit = {}): Promise<
 
 export function fetchAnalyticsOverview(params: RangeParams = {}) {
   const query = rangeQuery(params.range);
-  return analyticsFetch<{ overview: AnalyticsOverview | null; diagnostics: AnalyticsDiagnostics; warnings: string[] }>(
+  return analyticsFetch<{ request_id: string; overview: AnalyticsOverview | null; diagnostics: AnalyticsDiagnostics; warnings: AnalyticsWarning[] }>(
     `/api/admin/analytics/overview?${query}`,
     { signal: params.signal },
   );
@@ -170,7 +194,7 @@ export function fetchAnalyticsOverview(params: RangeParams = {}) {
 
 export function fetchAnalyticsTimeseries(params: RangeParams = {}) {
   const query = rangeQuery(params.range);
-  return analyticsFetch<{ timeseries: AnalyticsTimeseries; diagnostics: AnalyticsDiagnostics }>(
+  return analyticsFetch<{ request_id: string; timeseries: AnalyticsTimeseries; diagnostics: AnalyticsDiagnostics; warnings: AnalyticsWarning[] }>(
     `/api/admin/analytics/timeseries?${query}`,
     { signal: params.signal },
   );
@@ -180,17 +204,19 @@ export function fetchAnalyticsTopContent(params: RangeParams & { entity_type?: s
   const search = new URLSearchParams({ range: params.range || "7d" });
   if (params.entity_type) search.set("entity_type", params.entity_type);
   return analyticsFetch<{
+    request_id: string;
     top_content: {
       videos: TopContentItem[];
       places: TopContentItem[];
       routes: TopContentItem[];
       profiles: TopContentItem[];
     };
+    warnings?: AnalyticsWarning[];
   }>(`/api/admin/analytics/top-content?${search}`, { signal: params.signal });
 }
 
 export function fetchAnalyticsSearch(params: RangeParams = {}) {
-  return analyticsFetch<{ search: AnalyticsSearchInsights }>(`/api/admin/analytics/search?${rangeQuery(params.range)}`, {
+  return analyticsFetch<{ request_id: string; search: AnalyticsSearchInsights; warnings?: AnalyticsWarning[] }>(`/api/admin/analytics/search?${rangeQuery(params.range)}`, {
     signal: params.signal,
   });
 }
@@ -216,20 +242,20 @@ export function fetchAnalyticsEvents(
   if (params.entity_type) search.set("entity_type", params.entity_type);
   if (params.auth) search.set("auth", params.auth);
   if (params.q) search.set("q", params.q);
-  return analyticsFetch<{ events: AnalyticsEventRow[]; pagination: { limit: number; offset: number; total: number } }>(
+  return analyticsFetch<{ request_id: string; events: AnalyticsEventRow[]; pagination: { limit: number; offset: number; total: number }; warnings?: AnalyticsWarning[] }>(
     `/api/admin/analytics/events?${search}`,
     { signal: params.signal },
   );
 }
 
 export function fetchAnalyticsEventDetail(eventId: string, signal?: AbortSignal) {
-  return analyticsFetch<{ event: AnalyticsEventRow }>(`/api/admin/analytics/events/${encodeURIComponent(eventId)}`, {
+  return analyticsFetch<{ request_id: string; event: AnalyticsEventRow }>(`/api/admin/analytics/events/${encodeURIComponent(eventId)}`, {
     signal,
   });
 }
 
 export function fetchAnalyticsHealth(signal?: AbortSignal) {
-  return analyticsFetch<{ health: AnalyticsHealth; diagnostics: AnalyticsDiagnostics }>("/api/admin/analytics/health", {
+  return analyticsFetch<{ request_id: string; health: AnalyticsHealth; diagnostics: AnalyticsDiagnostics; warnings: AnalyticsWarning[] }>("/api/admin/analytics/health", {
     signal,
   });
 }
@@ -242,13 +268,15 @@ export function fetchAnalyticsDeadLetters(
   if (params.reason) search.set("reason", params.reason);
   if (params.source) search.set("source", params.source);
   return analyticsFetch<{
+    request_id: string;
     dead_letters: AnalyticsDeadLetterRow[];
     pagination: { limit: number; offset: number; total: number };
+    warnings?: AnalyticsWarning[];
   }>(`/api/admin/analytics/dead-letters?${search}`, { signal: params.signal });
 }
 
 export function runAnalyticsAggregation(day: string) {
-  return analyticsFetch<{ day: string; result: Record<string, unknown> }>("/api/admin/analytics/aggregate", {
+  return analyticsFetch<{ request_id: string; day: string; message: string }>("/api/admin/analytics/aggregate", {
     method: "POST",
     body: JSON.stringify({ day }),
   });
