@@ -13,10 +13,12 @@ import {
 import {
   type AnalyticsDeadLetterRow,
   type AnalyticsEventRow,
+  type AnalyticsHealth,
   type AnalyticsOverview,
   type AnalyticsRange,
   type AnalyticsSearchInsights,
   type AnalyticsTimeseries,
+  type AnalyticsWarning,
   type BreakdownEntry,
   type TopContentItem,
   fetchAnalyticsDeadLetters,
@@ -35,6 +37,8 @@ type SectionState<T> = {
   data: T | null;
   loading: boolean;
   error: string | null;
+  requestId?: string | null;
+  warnings?: AnalyticsWarning[];
 };
 
 const RANGES: AnalyticsRange[] = ["24h", "7d", "30d"];
@@ -99,6 +103,15 @@ function TimeseriesChart({ points, loading }: { points: Array<{ day: string; cou
   );
 }
 
+function joinErrorMessage(message: string, requestId?: string | null) {
+  return requestId ? `${message} Request ID: ${requestId}` : message;
+}
+
+function WarningMeta({ warnings }: { warnings?: AnalyticsWarning[] }) {
+  if (!warnings || warnings.length === 0) return null;
+  return <StatusBadge label={`${warnings.length} warning${warnings.length === 1 ? "" : "s"}`} tone="amber" />;
+}
+
 function TopContentTable({ items, loading }: { items: TopContentItem[]; loading: boolean }) {
   if (loading) return <LoadingState rows={4} />;
   if (items.length === 0) return <EmptyState title="No top content" message="Entity events will appear here." />;
@@ -129,29 +142,35 @@ function TopContentTable({ items, loading }: { items: TopContentItem[]; loading:
 function AdminAnalyticsContent() {
   const [range, setRange] = useState<AnalyticsRange>("7d");
   const [refreshKey, setRefreshKey] = useState(0);
-  const [overview, setOverview] = useState<SectionState<AnalyticsOverview>>({ data: null, loading: true, error: null });
-  const [timeseries, setTimeseries] = useState<SectionState<AnalyticsTimeseries>>({ data: null, loading: true, error: null });
+  const [overview, setOverview] = useState<SectionState<AnalyticsOverview>>({ data: null, loading: true, error: null, requestId: null, warnings: [] });
+  const [timeseries, setTimeseries] = useState<SectionState<AnalyticsTimeseries>>({ data: null, loading: true, error: null, requestId: null, warnings: [] });
   const [topContent, setTopContent] = useState<SectionState<{
     videos: TopContentItem[];
     places: TopContentItem[];
     routes: TopContentItem[];
     profiles: TopContentItem[];
-  }>>({ data: null, loading: true, error: null });
-  const [search, setSearch] = useState<SectionState<AnalyticsSearchInsights>>({ data: null, loading: true, error: null });
-  const [health, setHealth] = useState<SectionState<Awaited<ReturnType<typeof fetchAnalyticsHealth>>["health"]>>({
+  }>>({ data: null, loading: true, error: null, requestId: null, warnings: [] });
+  const [search, setSearch] = useState<SectionState<AnalyticsSearchInsights>>({ data: null, loading: true, error: null, requestId: null, warnings: [] });
+  const [health, setHealth] = useState<SectionState<AnalyticsHealth>>({
     data: null,
     loading: true,
     error: null,
+    requestId: null,
+    warnings: [],
   });
   const [events, setEvents] = useState<SectionState<{ rows: AnalyticsEventRow[]; total: number }>>({
     data: null,
     loading: true,
     error: null,
+    requestId: null,
+    warnings: [],
   });
   const [deadLetters, setDeadLetters] = useState<SectionState<{ rows: AnalyticsDeadLetterRow[]; total: number }>>({
     data: null,
     loading: true,
     error: null,
+    requestId: null,
+    warnings: [],
   });
   const [eventFilters, setEventFilters] = useState({
     event_name: "",
@@ -169,61 +188,71 @@ function AdminAnalyticsContent() {
 
   const loadAll = useCallback(
     (signal: AbortSignal) => {
-      setOverview((state) => ({ ...state, loading: true, error: null }));
-      setTimeseries((state) => ({ ...state, loading: true, error: null }));
-      setTopContent((state) => ({ ...state, loading: true, error: null }));
-      setSearch((state) => ({ ...state, loading: true, error: null }));
-      setHealth((state) => ({ ...state, loading: true, error: null }));
-      setEvents((state) => ({ ...state, loading: true, error: null }));
-      setDeadLetters((state) => ({ ...state, loading: true, error: null }));
+      setOverview((state) => ({ ...state, loading: true, error: null, requestId: null, warnings: [] }));
+      setTimeseries((state) => ({ ...state, loading: true, error: null, requestId: null, warnings: [] }));
+      setTopContent((state) => ({ ...state, loading: true, error: null, requestId: null, warnings: [] }));
+      setSearch((state) => ({ ...state, loading: true, error: null, requestId: null, warnings: [] }));
+      setHealth((state) => ({ ...state, loading: true, error: null, requestId: null, warnings: [] }));
+      setEvents((state) => ({ ...state, loading: true, error: null, requestId: null, warnings: [] }));
+      setDeadLetters((state) => ({ ...state, loading: true, error: null, requestId: null, warnings: [] }));
 
       void fetchAnalyticsOverview({ range, signal })
-        .then((result) => setOverview({ data: result.overview, loading: false, error: null }))
+        .then((result) => setOverview({ data: result.overview, loading: false, error: null, requestId: result.request_id, warnings: result.warnings || [] }))
         .catch((error) =>
           setOverview({
             data: null,
             loading: false,
             error: error instanceof AdminApiError ? error.message : "Failed to load overview.",
+            requestId: error instanceof AdminApiError ? error.requestId : null,
+            warnings: [],
           }),
         );
 
       void fetchAnalyticsTimeseries({ range, signal })
-        .then((result) => setTimeseries({ data: result.timeseries, loading: false, error: null }))
+        .then((result) => setTimeseries({ data: result.timeseries, loading: false, error: null, requestId: result.request_id, warnings: result.warnings || [] }))
         .catch((error) =>
           setTimeseries({
             data: null,
             loading: false,
             error: error instanceof AdminApiError ? error.message : "Failed to load timeseries.",
+            requestId: error instanceof AdminApiError ? error.requestId : null,
+            warnings: [],
           }),
         );
 
       void fetchAnalyticsTopContent({ range, signal })
-        .then((result) => setTopContent({ data: result.top_content, loading: false, error: null }))
+        .then((result) => setTopContent({ data: result.top_content, loading: false, error: null, requestId: result.request_id, warnings: result.warnings || [] }))
         .catch((error) =>
           setTopContent({
             data: null,
             loading: false,
             error: error instanceof AdminApiError ? error.message : "Failed to load top content.",
+            requestId: error instanceof AdminApiError ? error.requestId : null,
+            warnings: [],
           }),
         );
 
       void fetchAnalyticsSearch({ range, signal })
-        .then((result) => setSearch({ data: result.search, loading: false, error: null }))
+        .then((result) => setSearch({ data: result.search, loading: false, error: null, requestId: result.request_id, warnings: result.warnings || [] }))
         .catch((error) =>
           setSearch({
             data: null,
             loading: false,
             error: error instanceof AdminApiError ? error.message : "Failed to load search insights.",
+            requestId: error instanceof AdminApiError ? error.requestId : null,
+            warnings: [],
           }),
         );
 
       void fetchAnalyticsHealth(signal)
-        .then((result) => setHealth({ data: result.health, loading: false, error: null }))
+        .then((result) => setHealth({ data: result.health, loading: false, error: null, requestId: result.request_id, warnings: result.warnings || [] }))
         .catch((error) =>
           setHealth({
             data: null,
             loading: false,
             error: error instanceof AdminApiError ? error.message : "Failed to load health.",
+            requestId: error instanceof AdminApiError ? error.requestId : null,
+            warnings: [],
           }),
         );
 
@@ -239,13 +268,21 @@ function AdminAnalyticsContent() {
         signal,
       })
         .then((result) =>
-          setEvents({ data: { rows: result.events, total: result.pagination.total }, loading: false, error: null }),
+          setEvents({
+            data: { rows: result.events, total: result.pagination.total },
+            loading: false,
+            error: null,
+            requestId: result.request_id,
+            warnings: result.warnings || [],
+          }),
         )
         .catch((error) =>
           setEvents({
             data: null,
             loading: false,
             error: error instanceof AdminApiError ? error.message : "Failed to load events.",
+            requestId: error instanceof AdminApiError ? error.requestId : null,
+            warnings: [],
           }),
         );
 
@@ -255,6 +292,8 @@ function AdminAnalyticsContent() {
             data: { rows: result.dead_letters, total: result.pagination.total },
             loading: false,
             error: null,
+            requestId: result.request_id,
+            warnings: result.warnings || [],
           }),
         )
         .catch((error) =>
@@ -262,6 +301,8 @@ function AdminAnalyticsContent() {
             data: null,
             loading: false,
             error: error instanceof AdminApiError ? error.message : "Failed to load dead letters.",
+            requestId: error instanceof AdminApiError ? error.requestId : null,
+            warnings: [],
           }),
         );
     },
@@ -348,8 +389,8 @@ function AdminAnalyticsContent() {
       }
     >
       <section className="admin-panel">
-        <SectionHeader kicker="Overview" title="Core metrics" meta={health.data ? <StatusBadge label={health.data.status} tone={healthTone(health.data.status)} /> : null} />
-        {overview.error ? <ErrorState title="Overview unavailable" message={overview.error} /> : (
+        <SectionHeader kicker="Overview" title="Core metrics" meta={overview.warnings?.length ? <WarningMeta warnings={overview.warnings} /> : health.data ? <StatusBadge label={health.data.status} tone={healthTone(health.data.status)} /> : null} />
+        {overview.error ? <ErrorState title="Overview unavailable" message={joinErrorMessage(overview.error, overview.requestId)} /> : (
           <div className="admin-stats-grid">
             {overviewCards.map((card) => (
               <StatCard key={card.label} label={card.label} value={card.value} tone={card.tone} loading={overview.loading} />
@@ -360,8 +401,8 @@ function AdminAnalyticsContent() {
 
       <div className="admin-dashboard-layout">
         <section className="admin-panel">
-          <SectionHeader kicker="Timeseries" title="Events by day" />
-          {timeseries.error ? <ErrorState title="Timeseries unavailable" message={timeseries.error} /> : (
+          <SectionHeader kicker="Timeseries" title="Events by day" meta={<WarningMeta warnings={timeseries.warnings} />} />
+          {timeseries.error ? <ErrorState title="Timeseries unavailable" message={joinErrorMessage(timeseries.error, timeseries.requestId)} /> : (
             <TimeseriesChart points={timeseries.data?.events_by_day || []} loading={timeseries.loading} />
           )}
         </section>
@@ -384,7 +425,7 @@ function AdminAnalyticsContent() {
 
       <section className="admin-panel">
         <SectionHeader kicker="Top content" title="Videos, places, routes, profiles" />
-        {topContent.error ? <ErrorState title="Top content unavailable" message={topContent.error} /> : (
+        {topContent.error ? <ErrorState title="Top content unavailable" message={joinErrorMessage(topContent.error, topContent.requestId)} /> : (
           <div className="admin-dashboard-layout">
             <TopContentTable items={topContent.data?.videos || []} loading={topContent.loading} />
             <TopContentTable items={topContent.data?.places || []} loading={topContent.loading} />
@@ -396,7 +437,7 @@ function AdminAnalyticsContent() {
 
       <section className="admin-panel">
         <SectionHeader kicker="Search" title="Search insights (hashed only)" />
-        {search.error ? <ErrorState title="Search insights unavailable" message={search.error} /> : search.loading ? (
+        {search.error ? <ErrorState title="Search insights unavailable" message={joinErrorMessage(search.error, search.requestId)} /> : search.loading ? (
           <LoadingState rows={4} />
         ) : (
           <div className="admin-stats-grid">
@@ -419,7 +460,7 @@ function AdminAnalyticsContent() {
             Apply filters
           </button>
         </div>
-        {events.error ? <ErrorState title="Event explorer unavailable" message={events.error} /> : events.loading ? (
+        {events.error ? <ErrorState title="Event explorer unavailable" message={joinErrorMessage(events.error, events.requestId)} /> : events.loading ? (
           <LoadingState rows={6} />
         ) : (
           <>
@@ -474,8 +515,8 @@ function AdminAnalyticsContent() {
       </section>
 
       <section className="admin-panel">
-        <SectionHeader kicker="Health" title="Ingestion health" />
-        {health.error ? <ErrorState title="Health unavailable" message={health.error} /> : (
+        <SectionHeader kicker="Health" title="Ingestion health" meta={health.data ? <StatusBadge label={health.data.status} tone={healthTone(health.data.status)} /> : <WarningMeta warnings={health.warnings} />} />
+        {health.error ? <ErrorState title="Health unavailable" message={joinErrorMessage(health.error, health.requestId)} /> : (
           <div className="admin-stats-grid">
             <StatCard label="Events 5m" value={formatNumber(health.data?.events_last_5m)} loading={health.loading} />
             <StatCard label="Events 1h" value={formatNumber(health.data?.events_last_1h)} loading={health.loading} />
@@ -497,7 +538,7 @@ function AdminAnalyticsContent() {
 
       <section className="admin-panel">
         <SectionHeader kicker="Dead letters" title="Rejected events" />
-        {deadLetters.error ? <ErrorState title="Dead letters unavailable" message={deadLetters.error} /> : deadLetters.loading ? (
+        {deadLetters.error ? <ErrorState title="Dead letters unavailable" message={joinErrorMessage(deadLetters.error, deadLetters.requestId)} /> : deadLetters.loading ? (
           <LoadingState rows={5} />
         ) : (
           <AdminDataTable label="Dead letters">
