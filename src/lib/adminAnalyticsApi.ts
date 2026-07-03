@@ -131,6 +131,13 @@ export type AnalyticsDeadLetterRow = {
   } | null;
 };
 
+export type AnalyticsQualityWarning = {
+  code: string;
+  severity: "info" | "warning" | "critical" | string;
+  count?: number | null;
+  message: string;
+};
+
 export type AnalyticsHealth = {
   status: "healthy" | "warning" | "critical" | string;
   events_last_5m: number;
@@ -138,10 +145,32 @@ export type AnalyticsHealth = {
   events_last_24h: number;
   dead_letters_last_1h?: number;
   dead_letters_last_24h: number;
+  dead_letter_rate_24h?: number;
   rejection_reasons: BreakdownEntry[];
   rejection_sources: BreakdownEntry[];
   last_successful_received_at: string | null;
   latest_aggregation_day?: string | null;
+  aggregation_freshness?: {
+    latest_admin_metrics_day: string | null;
+    latest_overview_day: string | null;
+    is_today_aggregated: boolean;
+    is_yesterday_aggregated: boolean;
+  };
+  quality_warnings?: AnalyticsQualityWarning[];
+};
+
+export type AnalyticsAggregationDayResult = {
+  day: string;
+  ok: boolean;
+  message?: string;
+  code?: string;
+};
+
+export type AnalyticsDeadLetterSummary = {
+  last_24h: number;
+  last_7d: number;
+  by_reason: BreakdownEntry[];
+  by_source: BreakdownEntry[];
 };
 
 type RangeParams = {
@@ -230,6 +259,9 @@ export function fetchAnalyticsEvents(
     platform?: string;
     entity_type?: string;
     auth?: "authenticated" | "anonymous";
+    has_user_id?: boolean;
+    event_id?: string;
+    entity_id?: string;
     q?: string;
   } = {},
 ) {
@@ -241,11 +273,18 @@ export function fetchAnalyticsEvents(
   if (params.platform) search.set("platform", params.platform);
   if (params.entity_type) search.set("entity_type", params.entity_type);
   if (params.auth) search.set("auth", params.auth);
+  if (params.has_user_id != null) search.set("has_user_id", String(params.has_user_id));
+  if (params.event_id) search.set("event_id", params.event_id);
+  if (params.entity_id) search.set("entity_id", params.entity_id);
   if (params.q) search.set("q", params.q);
   return analyticsFetch<{ request_id: string; events: AnalyticsEventRow[]; pagination: { limit: number; offset: number; total: number }; warnings?: AnalyticsWarning[] }>(
     `/api/admin/analytics/events?${search}`,
     { signal: params.signal },
   );
+}
+
+export function getAnalyticsEvents(params: Parameters<typeof fetchAnalyticsEvents>[0] = {}) {
+  return fetchAnalyticsEvents(params);
 }
 
 export function fetchAnalyticsEventDetail(eventId: string, signal?: AbortSignal) {
@@ -255,9 +294,21 @@ export function fetchAnalyticsEventDetail(eventId: string, signal?: AbortSignal)
 }
 
 export function fetchAnalyticsHealth(signal?: AbortSignal) {
-  return analyticsFetch<{ request_id: string; health: AnalyticsHealth; diagnostics: AnalyticsDiagnostics; warnings: AnalyticsWarning[] }>("/api/admin/analytics/health", {
+  return analyticsFetch<{
+    request_id: string;
+    status: AnalyticsHealth["status"];
+    health: AnalyticsHealth;
+    diagnostics: AnalyticsDiagnostics;
+    quality_warnings?: AnalyticsQualityWarning[];
+    aggregation_freshness?: AnalyticsHealth["aggregation_freshness"];
+    warnings: AnalyticsWarning[];
+  }>("/api/admin/analytics/health", {
     signal,
   });
+}
+
+export function getAnalyticsHealth(signal?: AbortSignal) {
+  return fetchAnalyticsHealth(signal);
 }
 
 export function fetchAnalyticsDeadLetters(
@@ -269,15 +320,28 @@ export function fetchAnalyticsDeadLetters(
   if (params.source) search.set("source", params.source);
   return analyticsFetch<{
     request_id: string;
+    items?: AnalyticsDeadLetterRow[];
     dead_letters: AnalyticsDeadLetterRow[];
+    summary?: AnalyticsDeadLetterSummary;
     pagination: { limit: number; offset: number; total: number };
     warnings?: AnalyticsWarning[];
   }>(`/api/admin/analytics/dead-letters?${search}`, { signal: params.signal });
 }
 
-export function runAnalyticsAggregation(day: string) {
-  return analyticsFetch<{ request_id: string; day: string; message: string }>("/api/admin/analytics/aggregate", {
+export function getAnalyticsDeadLetters(params: Parameters<typeof fetchAnalyticsDeadLetters>[0] = {}) {
+  return fetchAnalyticsDeadLetters(params);
+}
+
+export function runAnalyticsAggregation(input: { day: string } | { preset: "today" | "yesterday" | "last_7_days" } | string) {
+  const body = typeof input === "string" ? { day: input } : input;
+  return analyticsFetch<{
+    request_id: string;
+    days: AnalyticsAggregationDayResult[];
+    warnings: AnalyticsWarning[];
+    message?: string;
+    day?: string;
+  }>("/api/admin/analytics/aggregate", {
     method: "POST",
-    body: JSON.stringify({ day }),
+    body: JSON.stringify(body),
   });
 }

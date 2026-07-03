@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 // Plain ESM handlers are shared with Vercel serverless functions.
 import {
   dispatchAdminAnalyticsApi,
+  handleCronAnalyticsAggregate,
 } from "./api-lib/analytics/analyticsAdminApi.mjs";
 // @ts-ignore
 import { handleEvents } from "./api-lib/analytics/analyticsRouter.mjs";
@@ -184,6 +185,10 @@ app.all("/api/admin/analytics/events/:eventId", (req, res) => {
     req,
     res,
   );
+});
+
+app.all("/api/cron/analytics/aggregate", (req, res) => {
+  void sendFetchResponse(handleCronAnalyticsAggregate, req, res);
 });
 
 app.all("/api/admin/system/health", (req, res) => {
