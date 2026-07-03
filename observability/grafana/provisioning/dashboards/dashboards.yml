@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: Explore
+    orgId: 1
+    folder: Explore
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

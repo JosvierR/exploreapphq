@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import WebSocket from "ws";
-import { logger, requestLogMeta } from "./logger.mjs";
-import { incrementCounter, observeTimer, recordSupabaseError } from "./metrics.mjs";
-import { requestIdFromRequest } from "./requestContext.mjs";
-import { jsonResponse, optionsResponse, requireAdmin } from "./supabaseModeration.mjs";
+import { jsonResponse, optionsResponse } from "../http/responses.mjs";
+import { requestIdFromRequest } from "../http/requestContext.mjs";
+import { requireAdmin } from "../moderation/supabaseModeration.mjs";
+import { logger, requestLogMeta } from "../observability/logger.mjs";
+import { incrementCounter, observeTimer, recordSupabaseError } from "../observability/metrics.mjs";
 
 const ANALYTICS_EVENTS_TABLE = "analytics_events";
 const ANALYTICS_DEAD_LETTERS_TABLE = "analytics_event_dead_letters";

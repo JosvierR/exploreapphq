@@ -13,7 +13,7 @@ import {
   jsonResponse,
   optionsResponse,
 } from "./supabaseModeration.mjs";
-import { resolveApiRoute } from "./resolveApiRoute.mjs";
+import { resolveApiRoute } from "../http/resolveApiRoute.mjs";
 
 /**
  * Supabase moderation + admin API routes.

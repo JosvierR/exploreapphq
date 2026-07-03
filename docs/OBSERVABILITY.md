@@ -94,3 +94,36 @@ Server-only variables:
 - `GRAFANA_LOKI_TOKEN`
 
 If not configured, logs go to stdout only. If Loki push fails, the user request still succeeds and the failure is logged as a warning.
+
+Local Loki (Docker) does not require a token when `GRAFANA_LOKI_URL` points at `localhost` / `127.0.0.1`.
+
+## Local OSS stack (free)
+
+Code lives under `observability/`:
+
+- Prometheus scrapes `http://host.docker.internal:3001/api/metrics`
+- Grafana provisions Prometheus + Loki datasources and an Explore API dashboard
+- Loki receives structured JSON logs from the API
+
+```bash
+# .env
+METRICS_TOKEN=local-dev-metrics-token
+GRAFANA_LOGS_ENABLED=true
+GRAFANA_LOKI_URL=http://localhost:3100/loki/api/v1/push
+
+npm run obs:up
+npm run dev:api
+```
+
+| Tool | URL |
+|------|-----|
+| Grafana | http://localhost:3000 (`admin` / `admin`) |
+| Prometheus | http://localhost:9090 |
+| Loki | http://localhost:3100 |
+
+Implementation modules:
+
+- `server/api-lib/observability/logger.mjs`
+- `server/api-lib/observability/metrics.mjs`
+- `server/api-lib/observability/lokiLogger.mjs`
+

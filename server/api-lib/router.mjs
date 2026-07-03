@@ -3,20 +3,20 @@ import adminWaitlist from "../../netlify/functions/admin-waitlist.mjs";
 import adminNotifyLaunch from "../../netlify/functions/admin-notify-launch.mjs";
 import adminBroadcast from "../../netlify/functions/admin-broadcast.mjs";
 import feedbackSubmit from "../../netlify/functions/feedback-submit.mjs";
-import { handleEvents } from "./analyticsRouter.mjs";
-import { dispatchAdminAnalyticsApi } from "./analyticsAdminApi.mjs";
-import { dispatchModerationApi } from "./moderationRouter.mjs";
-import { resolveApiRoute } from "./resolveApiRoute.mjs";
+import { handleEvents } from "./analytics/analyticsRouter.mjs";
+import { dispatchAdminAnalyticsApi } from "./analytics/analyticsAdminApi.mjs";
+import { resolveApiRoute } from "./http/resolveApiRoute.mjs";
+import { ensureRequestId, responseHeadersWithRequestId, routePath } from "./http/requestContext.mjs";
+import { jsonResponse, optionsResponse } from "./http/responses.mjs";
+import { dispatchModerationApi } from "./moderation/moderationRouter.mjs";
+import { errorSummary, logger, requestLogMeta } from "./observability/logger.mjs";
+import { recordApiRequest } from "./observability/metrics.mjs";
 import {
   handleAdminSystemHealth,
   handleAdminSystemMetrics,
   handleBootstrapBoardAdmins,
   handleTokenMetrics,
-} from "./systemRouter.mjs";
-import { jsonResponse, optionsResponse } from "./supabaseModeration.mjs";
-import { errorSummary, logger, requestLogMeta } from "./logger.mjs";
-import { recordApiRequest } from "./metrics.mjs";
-import { ensureRequestId, responseHeadersWithRequestId, routePath } from "./requestContext.mjs";
+} from "./system/systemRouter.mjs";
 
 function isModerationRoute(route) {
   return (
@@ -36,6 +36,12 @@ function isModerationRoute(route) {
 
 /**
  * Single Vercel serverless entry — all /api/* requests rewrite here.
+ *
+ * Domain map:
+ * - moderation/*  → reports, admin ops, health
+ * - analytics/*   → events ingestion + admin insights
+ * - system/*      → observability health/metrics + bootstrap
+ * - netlify/*     → waitlist/feedback legacy handlers
  */
 export async function dispatchApi(incomingRequest) {
   const { request, requestId } = ensureRequestId(incomingRequest);

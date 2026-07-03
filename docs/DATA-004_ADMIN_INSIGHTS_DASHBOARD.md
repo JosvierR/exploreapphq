@@ -239,6 +239,6 @@ npx vercel logs https://www.exploreapphq.com --request-id <request_id> --expand
 
 ```bash
 npm test
-node --check server/api-lib/analyticsAdminApi.mjs
-node --check server/api-lib/apiRouter.mjs
+node --check server/api-lib/analytics/analyticsAdminApi.mjs
+node --check server/api-lib/router.mjs
 ```

@@ -140,6 +140,8 @@ function formatLabels(labels = {}) {
   return `{${entries.map(([key, value]) => `${key}="${escapeLabel(value)}"`).join(",")}}`;
 }
 
+const processStartedAt = Date.now();
+
 export function metricsPrometheus() {
   const lines = [
     "# HELP explore_api_requests_total Total API requests handled by this serverless instance.",
@@ -156,6 +158,10 @@ export function metricsPrometheus() {
     lines.push(`${timer.name}_sum${labels} ${Number(timer.sum.toFixed(3))}`);
     lines.push(`${timer.name}_p95${labels} ${Number(quantile(timer.values, 0.95).toFixed(3))}`);
   }
+
+  lines.push("# HELP explore_process_uptime_seconds Process uptime in seconds.");
+  lines.push("# TYPE explore_process_uptime_seconds gauge");
+  lines.push(`explore_process_uptime_seconds ${((Date.now() - processStartedAt) / 1000).toFixed(3)}`);
 
   return `${lines.join("\n")}\n`;
 }

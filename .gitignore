@@ -22,3 +22,4 @@ dev-server*.log
 # Local Vercel folder
 .vercel
 vercel.env
+

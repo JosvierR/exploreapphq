@@ -1,5 +1,5 @@
+import { requestIdFromRequest } from "../http/requestContext.mjs";
 import { pushLokiLog } from "./lokiLogger.mjs";
-import { requestIdFromRequest } from "./requestContext.mjs";
 
 const SERVICE = "explore-web-admin";
 const REDACTED = "[redacted]";

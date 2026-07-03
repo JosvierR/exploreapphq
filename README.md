@@ -1,236 +1,105 @@
-# Explore Atlas Web
+# Explore Web / Admin
 
-Marketing site and future web app for **Explore Atlas** — a geospatial social network for real-world discovery.
+Marketing site and admin console for **Explore** — geospatial social discovery.
 
 ## Stack
 
-- [Vite](https://vitejs.dev/) + [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
-- [React Router](https://reactrouter.com/) for client-side routing
-- [Express](https://expressjs.com/) API + JSON waitlist (`data/waitlist.json`)
-- [Mailpit](https://mailpit.axllent.dev/) for local email (SMTP)
-- CSS design system in `src/styles/global.css`
+- Vite + React + TypeScript
+- React Router
+- Express (local API) + Vercel Serverless (production API)
+- Supabase (admin auth, moderation, analytics)
+- Firebase (waitlist / legacy)
+- Prometheus + Grafana + Loki (observability)
 
-## Project structure
+## Architecture
+
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ```
-├── public/                 # Static assets (favicon, redirects)
-├── src/
-│   ├── app/                # App shell (router)
-│   ├── pages/
-│   │   ├── marketing/      # Landing, legal, 404
-│   │   └── app/            # Future authenticated web app
-│   ├── components/
-│   │   ├── layout/         # Header, footer, layouts
-│   │   ├── sections/       # Landing page sections
-│   │   └── ui/             # Reusable UI primitives
-│   ├── features/           # Cross-cutting features (i18n, auth later)
-│   ├── hooks/
-│   ├── lib/                # Constants, utilities
-│   ├── locales/            # EN / ES copy
-│   └── styles/
-├── server/                 # API (auth + waitlist + email)
-├── data/                   # SQLite DB (gitignored)
-├── legacy/                 # Old static template (reference only)
-└── dist/                   # Production build output
+api/index.js                 # only Vercel function entrypoint
+server/api-lib/
+  http/                      # request IDs, responses, adapters
+  observability/             # logs, metrics, Loki
+  moderation/                # reports + admin ops
+  analytics/                 # events ingest + insights
+  system/                    # health / metrics / bootstrap
+  router.mjs                 # /api/* dispatcher
+src/pages/admin/             # admin UI
+observability/               # local Prometheus/Grafana/Loki
 ```
 
-## Access / sign up (Firebase)
-
-| Route | Who | What |
-|--------|-----|------|
-| `/access` | Everyone | Email only → Firestore waitlist + welcome email (no login UI) |
-| `/team` | Admins only | Hidden team login (not linked on site) → Firebase Auth |
-
-### Setup Firebase
-
-1. [Firebase Console](https://console.firebase.google.com/) → create project → add **Web app** → copy config into `.env` as `VITE_FIREBASE_*`.
-2. **Authentication** → Email/Password → enable.
-3. **Authentication** → Users → Add user (your admin email + password).
-4. Set `VITE_ADMIN_EMAILS=your@email.com` in `.env` and Netlify env vars.
-5. **Firestore** → create database → deploy rules: `firebase deploy --only firestore:rules` (or paste `firestore.rules` in the console).
-
-### Local dev
-
-```bash
-npm run dev:all   # web + API (for welcome emails via Mailpit)
-docker compose up -d
-```
-
-- Public: http://localhost:5173/access  
-- Team: http://localhost:5173/team  
-
-Legacy API admin (`POST /api/access` + `ADMIN_PASSWORD`) still works for scripts; the site UI uses Firebase.
-
-## Commands
+## Local development
 
 ```bash
 npm install
 
-# Terminal 1 — Mailpit (Docker)
+# Optional: mail + observability
 docker compose up -d
-# Web UI: http://localhost:8025
+npm run obs:up
 
-# Terminal 2 — web + API together
+# Web + API
 npm run dev:all
-
-# Or separately:
-npm run dev       # frontend → http://localhost:5173
-npm run dev:api   # API → http://localhost:3001
 ```
+
+| Service | URL |
+|---------|-----|
+| Web | http://localhost:5173 |
+| API | http://localhost:3001 |
+| Mailpit | http://localhost:8025 |
+| Grafana | http://localhost:3000 (`admin` / `admin`) |
+| Prometheus | http://localhost:9090 |
+
+Copy `.env.example` → `.env` and fill secrets.
+
+For local metrics/logs:
+
+```env
+METRICS_TOKEN=local-dev-metrics-token
+GRAFANA_LOGS_ENABLED=true
+GRAFANA_LOKI_URL=http://localhost:3100/loki/api/v1/push
+```
+
+## Commands
 
 ```bash
-npm run build    # Output → dist/
-npm run preview  # Preview production build
+npm run dev          # frontend
+npm run dev:api      # API
+npm run dev:all      # both
+npm run build        # production web build
+npm run lint
+npm test
+npm run obs:up       # Prometheus + Grafana + Loki
+npm run obs:down
 ```
 
-Copy `.env.example` to `.env` to customize admin credentials and SMTP.
+## Admin
 
-## Deploy on Vercel (production)
+| Route | Purpose |
+|-------|---------|
+| `/admin` | Dashboard / ops sections |
+| `/admin/analytics` | Product + ingestion insights |
+| `/admin/reports` | Moderation queue |
+| `/admin/waitlist` | Waitlist + broadcast |
 
-**Full checklist:** [docs/VERCEL_SETUP.md](docs/VERCEL_SETUP.md)
+Auth: Supabase admin accounts (`admin_users` table).
 
-1. Import repo at [vercel.com/new](https://vercel.com/new) (Framework: **Vite**).
-2. Run `npm run vercel:env` (copies `netlify.env` → `vercel.env` with Vercel URL) or use `vercel.env.example`.
-3. Vercel → **Environment Variables → Import .env** → paste `vercel.env`.
-4. Deploy. APIs: `/api/waitlist/signup`, `/api/feedback/submit`, `/api/admin/*`.
-5. Firebase → Authorized domains → add `exploreapphq.vercel.app`.
-6. **Analytics** + **Speed Insights** → Enable both → redeploy if needed.
+## Production
 
-### Supabase moderation
+- Host: **Vercel** (`docs/VERCEL_SETUP.md`)
+- Single serverless function: `api/index.js`
+- Metrics: `GET /api/metrics` with `Authorization: Bearer $METRICS_TOKEN`
+- Optional Grafana Cloud Loki via `GRAFANA_*` env vars
 
-The mobile report API and admin moderation panel use the production Supabase project `ookbeuiavzjhvezvamfu`.
+## Docs
 
-- Vercel env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`
-- Migration: `supabase/migrations/20260629170000_moderation.sql`
-- Admin UI: `/admin`, `/admin/reports`
-- Mobile API: `POST /api/reports`
-- Full setup and test flow: [docs/SUPABASE_MODERATION.md](docs/SUPABASE_MODERATION.md)
-
-## Probar
-
-| Ruta | Uso |
-|------|-----|
-| `/access` | Waitlist |
-| `/feedback` | Ideas |
-| `/team` | Admin: `admin@example.com` / `Admin` |
-| `/admin` | Supabase moderation dashboard |
-| `/admin/reports` | Moderation reports |
-| `/admin/waitlist` | Panel + broadcast |
-
-## Deploy on Netlify (legacy)
-
-Netlify hosts **only the frontend** (`dist/`). The API (`server/`) must run elsewhere (e.g. [Railway](https://railway.app), [Render](https://render.com)).
-
-**Full Netlify checklist:** see [docs/NETLIFY_SETUP.md](docs/NETLIFY_SETUP.md)
-
-### 1. Netlify (site)
-
-Connect the GitHub repo in Netlify. Build settings are in `netlify.toml`:
-
-| Setting | Value |
-|---------|--------|
-| Build command | `npm run build` |
-| Publish directory | `dist` |
-
-Deploy → `https://exploreapphq.com` shows the landing.
-
-### 2. API (Railway / Render — example)
-
-Create a **Web Service** from the same repo:
-
-- **Start command:** `npx tsx server/index.ts` (or `npm run build:api` + `node dist/server/index.js` if you add a start script)
-- **Root directory:** repo root
-- Add env vars from `.env.example` (`JWT_SECRET`, `SMTP_*`, `DB_PATH`, store URLs, etc.)
-- Attach a **persistent volume** for `data/explore.db` (SQLite)
-- Use real SMTP (Resend, SendGrid, SES) — not Mailpit
-
-Copy the public URL, e.g. `https://explore-api-production.up.railway.app`.
-
-### 3. Connect Netlify → API
-
-In `netlify.toml`, uncomment the `/api/*` redirect and set your API URL:
-
-```toml
-[[redirects]]
-  from = "/api/*"
-  to = "https://YOUR-API-URL.up.railway.app/api/:splat"
-  status = 200
-  force = true
-```
-
-Redeploy Netlify. The browser keeps calling `/api/access` on `exploreapphq.com`; Netlify forwards it to Railway.
-
-**Alternative:** set `VITE_API_URL=https://your-api...` in Netlify → Site settings → Environment variables (build time), without the proxy rule.
-
-### 4. Checklist
-
-- [ ] Netlify build succeeds (`npm run build`)
-- [ ] API health: `https://YOUR-API/api/health` → `{"ok":true}`
-- [ ] Signup on `https://exploreapphq.com/access` works
-- [ ] Confirmation email arrives (production SMTP)
-- [ ] `data/waitlist.json` on a persistent disk (Railway volume)
-
-### Other static hosts
-
-`public/_redirects` works on Netlify-style hosts. For GitHub Pages, copy `index.html` to `404.html` for SPA routing.
-
-## Waitlist & emails
-
-Every signup email is also stored in **`data/waitlist.json`** (and Firestore when Firebase is configured).
-
-| What | How |
-|------|-----|
-| **Who registered?** | `GET /api/admin/waitlist` with admin Bearer token, or open the DB |
-| **How many?** | Response includes `stats.total`, `stats.pendingLaunch`, `stats.notified` |
-| **Welcome email** | Sent automatically on signup (HTML, Explore branding) |
-| **“App is ready” blast** | When the app launches, run once (see below) |
-
-### View registrants (admin)
-
-1. Log in at `/access` as `admin@example.com`.
-2. Copy the token from DevTools → Application → sessionStorage → `explore-auth-token` (or your auth key).
-3. Call the API:
-
-```bash
-curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:3001/api/admin/waitlist
-```
-
-### Notify everyone the app is ready
-
-**Dry run** (list emails only, no send):
-
-```bash
-npm run waitlist:notify:dry
-```
-
-**Send launch email** to everyone not yet notified:
-
-```bash
-npm run waitlist:notify
-```
-
-Or via HTTP:
-
-```bash
-# Preview
-curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
-  "http://localhost:3001/api/admin/waitlist/notify-launch?dryRun=1"
-
-# Send
-curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
-  http://localhost:3001/api/admin/waitlist/notify-launch
-```
-
-Each successful send sets `launch_notified_at` so you do not double-email the same person.
-
-**Production:** point `SMTP_*` to a real provider (Resend, SendGrid, SES). Mailpit is for local testing only — open http://localhost:8025 to preview emails.
-
-## i18n
-
-Toggle **EN / ES** in the header. Preference is stored in `localStorage` (`explore-lang`).
-
-Copy lives in `src/locales/messages.ts`.
-
-## Roadmap: web app
-
-When adding the product UI, mount routes under `/app/*` in `src/app/router.tsx` and build features in `src/pages/app/` + `src/features/`.
+| Doc | Topic |
+|-----|-------|
+| `docs/ARCHITECTURE.md` | System map |
+| `docs/ADMIN_PLATFORM.md` | Admin product surface |
+| `docs/OBSERVABILITY.md` | Logs + metrics |
+| `docs/GRAFANA_DASHBOARD.md` | Grafana panels |
+| `docs/SECURITY_ADMIN_WEB.md` | Secrets / redaction |
+| `docs/SUPABASE_MODERATION.md` | Moderation API |
+| `docs/ANALYTICS_EVENTS_API.md` | Events ingestion |
+| `docs/DATA-004_ADMIN_INSIGHTS_DASHBOARD.md` | Analytics dashboard |
+| `docs/VERCEL_SETUP.md` | Deploy |

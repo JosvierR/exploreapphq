@@ -1,8 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import WebSocket from "ws";
-import { appEnvironment, appVersion, errorSummary, logger, requestLogMeta } from "./logger.mjs";
-import { recordAdminAction, recordModerationAction, recordSupabaseError } from "./metrics.mjs";
-import { requestIdFromRequest } from "./requestContext.mjs";
+import { jsonResponse, optionsResponse } from "../http/responses.mjs";
+import { requestIdFromRequest } from "../http/requestContext.mjs";
+import { appEnvironment, appVersion, errorSummary, logger, requestLogMeta } from "../observability/logger.mjs";
+import { recordAdminAction, recordModerationAction, recordSupabaseError } from "../observability/metrics.mjs";
+
+export { jsonResponse, optionsResponse };
 
 const CONTENT_TYPES = new Set(["video", "user", "place", "place_photo"]);
 const REPORT_REASONS = new Set([
@@ -33,37 +36,12 @@ const ACTION_TYPES = new Set([
   "remove_content",
 ]);
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Request-ID",
-  "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
-  "Access-Control-Expose-Headers": "X-Request-ID",
-};
-
 class HttpError extends Error {
   constructor(status, message) {
     super(message);
     this.name = "HttpError";
     this.status = status;
   }
-}
-
-export function jsonResponse(status, body, headers = {}) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      ...CORS_HEADERS,
-      ...headers,
-    },
-  });
-}
-
-export function optionsResponse() {
-  return new Response(null, {
-    status: 204,
-    headers: CORS_HEADERS,
-  });
 }
 
 function methodNotAllowed() {
