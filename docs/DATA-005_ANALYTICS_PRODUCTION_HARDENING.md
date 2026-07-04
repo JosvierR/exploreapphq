@@ -260,6 +260,22 @@ limit 10;
 
 ## Troubleshooting aggregation failures
 
+### `DELETE requires a WHERE clause` (code `21000` / `analytics_rpc_unsafe_mutation`)
+
+This means the RPC parameter and service role are fine, but the function body runs a
+`DELETE`/`UPDATE` without `WHERE` under `service_role` (blocked by safe-update rules).
+SQL Editor still works because it uses a privileged role.
+
+Run in Supabase SQL Editor:
+
+```sql
+alter function public.aggregate_analytics_events_for_day(date) security definer;
+alter function public.aggregate_analytics_events_for_day(date) set search_path = public;
+grant execute on function public.aggregate_analytics_events_for_day(date) to service_role;
+```
+
+Then retry the cron endpoint. No redeploy is required for this SQL fix.
+
 If cron/admin aggregate returns `analytics_aggregation_failed` or `analytics_rpc_not_found`:
 
 1. Confirm the function exists and note argument names:
