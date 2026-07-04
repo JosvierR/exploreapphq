@@ -101,6 +101,15 @@ const genericFailClient = {
 const genericFailed = await runAnalyticsAggregationForDay(genericFailClient, todayUtc());
 assert.equal(genericFailed.code, "analytics_aggregation_failed", "generic RPC error code");
 
+const unsafeDeleteClient = {
+  async rpc() {
+    return { data: null, error: { code: "21000", message: "DELETE requires a WHERE clause" } };
+  },
+};
+const unsafeDelete = await runAnalyticsAggregationForDay(unsafeDeleteClient, todayUtc());
+assert.equal(unsafeDelete.code, "analytics_rpc_unsafe_mutation", "unsafe DELETE maps to dedicated code");
+assert.match(unsafeDelete.message, /SECURITY DEFINER|WHERE/i, "unsafe DELETE message is actionable");
+
 const windowResult = await runAnalyticsAggregationWindow(successClient, resolveAggregationPreset("last_7_days"));
 assert.equal(windowResult.ok, true, "window aggregation succeeds");
 assert.equal(windowResult.days.length, 7, "window returns 7 days");
