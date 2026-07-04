@@ -284,6 +284,12 @@ export function classifySupabaseAnalyticsError(error) {
   if (code === "42501" || message.includes("permission denied")) return "analytics_permission_denied";
   if (code === "23514" || code === "23502" || code === "23503") return "analytics_constraint_failed";
   if (code === "23505") return "analytics_duplicate_conflict";
+  if (
+    code === "PGRST202" ||
+    (message.includes("could not find the function") && message.includes("schema cache"))
+  ) {
+    return "analytics_rpc_not_found";
+  }
   if (message.includes("schema cache") && hint.includes("reload schema")) return "analytics_schema_cache_stale";
 
   return "analytics_unknown_supabase_error";

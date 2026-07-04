@@ -51,12 +51,30 @@ assert.equal(success.message, "Aggregation completed", "success message");
 
 const failClient = {
   async rpc() {
-    return { data: null, error: { code: "42883", message: "function missing" } };
+    return { data: null, error: { code: "PGRST202", message: "Could not find the function in the schema cache" } };
   },
 };
 const failed = await runAnalyticsAggregationForDay(failClient, todayUtc());
 assert.equal(failed.ok, false, "failed RPC returns ok=false");
-assert.equal(failed.code, "analytics_aggregation_failed", "failed RPC code");
+assert.equal(failed.code, "analytics_rpc_not_found", "missing RPC code");
+
+let attempts = 0;
+const fallbackClient = {
+  async rpc(_name, args) {
+    attempts += 1;
+    if (Object.prototype.hasOwnProperty.call(args, "target_day")) {
+      return { data: null, error: { code: "PGRST202", message: "Could not find the function public.aggregate_analytics_events_for_day(target_day) in the schema cache" } };
+    }
+    if (Object.prototype.hasOwnProperty.call(args, "day")) {
+      return { data: null, error: null };
+    }
+    return { data: null, error: { code: "PGRST202", message: "Could not find the function" } };
+  },
+};
+const recovered = await runAnalyticsAggregationForDay(fallbackClient, todayUtc());
+assert.equal(recovered.ok, true, "RPC recovers with alternate argument name");
+assert.equal(recovered.param_name, "day", "uses day argument name");
+assert.ok(attempts >= 2, "tries more than one argument name");
 
 const windowResult = await runAnalyticsAggregationWindow(successClient, resolveAggregationPreset("last_7_days"));
 assert.equal(windowResult.ok, true, "window aggregation succeeds");

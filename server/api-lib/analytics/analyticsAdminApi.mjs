@@ -1108,12 +1108,22 @@ async function runAggregationRequest(request, { trigger, requireAdminAuth }) {
       requestId: requestIdFromRequest(request),
     });
 
+    const route = trigger === "cron" ? "cron/analytics/aggregate" : "admin/analytics/aggregate";
     logger.info("Analytics aggregation completed", {
-      ...requestLogMeta(request, trigger === "cron" ? "cron/analytics/aggregate" : "admin/analytics/aggregate"),
+      ...requestLogMeta(request, route),
       trigger,
       status: result.ok ? 200 : 500,
       duration_ms: Date.now() - started,
       days: result.days.map((item) => item.day),
+      failure_codes: (result.failures || []).map((item) => item.code),
+      failures: (result.failures || []).map((item) => ({
+        day: item.day,
+        code: item.code,
+        message: item.message,
+        param_name: item.param_name,
+        error: item.error,
+        duration_ms: item.duration_ms,
+      })),
       warning_codes: (result.warnings || []).map((item) => item.code).filter(Boolean),
     });
 
