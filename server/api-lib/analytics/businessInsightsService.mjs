@@ -5,6 +5,9 @@ const MAX_RANGE_DAYS = 90;
 const LOCATION_MIN_EVENTS = 3;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const VALID_PRESETS = new Set(["24h", "7d", "30d", "90d"]);
+const VALID_PLATFORMS = new Set(["ios", "android", "web", "server"]);
+const VALID_SOURCES = new Set(["mobile", "web", "backend", "admin"]);
+const VALID_ENTITY_TYPES = new Set(["video", "place", "route", "profile", "user", "search", "screen", "system"]);
 
 const VIEW_EVENTS = new Set([
   "content_view",
@@ -86,11 +89,62 @@ function parseDay(value, label) {
   return day;
 }
 
+function optionalWhitelist(value, allowed, label) {
+  if (value == null || value === "" || value === "all") return null;
+  if (!allowed.has(value)) {
+    throw new BusinessInsightsError(400, `Invalid ${label}.`, { code: "business_invalid_filter" });
+  }
+  return value;
+}
+
+function previousRangeFor(params) {
+  const startMs = Date.parse(params.since);
+  const endMs = Date.parse(params.until);
+  const duration = endMs - startMs;
+  const previousUntil = new Date(startMs).toISOString();
+  const previousSince = new Date(startMs - duration).toISOString();
+  return {
+    ...params,
+    preset: "previous",
+    start: utcDay(new Date(previousSince)),
+    end: utcDay(new Date(startMs - 1)),
+    since: previousSince,
+    until: previousUntil,
+  };
+}
+
+export function buildDelta(current, previous) {
+  const absolute = current - previous;
+  if (previous === 0) {
+    return {
+      current,
+      previous,
+      absolute,
+      percent: null,
+      label: current > 0 ? "New activity" : "No previous data",
+    };
+  }
+  return {
+    current,
+    previous,
+    absolute,
+    percent: Math.round((absolute / previous) * 1000) / 10,
+    label: null,
+  };
+}
+
 export function resolveBusinessRange(request) {
   const url = new URL(request.url);
   const preset = url.searchParams.get("range") || "7d";
   const startParam = url.searchParams.get("start");
   const endParam = url.searchParams.get("end");
+  const compare = url.searchParams.get("compare") === "previous";
+  const platform = optionalWhitelist(url.searchParams.get("platform"), VALID_PLATFORMS, "platform");
+  const source = optionalWhitelist(url.searchParams.get("source"), VALID_SOURCES, "source");
+  let entityType = optionalWhitelist(url.searchParams.get("entity_type"), VALID_ENTITY_TYPES, "entity_type");
+  if (entityType === "profile") entityType = "user";
+
+  const filters = { platform, source, entity_type: entityType, compare };
 
   if (startParam || endParam) {
     if (!startParam || !endParam) {
@@ -111,6 +165,7 @@ export function resolveBusinessRange(request) {
       end,
       since: `${start}T00:00:00.000Z`,
       until: `${addDays(end, 1)}T00:00:00.000Z`,
+      ...filters,
     };
   }
 
@@ -127,6 +182,7 @@ export function resolveBusinessRange(request) {
     end: utcDay(untilDate),
     since: sinceDate.toISOString(),
     until: untilDate.toISOString(),
+    ...filters,
   };
 }
 
@@ -188,15 +244,20 @@ async function detectDeadLetterTimeColumn(supabase) {
   return null;
 }
 
-async function fetchEventsSample(supabase, since, until) {
-  const { data, error } = await supabase
+async function fetchEventsSample(supabase, params) {
+  let query = supabase
     .from(EVENTS_TABLE)
     .select("event_id, event_name, entity_type, entity_id, user_id, anonymous_id, session_id, source, platform, country, region, city, received_at, occurred_at, properties, context")
-    .gte("received_at", since)
-    .lt("received_at", until)
+    .gte("received_at", params.since)
+    .lt("received_at", params.until)
     .order("received_at", { ascending: false })
     .limit(SAMPLE_LIMIT);
 
+  if (params.platform) query = query.eq("platform", params.platform);
+  if (params.source) query = query.eq("source", params.source);
+  if (params.entity_type) query = query.eq("entity_type", params.entity_type);
+
+  const { data, error } = await query;
   if (error) throw error;
   return data || [];
 }
@@ -370,7 +431,12 @@ function buildContentSections(rows) {
 function buildBaseWarnings(rows) {
   const warnings = [];
   if (rows.length === 0) {
-    warnings.push(warning("no_events_in_range", "No analytics events were found in the selected range."));
+    warnings.push(
+      warning(
+        "no_events_in_range",
+        "No analytics events were found in the selected range. Release a mobile build with analytics enabled, ask testers to use the app, then refresh.",
+      ),
+    );
   }
   if (rows.length >= SAMPLE_LIMIT) {
     warnings.push(warning("sample_capped", `Insights are computed from the latest ${SAMPLE_LIMIT} events in range.`, "info"));
@@ -380,19 +446,23 @@ function buildBaseWarnings(rows) {
     warnings.push(
       warning(
         "no_mobile_events_in_range",
-        "No mobile analytics events were found in this range. DATA-003 may still be pending QA/release.",
+        "No mobile analytics events were found. DATA-003 may not be released to testers yet. Expected events: app_open, screen_view, content views, search, save, like, share.",
+      ),
+    );
+  }
+  const hasContentIds = rows.some((row) => row.entity_id && ["video", "place", "route", "user", "profile"].includes(row.entity_type));
+  if (rows.length > 0 && !hasContentIds) {
+    warnings.push(
+      warning(
+        "no_content_entity_id",
+        "Content IDs are missing. Content rankings need entity_type and entity_id events.",
       ),
     );
   }
   return warnings;
 }
 
-export async function getBusinessOverview(supabase, params) {
-  const rows = await fetchEventsSample(supabase, params.since, params.until);
-  const dead = await countDeadLetters(supabase, params.since, params.until);
-  const warnings = buildBaseWarnings(rows);
-  if (dead.warning) warnings.push(dead.warning);
-
+function buildOverviewSummary(rows, deadCount) {
   const appOpens = rows.filter((row) => APP_OPEN_EVENTS.has(row.event_name)).length;
   const contentViews = rows.filter(isViewEvent).length;
   const actions = rows.filter(isActionEvent).length;
@@ -410,30 +480,47 @@ export async function getBusinessOverview(supabase, params) {
   const activeAuthenticated = uniqueCount(rows, "user_id");
 
   return {
-    range: { start: params.start, end: params.end, preset: params.preset },
-    summary: {
-      total_events: rows.length,
-      app_opens: appOpens,
-      active_anonymous_ids: activeAnonymous,
-      active_authenticated_users: activeAuthenticated,
-      active_sessions: sessions,
-      content_views_total: contentViews,
-      video_views: videoViews,
-      place_views: placeViews,
-      route_views: routeViews,
-      profile_views: profileViews,
-      searches_total: searches,
-      saves_total: saves,
-      likes_total: likes,
-      shares_total: shares,
-      reports_total: reports,
-      dead_letters_total: dead.count,
-      engagement_rate_estimate: contentViews > 0 ? Math.round((actions / contentViews) * 1000) / 10 : 0,
-      conversion_estimate: {
-        app_open_to_content_view: appOpens > 0 ? Math.round((contentViews / appOpens) * 1000) / 10 : 0,
-        content_view_to_action: contentViews > 0 ? Math.round((actions / contentViews) * 1000) / 10 : 0,
-      },
+    total_events: rows.length,
+    app_opens: appOpens,
+    active_anonymous_ids: activeAnonymous,
+    active_authenticated_users: activeAuthenticated,
+    active_users_estimate: activeAnonymous + activeAuthenticated,
+    active_sessions: sessions,
+    content_views_total: contentViews,
+    video_views: videoViews,
+    place_views: placeViews,
+    route_views: routeViews,
+    profile_views: profileViews,
+    searches_total: searches,
+    saves_total: saves,
+    likes_total: likes,
+    shares_total: shares,
+    reports_total: reports,
+    engagement_actions: likes + saves + shares,
+    dead_letters_total: deadCount,
+    engagement_rate_estimate: contentViews > 0 ? Math.round((actions / contentViews) * 1000) / 10 : 0,
+    conversion_estimate: {
+      app_open_to_content_view: appOpens > 0 ? Math.round((contentViews / appOpens) * 1000) / 10 : 0,
+      content_view_to_action: contentViews > 0 ? Math.round((actions / contentViews) * 1000) / 10 : 0,
     },
+  };
+}
+
+export async function getBusinessOverview(supabase, params) {
+  const rows = await fetchEventsSample(supabase, params);
+  const dead = await countDeadLetters(supabase, params.since, params.until);
+  const warnings = buildBaseWarnings(rows);
+  if (dead.warning) warnings.push(dead.warning);
+
+  const summary = buildOverviewSummary(rows, dead.count);
+  const payload = {
+    range: { start: params.start, end: params.end, preset: params.preset },
+    filters: {
+      platform: params.platform || "all",
+      source: params.source || "all",
+      entity_type: params.entity_type || "all",
+    },
+    summary,
     breakdowns: {
       top_event_names: countBy(rows, "event_name"),
       top_sources: countBy(rows, "source"),
@@ -442,10 +529,31 @@ export async function getBusinessOverview(supabase, params) {
     series: buildDailySeries(rows),
     warnings,
   };
+
+  if (params.compare) {
+    const previousParams = previousRangeFor(params);
+    const previousRows = await fetchEventsSample(supabase, previousParams);
+    const previousDead = await countDeadLetters(supabase, previousParams.since, previousParams.until);
+    const previousSummary = buildOverviewSummary(previousRows, previousDead.count);
+    payload.comparison = {
+      previous_period: { start: previousParams.start, end: previousParams.end },
+      deltas: {
+        active_users_estimate: buildDelta(summary.active_users_estimate, previousSummary.active_users_estimate),
+        active_sessions: buildDelta(summary.active_sessions, previousSummary.active_sessions),
+        app_opens: buildDelta(summary.app_opens, previousSummary.app_opens),
+        content_views_total: buildDelta(summary.content_views_total, previousSummary.content_views_total),
+        searches_total: buildDelta(summary.searches_total, previousSummary.searches_total),
+        engagement_actions: buildDelta(summary.engagement_actions, previousSummary.engagement_actions),
+        dead_letters_total: buildDelta(summary.dead_letters_total, previousSummary.dead_letters_total),
+      },
+    };
+  }
+
+  return payload;
 }
 
 export async function getGrowthInsights(supabase, params) {
-  const rows = await fetchEventsSample(supabase, params.since, params.until);
+  const rows = await fetchEventsSample(supabase, params);
   const warnings = buildBaseWarnings(rows);
   const anonymousStats = estimateNewAndReturning(rows, "anonymous_id");
   const authStats = estimateNewAndReturning(rows, "user_id");
@@ -473,7 +581,7 @@ export async function getGrowthInsights(supabase, params) {
 }
 
 export async function getEngagementFunnel(supabase, params) {
-  const rows = await fetchEventsSample(supabase, params.since, params.until);
+  const rows = await fetchEventsSample(supabase, params);
   const warnings = buildBaseWarnings(rows);
 
   const steps = [
@@ -539,7 +647,7 @@ export async function getEngagementFunnel(supabase, params) {
 }
 
 export async function getContentPerformance(supabase, params) {
-  const rows = await fetchEventsSample(supabase, params.since, params.until);
+  const rows = await fetchEventsSample(supabase, params);
   const warnings = buildBaseWarnings(rows);
   const sections = buildContentSections(rows);
   if (
@@ -565,7 +673,7 @@ export async function getContentPerformance(supabase, params) {
 }
 
 export async function getSearchInsights(supabase, params) {
-  const rows = await fetchEventsSample(supabase, params.since, params.until);
+  const rows = await fetchEventsSample(supabase, params);
   const warnings = buildBaseWarnings(rows);
   const searchRows = rows.filter(
     (row) => SEARCH_EVENTS.has(row.event_name) || row.entity_type === "search",
@@ -617,7 +725,7 @@ export async function getSearchInsights(supabase, params) {
 }
 
 export async function getCreatorPerformance(supabase, params) {
-  const rows = await fetchEventsSample(supabase, params.since, params.until);
+  const rows = await fetchEventsSample(supabase, params);
   const warnings = buildBaseWarnings(rows);
   const creators = new Map();
   let creatorEvents = 0;
@@ -671,7 +779,7 @@ export async function getCreatorPerformance(supabase, params) {
 }
 
 export async function getLocationInterest(supabase, params) {
-  const rows = await fetchEventsSample(supabase, params.since, params.until);
+  const rows = await fetchEventsSample(supabase, params);
   const warnings = buildBaseWarnings(rows);
   const withLocation = rows.filter((row) => row.country || row.region || row.city);
   if (withLocation.length === 0) {
@@ -773,16 +881,18 @@ export async function getInvestorSnapshot(supabase, params) {
       data_quality_notes: notes,
     },
     copy_text: [
-      `Period: ${params.start} to ${params.end}`,
-      `Active users (estimate): ${overview.summary.active_anonymous_ids + overview.summary.active_authenticated_users}`,
-      `Sessions: ${overview.summary.active_sessions}`,
-      `Events: ${overview.summary.total_events}`,
-      `Content views: ${overview.summary.content_views_total}`,
-      `Searches: ${overview.summary.searches_total}`,
-      `Engagement actions: ${
-        overview.summary.likes_total + overview.summary.saves_total + overview.summary.shares_total
-      }`,
-      ...notes.map((note) => `Note: ${note}`),
+      "Explore Analytics Snapshot",
+      `Period: ${params.start} – ${params.end}`,
+      "",
+      `- Active users estimate: ${overview.summary.active_users_estimate}`,
+      `- Sessions: ${overview.summary.active_sessions}`,
+      `- Tracked actions: ${overview.summary.total_events}`,
+      `- Content views: ${overview.summary.content_views_total}`,
+      `- Searches: ${overview.summary.searches_total}`,
+      `- Engagement actions: ${overview.summary.engagement_actions}`,
+      "",
+      "Notes:",
+      ...(notes.length ? notes.map((note) => `- ${note}`) : ["- No major data-quality blockers detected."]),
     ].join("\n"),
     warnings: [...overview.warnings, ...growth.warnings, ...locations.warnings, ...content.warnings].filter(
       (item, index, arr) => arr.findIndex((entry) => entry.code === item.code) === index,

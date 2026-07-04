@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   BusinessInsightsError,
+  buildDelta,
   getBusinessOverview,
   getContentPerformance,
   getCreatorPerformance,
@@ -123,6 +124,9 @@ function mockClient(events = rows) {
             lt() {
               return this;
             },
+            eq() {
+              return this;
+            },
             limit() {
               return this;
             },
@@ -229,5 +233,35 @@ assert.throws(
 
 const okRange = resolveBusinessRange(new Request("https://example.com/api/admin/analytics/business/overview?range=7d"));
 assert.equal(okRange.preset, "7d", "default-like preset accepted");
+
+const filtered = resolveBusinessRange(
+  new Request("https://example.com/api/admin/analytics/business/overview?range=7d&platform=web&source=web&compare=previous"),
+);
+assert.equal(filtered.platform, "web", "valid platform accepted");
+assert.equal(filtered.source, "web", "valid source accepted");
+assert.equal(filtered.compare, true, "compare previous accepted");
+
+assert.throws(
+  () =>
+    resolveBusinessRange(
+      new Request("https://example.com/api/admin/analytics/business/overview?platform=windows"),
+    ),
+  (error) => error instanceof BusinessInsightsError && error.code === "business_invalid_filter",
+  "invalid filters rejected",
+);
+
+const zeroPrevious = buildDelta(5, 0);
+assert.equal(zeroPrevious.percent, null, "previous zero does not divide by zero");
+assert.equal(zeroPrevious.label, "New activity", "previous zero uses friendly label");
+
+const compared = await getBusinessOverview(mockClient(), { ...range, compare: true });
+assert.ok(compared.comparison?.deltas?.active_sessions, "compare previous returns deltas");
+assert.equal(compared.summary.active_users_estimate, 3, "overview includes active users estimate");
+assert.equal(JSON.stringify(compared).includes("should-not-leak"), false, "no raw query in overview");
+assert.equal(JSON.stringify(compared).includes('"lat"'), false, "no precise lat field leaked");
+assert.equal(JSON.stringify(compared).includes('"lng"'), false, "no precise lng field leaked");
+assert.equal(JSON.stringify(compared).includes("latitude"), false, "no latitude field leaked");
+
+assert.ok(investor.copy_text.includes("Explore Analytics Snapshot"), "investor snapshot is founder-friendly");
 
 console.log("businessInsightsService tests passed");

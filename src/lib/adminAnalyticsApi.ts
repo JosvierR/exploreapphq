@@ -362,18 +362,36 @@ export type BusinessWarning = {
 
 type BusinessParams = {
   range?: BusinessRangePreset;
+  platform?: string;
+  source?: string;
+  entity_type?: string;
+  compare?: "previous";
   signal?: AbortSignal;
 };
 
-function businessQuery(range: BusinessRangePreset = "7d") {
-  return `range=${encodeURIComponent(range)}`;
+function businessQuery(params: BusinessParams = {}) {
+  const search = new URLSearchParams({ range: params.range || "7d" });
+  if (params.platform) search.set("platform", params.platform);
+  if (params.source) search.set("source", params.source);
+  if (params.entity_type) search.set("entity_type", params.entity_type);
+  if (params.compare) search.set("compare", params.compare);
+  return search.toString();
 }
 
 function businessFetch<T>(path: string, params: BusinessParams = {}) {
-  return analyticsFetch<T & { request_id: string; range: BusinessRange; warnings?: BusinessWarning[] }>(
-    `${path}?${businessQuery(params.range)}`,
-    { signal: params.signal },
-  );
+  return analyticsFetch<
+    T & {
+      request_id: string;
+      range: BusinessRange;
+      warnings?: BusinessWarning[];
+      comparison?: {
+        previous_period: { start: string; end: string };
+        deltas: Record<string, { current: number; previous: number; absolute: number; percent: number | null; label?: string | null }>;
+      };
+    }
+  >(`${path}?${businessQuery(params)}`, {
+    signal: params.signal,
+  });
 }
 
 export function getBusinessOverview(params: BusinessParams = {}) {
