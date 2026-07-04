@@ -258,6 +258,47 @@ order by day desc
 limit 10;
 ```
 
+## Troubleshooting aggregation failures
+
+If cron/admin aggregate returns `analytics_aggregation_failed` or `analytics_rpc_not_found`:
+
+1. Confirm the function exists and note argument names:
+
+```sql
+select
+  p.proname,
+  pg_get_function_identity_arguments(p.oid) as args
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname = 'aggregate_analytics_events_for_day';
+```
+
+2. Grant execute to the service role (SQL editor):
+
+```sql
+grant execute on function public.aggregate_analytics_events_for_day(date) to service_role;
+```
+
+If the argument name is not `date` alone, use the exact signature from step 1.
+
+3. Re-test from SQL:
+
+```sql
+select public.aggregate_analytics_events_for_day(current_date);
+```
+
+4. Re-test cron:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "https://www.exploreapphq.com/api/cron/analytics/aggregate" `
+  -Headers @{ "X-Cron-Secret" = $secret }
+```
+
+The API tries parameter names `target_day`, `day`, `p_day`, `p_target_day`, and `d`.
+Vercel logs include safe failure codes and redacted Supabase error fields for `request_id`.
+
 ## Rollback plan
 
 1. Revert this branch/PR.

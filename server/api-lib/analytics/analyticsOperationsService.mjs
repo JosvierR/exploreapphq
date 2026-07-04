@@ -111,41 +111,89 @@ export function resolveAggregationInput(body = {}) {
   return [addUtcDays(today, -1), today];
 }
 
+const AGGREGATION_RPC_NAME = "aggregate_analytics_events_for_day";
+// PostgREST requires the exact argument name from pg_proc. DATA-001 installs vary.
+const AGGREGATION_PARAM_CANDIDATES = ["target_day", "day", "p_day", "p_target_day", "d"];
+
+function isRpcSignatureMismatch(error) {
+  const code = classifySupabaseAnalyticsError(error);
+  if (code === "analytics_rpc_not_found") return true;
+  const serialized = serializeErrorForLog(error);
+  const message = `${serialized.message || ""} ${serialized.details || ""} ${serialized.hint || ""}`.toLowerCase();
+  return (
+    message.includes("could not find the function") ||
+    message.includes("no matches were found in the schema cache") ||
+    (message.includes("function") && message.includes("does not exist"))
+  );
+}
+
+function publicAggregationCode(error) {
+  const code = classifySupabaseAnalyticsError(error);
+  if (code === "analytics_rpc_not_found") return "analytics_rpc_not_found";
+  if (code === "analytics_permission_denied") return "analytics_rpc_permission_denied";
+  if (code === "analytics_schema_missing") return "analytics_schema_missing";
+  return "analytics_aggregation_failed";
+}
+
+function publicAggregationMessage(code) {
+  if (code === "analytics_rpc_not_found") {
+    return "Aggregation RPC was not found or argument names do not match.";
+  }
+  if (code === "analytics_rpc_permission_denied") {
+    return "Service role cannot execute the aggregation RPC.";
+  }
+  if (code === "analytics_schema_missing") {
+    return "Analytics schema is not installed.";
+  }
+  return "Aggregation failed";
+}
+
 export async function runAnalyticsAggregationForDay(supabase, day, context = {}) {
   const started = Date.now();
   const safeDay = parseAnalyticsDay(day);
+  let lastError = null;
+  let usedParam = null;
 
   try {
-    const { data, error } = await supabase.rpc("aggregate_analytics_events_for_day", {
-      target_day: safeDay,
-    });
+    for (const paramName of AGGREGATION_PARAM_CANDIDATES) {
+      const { data, error } = await supabase.rpc(AGGREGATION_RPC_NAME, {
+        [paramName]: safeDay,
+      });
 
-    if (error) {
-      const code = classifySupabaseAnalyticsError(error);
-      return {
-        day: safeDay,
-        ok: false,
-        code: code === "analytics_schema_missing" ? code : "analytics_aggregation_failed",
-        message: "Aggregation failed",
-        duration_ms: Date.now() - started,
-        error: serializeErrorForLog(error),
-      };
+      if (!error) {
+        return {
+          day: safeDay,
+          ok: true,
+          message: "Aggregation completed",
+          duration_ms: Date.now() - started,
+          result: { success: true },
+          param_name: paramName,
+          request_id: context.requestId || null,
+        };
+      }
+
+      lastError = error;
+      usedParam = paramName;
+      if (!isRpcSignatureMismatch(error)) break;
     }
 
-    return {
-      day: safeDay,
-      ok: true,
-      message: "Aggregation completed",
-      duration_ms: Date.now() - started,
-      result: data == null ? { success: true } : { success: true },
-      request_id: context.requestId || null,
-    };
-  } catch (error) {
+    const code = publicAggregationCode(lastError);
     return {
       day: safeDay,
       ok: false,
-      code: "analytics_aggregation_failed",
-      message: "Aggregation failed",
+      code,
+      message: publicAggregationMessage(code),
+      duration_ms: Date.now() - started,
+      param_name: usedParam,
+      error: serializeErrorForLog(lastError),
+    };
+  } catch (error) {
+    const code = publicAggregationCode(error);
+    return {
+      day: safeDay,
+      ok: false,
+      code,
+      message: publicAggregationMessage(code),
       duration_ms: Date.now() - started,
       error: serializeErrorForLog(error),
     };
@@ -173,6 +221,16 @@ export async function runAnalyticsAggregationWindow(supabase, days, context = {}
       message: item.message,
       ...(item.ok ? {} : { code: item.code }),
     })),
+    failures: results
+      .filter((item) => !item.ok)
+      .map((item) => ({
+        day: item.day,
+        code: item.code,
+        message: item.message,
+        param_name: item.param_name || null,
+        error: item.error || null,
+        duration_ms: item.duration_ms,
+      })),
     warnings: [],
   };
 }
