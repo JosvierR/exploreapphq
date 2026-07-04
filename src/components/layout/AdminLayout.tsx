@@ -35,8 +35,8 @@ const operationsItems: NavItem[] = [
 
 const insightsItems: NavItem[] = [
   { label: "Product Insights", to: "/admin?section=insights", exactQuery: true },
-  { label: "Analytics Ops", to: "/admin/analytics" },
-  { label: "Business Insights", to: "/admin/analytics/business" },
+  { label: "Analytics Ops", to: "/admin/analytics", note: "Health, dead letters, event explorer" },
+  { label: "Business Insights", to: "/admin/analytics/business", note: "Growth, content, investor snapshot" },
 ];
 
 const systemItems: NavItem[] = [

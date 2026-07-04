@@ -400,8 +400,8 @@ function AdminAnalyticsContent() {
   return (
     <AdminPageShell
       eyebrow="Insights"
-      title="Analytics"
-      description="Product and ingestion insights from Explore event pipelines."
+      title="Analytics Ops"
+      description="Operational health, cron, dead letters, and raw event explorer."
       actions={
         <div className="admin-page-header__actions">
           <Link className="admin-btn admin-btn--ghost" to="/admin/analytics/business">

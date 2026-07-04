@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminAuthGate } from "@/pages/admin/AdminAuthGate";
 import {
@@ -8,8 +8,6 @@ import {
   ErrorState,
   LoadingState,
   SectionHeader,
-  StatCard,
-  StatusBadge,
 } from "@/features/admin/components/AdminPrimitives";
 import {
   type BusinessRangePreset,
@@ -23,6 +21,27 @@ import {
   getBusinessSearch,
   getInvestorSnapshot,
 } from "@/lib/adminAnalyticsApi";
+import {
+  entityLabel,
+  eventLabel,
+  formatNumber,
+  formatPercent,
+  formatRangeLabel,
+  formatTrend,
+  metricLabel,
+  shortenId,
+  warningCopy,
+} from "@/lib/analyticsDisplay";
+import {
+  downloadCsv,
+  flattenBusinessOverview,
+  flattenContentPerformance,
+  flattenFunnel,
+  flattenGrowthSeries,
+  flattenInvestorSnapshot,
+  flattenLocations,
+  flattenSearchInsights,
+} from "@/lib/csvExport";
 import { AdminApiError } from "@/lib/moderationAdminApi";
 
 type SectionState<T> = {
@@ -34,46 +53,48 @@ type SectionState<T> = {
 };
 
 const RANGES: BusinessRangePreset[] = ["24h", "7d", "30d", "90d"];
-
-function formatNumber(value: unknown) {
-  if (value == null) return "—";
-  if (typeof value === "string") return value;
-  if (typeof value !== "number") return "—";
-  return new Intl.NumberFormat().format(value);
-}
+const PLATFORMS = ["all", "ios", "android", "web"] as const;
+const SOURCES = ["all", "mobile", "web", "backend", "admin"] as const;
+const CONTENT_TYPES = ["all", "video", "place", "route", "profile"] as const;
 
 function joinError(message: string, requestId?: string | null) {
-  return requestId ? `${message} Request ID: ${requestId}` : message;
+  return requestId ? `${message} If this continues, check logs with request_id: ${requestId}` : message;
 }
 
-function WarningsList({ warnings }: { warnings?: BusinessWarning[] }) {
-  if (!warnings?.length) return null;
+function InsightCallout({ code, message }: { code: string; message?: string }) {
+  const copy = warningCopy(code, message);
   return (
-    <ul className="admin-muted">
-      {warnings.map((warning) => (
-        <li key={`${warning.code}-${warning.message}`}>
-          <StatusBadge label={warning.severity || "warning"} tone={warning.severity === "critical" ? "red" : "amber"} />{" "}
-          {warning.message}
-        </li>
-      ))}
-    </ul>
+    <div className="admin-panel admin-panel--nested">
+      <h4>{copy.title}</h4>
+      <p className="admin-muted">{copy.body}</p>
+      {copy.action && <p className="admin-muted">{copy.action}</p>}
+    </div>
   );
 }
 
-function DistributionList({ entries }: { entries: Array<{ value?: string; query_hash?: string; count: number }> }) {
-  if (!entries.length) return <EmptyState title="No data" message="Counts will appear as events arrive." />;
-  const max = Math.max(1, ...entries.map((entry) => entry.count));
+function SimpleBarChart({
+  points,
+  valueKey,
+  labelKey = "day",
+}: {
+  points: Array<Record<string, unknown>>;
+  valueKey: string;
+  labelKey?: string;
+}) {
+  if (!points.length) return <EmptyState title="No chart data yet" message="Activity will appear here as events arrive." />;
+  const max = Math.max(1, ...points.map((point) => Number(point[valueKey] || 0)));
   return (
     <div className="admin-distribution-list">
-      {entries.map((entry) => {
-        const label = entry.value || entry.query_hash || "unknown";
+      {points.map((point) => {
+        const label = String(point[labelKey] || "");
+        const value = Number(point[valueKey] || 0);
         return (
-          <div className="admin-distribution-row" key={label}>
+          <div className="admin-distribution-row" key={`${label}-${valueKey}`}>
             <span>{label}</span>
             <div className="admin-distribution-row__bar" aria-hidden="true">
-              <span style={{ width: `${Math.max(4, (entry.count / max) * 100)}%` }} />
+              <span style={{ width: `${Math.max(4, (value / max) * 100)}%` }} />
             </div>
-            <strong>{formatNumber(entry.count)}</strong>
+            <strong>{formatNumber(value)}</strong>
           </div>
         );
       })}
@@ -81,105 +102,132 @@ function DistributionList({ entries }: { entries: Array<{ value?: string; query_
   );
 }
 
-function ContentTable({
-  title,
-  rows,
+function MetricCard({
+  metricKey,
+  value,
+  delta,
+  loading,
 }: {
-  title: string;
-  rows: Array<Record<string, unknown>>;
+  metricKey: string;
+  value: unknown;
+  delta?: { percent: number | null; absolute: number; label?: string | null };
+  loading?: boolean;
 }) {
-  if (!rows.length) return <EmptyState title={`No ${title}`} message="Entity events will appear here." />;
+  const trend = formatTrend(delta);
   return (
-    <AdminDataTable label={title}>
-      <thead>
-        <tr>
-          <th>Entity</th>
-          <th>Views</th>
-          <th>Likes</th>
-          <th>Saves</th>
-          <th>Shares</th>
-          <th>Score</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={String(row.entity_id)}>
-            <td><code>{String(row.entity_id_short || row.entity_id)}</code></td>
-            <td>{formatNumber(row.views)}</td>
-            <td>{formatNumber(row.likes)}</td>
-            <td>{formatNumber(row.saves)}</td>
-            <td>{formatNumber(row.shares)}</td>
-            <td>{formatNumber(row.engagement_score)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </AdminDataTable>
+    <article className="admin-stat-card">
+      <span className="admin-stat-card__label">{metricLabel(metricKey)}</span>
+      {loading ? (
+        <span className="admin-skeleton admin-skeleton--number" aria-label="Loading" />
+      ) : (
+        <strong>{formatNumber(value)}</strong>
+      )}
+      {trend && <span className="admin-stat-card__hint">{trend}</span>}
+    </article>
+  );
+}
+
+function SectionShell({
+  kicker,
+  title,
+  subtitle,
+  loading,
+  error,
+  requestId,
+  onRetry,
+  exportRows,
+  exportName,
+  children,
+}: {
+  kicker: string;
+  title: string;
+  subtitle: string;
+  loading: boolean;
+  error: string | null;
+  requestId?: string | null;
+  onRetry: () => void;
+  exportRows?: Array<Record<string, unknown>>;
+  exportName?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="admin-panel">
+      <SectionHeader
+        kicker={kicker}
+        title={title}
+        meta={
+          exportRows && exportName ? (
+            <button
+              type="button"
+              className="admin-btn admin-btn--ghost"
+              onClick={() => downloadCsv(exportName, exportRows)}
+            >
+              Export CSV
+            </button>
+          ) : null
+        }
+      />
+      <p className="admin-muted">{subtitle}</p>
+      {error ? (
+        <div>
+          <ErrorState title={`${title} could not load`} message={joinError(error, requestId)} />
+          <button type="button" className="admin-btn admin-btn--secondary" onClick={onRetry}>
+            Retry
+          </button>
+        </div>
+      ) : loading ? (
+        <LoadingState rows={4} />
+      ) : (
+        children
+      )}
+    </section>
   );
 }
 
 function AdminBusinessInsightsContent() {
   const [range, setRange] = useState<BusinessRangePreset>("7d");
+  const [platform, setPlatform] = useState<(typeof PLATFORMS)[number]>("all");
+  const [source, setSource] = useState<(typeof SOURCES)[number]>("all");
+  const [entityType, setEntityType] = useState<(typeof CONTENT_TYPES)[number]>("all");
   const [refreshKey, setRefreshKey] = useState(0);
-  const [overview, setOverview] = useState<SectionState<Awaited<ReturnType<typeof getBusinessOverview>>>>({
-    data: null,
-    loading: true,
-    error: null,
-  });
-  const [growth, setGrowth] = useState<SectionState<Awaited<ReturnType<typeof getBusinessGrowth>>>>({
-    data: null,
-    loading: true,
-    error: null,
-  });
-  const [funnel, setFunnel] = useState<SectionState<Awaited<ReturnType<typeof getBusinessFunnel>>>>({
-    data: null,
-    loading: true,
-    error: null,
-  });
-  const [content, setContent] = useState<SectionState<Awaited<ReturnType<typeof getBusinessContent>>>>({
-    data: null,
-    loading: true,
-    error: null,
-  });
-  const [search, setSearch] = useState<SectionState<Awaited<ReturnType<typeof getBusinessSearch>>>>({
-    data: null,
-    loading: true,
-    error: null,
-  });
-  const [creators, setCreators] = useState<SectionState<Awaited<ReturnType<typeof getBusinessCreators>>>>({
-    data: null,
-    loading: true,
-    error: null,
-  });
-  const [locations, setLocations] = useState<SectionState<Awaited<ReturnType<typeof getBusinessLocations>>>>({
-    data: null,
-    loading: true,
-    error: null,
-  });
-  const [investor, setInvestor] = useState<SectionState<Awaited<ReturnType<typeof getInvestorSnapshot>>>>({
-    data: null,
-    loading: true,
-    error: null,
-  });
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
+
+  const [overview, setOverview] = useState<SectionState<any>>({ data: null, loading: true, error: null });
+  const [growth, setGrowth] = useState<SectionState<any>>({ data: null, loading: true, error: null });
+  const [funnel, setFunnel] = useState<SectionState<any>>({ data: null, loading: true, error: null });
+  const [content, setContent] = useState<SectionState<any>>({ data: null, loading: true, error: null });
+  const [search, setSearch] = useState<SectionState<any>>({ data: null, loading: true, error: null });
+  const [creators, setCreators] = useState<SectionState<any>>({ data: null, loading: true, error: null });
+  const [locations, setLocations] = useState<SectionState<any>>({ data: null, loading: true, error: null });
+  const [investor, setInvestor] = useState<SectionState<any>>({ data: null, loading: true, error: null });
+
+  const query = useMemo(
+    () => ({
+      range,
+      platform: platform === "all" ? undefined : platform,
+      source: source === "all" ? undefined : source,
+      entity_type: entityType === "all" ? undefined : entityType,
+      compare: "previous" as const,
+    }),
+    [range, platform, source, entityType],
+  );
 
   const loadAll = useCallback(
     (signal: AbortSignal) => {
-      const bind = <T,>(
-        promise: Promise<T & { request_id: string; warnings?: BusinessWarning[] }>,
-        setter: (state: SectionState<T>) => void,
-        label: string,
-      ) => {
+      const bind = (promise: Promise<any>, setter: (state: SectionState<any>) => void, label: string) => {
         setter({ data: null, loading: true, error: null, requestId: null, warnings: [] });
         void promise
-          .then((result) =>
+          .then((result) => {
             setter({
               data: result,
               loading: false,
               error: null,
               requestId: result.request_id,
               warnings: result.warnings || [],
-            }),
-          )
+            });
+            setLastUpdated(new Date().toLocaleString());
+          })
           .catch((error) =>
             setter({
               data: null,
@@ -191,16 +239,16 @@ function AdminBusinessInsightsContent() {
           );
       };
 
-      bind(getBusinessOverview({ range, signal }), setOverview, "overview");
-      bind(getBusinessGrowth({ range, signal }), setGrowth, "growth");
-      bind(getBusinessFunnel({ range, signal }), setFunnel, "funnel");
-      bind(getBusinessContent({ range, signal }), setContent, "content");
-      bind(getBusinessSearch({ range, signal }), setSearch, "search");
-      bind(getBusinessCreators({ range, signal }), setCreators, "creators");
-      bind(getBusinessLocations({ range, signal }), setLocations, "locations");
-      bind(getInvestorSnapshot({ range, signal }), setInvestor, "investor snapshot");
+      bind(getBusinessOverview({ ...query, signal }), setOverview, "executive summary");
+      bind(getBusinessGrowth({ ...query, signal }), setGrowth, "growth");
+      bind(getBusinessFunnel({ ...query, signal }), setFunnel, "funnel");
+      bind(getBusinessContent({ ...query, signal }), setContent, "content");
+      bind(getBusinessSearch({ ...query, signal }), setSearch, "search");
+      bind(getBusinessCreators({ ...query, signal }), setCreators, "creators");
+      bind(getBusinessLocations({ ...query, signal }), setLocations, "locations");
+      bind(getInvestorSnapshot({ ...query, signal }), setInvestor, "investor snapshot");
     },
-    [range],
+    [query],
   );
 
   useEffect(() => {
@@ -208,6 +256,52 @@ function AdminBusinessInsightsContent() {
     loadAll(controller.signal);
     return () => controller.abort();
   }, [loadAll, refreshKey]);
+
+  const retry = () => setRefreshKey((value) => value + 1);
+  const summary = overview.data?.summary || {};
+  const deltas = overview.data?.comparison?.deltas || {};
+  const periodLabel = formatRangeLabel(overview.data?.range?.start, overview.data?.range?.end, range);
+
+  const qualityItems = useMemo(() => {
+    const warnings = [
+      ...(overview.warnings || []),
+      ...(creators.warnings || []),
+      ...(locations.warnings || []),
+      ...(search.warnings || []),
+      ...(content.warnings || []),
+    ];
+    const codes = new Set(warnings.map((item) => item.code));
+    return [
+      {
+        label: "Mobile events",
+        status: codes.has("no_mobile_events_in_range") || codes.has("no_events_in_range") ? "Needs data" : "Healthy",
+      },
+      {
+        label: "Web events",
+        status: Number(summary.total_events || 0) > 0 ? "Healthy" : "Needs data",
+      },
+      {
+        label: "Rejected events",
+        status: Number(summary.dead_letters_total || 0) > 0 ? "Warning" : "Healthy",
+      },
+      {
+        label: "Creator metadata",
+        status: codes.has("creator_id_not_in_analytics_events") ? "Needs data" : "Healthy",
+      },
+      {
+        label: "Location metadata",
+        status: codes.has("location_metadata_missing") ? "Needs data" : "Healthy",
+      },
+      {
+        label: "Content entity IDs",
+        status: codes.has("no_content_entity_id") ? "Needs data" : "Healthy",
+      },
+      {
+        label: "Search privacy",
+        status: "Healthy",
+      },
+    ];
+  }, [overview.warnings, creators.warnings, locations.warnings, search.warnings, content.warnings, summary]);
 
   async function copyInvestorSnapshot() {
     const text = investor.data?.copy_text;
@@ -220,223 +314,375 @@ function AdminBusinessInsightsContent() {
     }
   }
 
-  const summary = overview.data?.summary || {};
-
   return (
     <AdminPageShell
-      eyebrow="Insights"
+      eyebrow="Business Insights"
       title="Business Analytics"
-      description="Product, growth, content, and investor-readable analytics."
+      description="Readable product, growth, content, and investor analytics."
       actions={
         <div className="admin-page-header__actions">
           <Link className="admin-btn admin-btn--ghost" to="/admin/analytics">
-            Operations
+            Analytics Ops
           </Link>
           <label className="admin-inline-field">
             <span>Range</span>
             <select value={range} onChange={(event) => setRange(event.target.value as BusinessRangePreset)}>
               {RANGES.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
+                <option key={item} value={item}>{item}</option>
               ))}
             </select>
           </label>
-          <button type="button" className="admin-btn admin-btn--secondary" onClick={() => setRefreshKey((value) => value + 1)}>
+          <label className="admin-inline-field">
+            <span>Platform</span>
+            <select value={platform} onChange={(event) => setPlatform(event.target.value as (typeof PLATFORMS)[number])}>
+              {PLATFORMS.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </label>
+          <label className="admin-inline-field">
+            <span>Source</span>
+            <select value={source} onChange={(event) => setSource(event.target.value as (typeof SOURCES)[number])}>
+              {SOURCES.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </label>
+          <label className="admin-inline-field">
+            <span>Content</span>
+            <select value={entityType} onChange={(event) => setEntityType(event.target.value as (typeof CONTENT_TYPES)[number])}>
+              {CONTENT_TYPES.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </label>
+          <button type="button" className="admin-btn admin-btn--secondary" onClick={retry}>
             Refresh
           </button>
         </div>
       }
     >
-      <section className="admin-panel">
-        <SectionHeader kicker="Overview" title="Business summary" />
-        {overview.error ? (
-          <ErrorState title="Overview unavailable" message={joinError(overview.error, overview.requestId)} />
-        ) : overview.loading ? (
-          <LoadingState rows={4} />
-        ) : (
-          <>
-            <div className="admin-stats-grid">
-              <StatCard label="Active users estimate" value={formatNumber(Number(summary.active_anonymous_ids || 0) + Number(summary.active_authenticated_users || 0))} />
-              <StatCard label="Sessions" value={formatNumber(summary.active_sessions)} />
-              <StatCard label="App opens" value={formatNumber(summary.app_opens)} />
-              <StatCard label="Content views" value={formatNumber(summary.content_views_total)} />
-              <StatCard label="Searches" value={formatNumber(summary.searches_total)} />
-              <StatCard label="Engagement actions" value={formatNumber(Number(summary.likes_total || 0) + Number(summary.saves_total || 0) + Number(summary.shares_total || 0))} />
-              <StatCard label="Dead letters" value={formatNumber(summary.dead_letters_total)} tone="amber" />
-            </div>
-            <WarningsList warnings={overview.warnings} />
-          </>
-        )}
-      </section>
+      <p className="admin-muted">Period: {periodLabel}{lastUpdated ? ` · Last updated ${lastUpdated}` : ""}</p>
 
-      <section className="admin-panel">
-        <SectionHeader kicker="Growth" title="Daily activity" />
-        {growth.error ? (
-          <ErrorState title="Growth unavailable" message={joinError(growth.error, growth.requestId)} />
-        ) : growth.loading ? (
-          <LoadingState rows={4} />
-        ) : (
-          <>
-            <div className="admin-stats-grid">
-              <StatCard label="New anonymous (est.)" value={formatNumber(growth.data?.summary.estimated_new_anonymous_ids)} />
-              <StatCard label="Returning anonymous (est.)" value={formatNumber(growth.data?.summary.estimated_returning_anonymous_ids)} />
-              <StatCard label="New authenticated (est.)" value={formatNumber(growth.data?.summary.estimated_new_authenticated_users)} />
-              <StatCard label="Returning authenticated (est.)" value={formatNumber(growth.data?.summary.estimated_returning_authenticated_users)} />
-            </div>
-            <DistributionList entries={(growth.data?.breakdowns.platform_split || []).map((item) => ({ value: item.value, count: item.count }))} />
-            <WarningsList warnings={growth.warnings} />
-          </>
-        )}
-      </section>
+      <SectionShell
+        kicker="Executive Summary"
+        title="Executive Summary"
+        subtitle="High-level view of how Explore is being used during the selected period."
+        loading={overview.loading}
+        error={overview.error}
+        requestId={overview.requestId}
+        onRetry={retry}
+        exportRows={overview.data ? flattenBusinessOverview(overview.data) : undefined}
+        exportName={`explore-business-overview-${range}.csv`}
+      >
+        <div className="admin-stats-grid">
+          <MetricCard metricKey="active_users_estimate" value={summary.active_users_estimate} delta={deltas.active_users_estimate} />
+          <MetricCard metricKey="sessions" value={summary.active_sessions} delta={deltas.active_sessions} />
+          <MetricCard metricKey="app_opens" value={summary.app_opens} delta={deltas.app_opens} />
+          <MetricCard metricKey="content_views" value={summary.content_views_total} delta={deltas.content_views_total} />
+          <MetricCard metricKey="searches" value={summary.searches_total} delta={deltas.searches_total} />
+          <MetricCard metricKey="engagement_actions" value={summary.engagement_actions} delta={deltas.engagement_actions} />
+          <MetricCard metricKey="dead_letters" value={summary.dead_letters_total} delta={deltas.dead_letters_total} />
+        </div>
+        {(overview.warnings || []).map((item) => (
+          <InsightCallout key={item.code} code={item.code} message={item.message} />
+        ))}
+      </SectionShell>
 
-      <section className="admin-panel">
-        <SectionHeader kicker="Funnel" title="Engagement funnel" />
-        {funnel.error ? (
-          <ErrorState title="Funnel unavailable" message={joinError(funnel.error, funnel.requestId)} />
-        ) : funnel.loading ? (
-          <LoadingState rows={4} />
-        ) : (
-          <>
-            <AdminDataTable label="Funnel steps">
+      <SectionShell
+        kicker="Growth & Usage"
+        title="Growth & Usage"
+        subtitle="Tracks users, sessions, app opens, and platform activity."
+        loading={growth.loading}
+        error={growth.error}
+        requestId={growth.requestId}
+        onRetry={retry}
+        exportRows={growth.data ? flattenGrowthSeries(growth.data) : undefined}
+        exportName={`explore-growth-${range}.csv`}
+      >
+        <SimpleBarChart points={growth.data?.series || []} valueKey="sessions" />
+        <SimpleBarChart points={growth.data?.series || []} valueKey="app_opens" />
+        <DistributionList
+          title="Platform split"
+          entries={(growth.data?.breakdowns?.platform_split || []).map((item: any) => ({
+            label: item.value,
+            count: item.count,
+          }))}
+        />
+      </SectionShell>
+
+      <SectionShell
+        kicker="Engagement Funnel"
+        title="Engagement Funnel"
+        subtitle="Shows how users move from opening the app to viewing and interacting with content."
+        loading={funnel.loading}
+        error={funnel.error}
+        requestId={funnel.requestId}
+        onRetry={retry}
+        exportRows={funnel.data ? flattenFunnel(funnel.data) : undefined}
+        exportName={`explore-funnel-${range}.csv`}
+      >
+        <AdminDataTable label="Funnel">
+          <thead>
+            <tr>
+              <th>Step</th>
+              <th>Count</th>
+              <th>Sessions</th>
+              <th>Dropoff</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(funnel.data?.funnel || []).map((step: any) => (
+              <tr key={step.key}>
+                <td>{step.label}</td>
+                <td>{formatNumber(step.count)}</td>
+                <td>{formatNumber(step.unique_sessions)}</td>
+                <td>{formatPercent(step.dropoff_pct)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </AdminDataTable>
+        <SimpleBarChart
+          points={(funnel.data?.funnel || []).map((step: any) => ({ day: step.label, count: step.count }))}
+          valueKey="count"
+        />
+      </SectionShell>
+
+      <SectionShell
+        kicker="Content Performance"
+        title="Content Performance"
+        subtitle="Ranks videos, places, routes, and profiles by views and engagement."
+        loading={content.loading}
+        error={content.error}
+        requestId={content.requestId}
+        onRetry={retry}
+        exportRows={content.data ? flattenContentPerformance(content.data) : undefined}
+        exportName={`explore-content-performance-${range}.csv`}
+      >
+        {["videos", "places", "routes", "profiles"].map((type) => {
+          const rows = content.data?.sections?.[type] || [];
+          if (!rows.length) {
+            return <InsightCallout key={type} code="no_content_entity_id" />;
+          }
+          return (
+            <AdminDataTable key={type} label={type}>
               <thead>
                 <tr>
-                  <th>Step</th>
-                  <th>Count</th>
-                  <th>Sessions</th>
-                  <th>Dropoff</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(funnel.data?.funnel || []).map((step) => (
-                  <tr key={step.key}>
-                    <td>{step.label}</td>
-                    <td>{formatNumber(step.count)}</td>
-                    <td>{formatNumber(step.unique_sessions)}</td>
-                    <td>{step.dropoff_pct}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </AdminDataTable>
-            <WarningsList warnings={funnel.warnings} />
-          </>
-        )}
-      </section>
-
-      <section className="admin-panel">
-        <SectionHeader kicker="Content" title="Top content performance" />
-        {content.error ? (
-          <ErrorState title="Content unavailable" message={joinError(content.error, content.requestId)} />
-        ) : content.loading ? (
-          <LoadingState rows={4} />
-        ) : (
-          <div className="admin-dashboard-layout">
-            <ContentTable title="videos" rows={(content.data?.sections.videos || []) as Array<Record<string, unknown>>} />
-            <ContentTable title="places" rows={(content.data?.sections.places || []) as Array<Record<string, unknown>>} />
-            <ContentTable title="routes" rows={(content.data?.sections.routes || []) as Array<Record<string, unknown>>} />
-            <ContentTable title="profiles" rows={(content.data?.sections.profiles || []) as Array<Record<string, unknown>>} />
-            <WarningsList warnings={content.warnings} />
-          </div>
-        )}
-      </section>
-
-      <section className="admin-panel">
-        <SectionHeader kicker="Search" title="Search quality (hashed only)" />
-        {search.error ? (
-          <ErrorState title="Search unavailable" message={joinError(search.error, search.requestId)} />
-        ) : search.loading ? (
-          <LoadingState rows={4} />
-        ) : (
-          <>
-            <div className="admin-stats-grid">
-              <StatCard label="Total searches" value={formatNumber(search.data?.summary.total_searches)} />
-              <StatCard label="No-result rate" value={`${search.data?.summary.no_result_rate ?? 0}%`} />
-              <StatCard label="Search → content view (est.)" value={`${search.data?.summary.search_to_content_view_estimate ?? 0}%`} />
-            </div>
-            <DistributionList entries={search.data?.breakdowns.top_query_hashes || []} />
-            <WarningsList warnings={search.warnings} />
-          </>
-        )}
-      </section>
-
-      <section className="admin-panel">
-        <SectionHeader kicker="Creators" title="Creator performance" />
-        {creators.error ? (
-          <ErrorState title="Creators unavailable" message={joinError(creators.error, creators.requestId)} />
-        ) : creators.loading ? (
-          <LoadingState rows={3} />
-        ) : (creators.data?.creators || []).length === 0 ? (
-          <>
-            <EmptyState title="Creator metrics unavailable" message="creator_id is not present in analytics events yet." />
-            <WarningsList warnings={creators.warnings} />
-          </>
-        ) : (
-          <>
-            <AdminDataTable label="Creators">
-              <thead>
-                <tr>
-                  <th>Creator</th>
+                  <th>Rank</th>
+                  <th>Type</th>
+                  <th>Content ID</th>
                   <th>Views</th>
                   <th>Likes</th>
                   <th>Saves</th>
-                  <th>Score</th>
+                  <th>Shares</th>
+                  <th>Reports</th>
+                  <th>Engagement score</th>
                 </tr>
               </thead>
               <tbody>
-                {(creators.data?.creators || []).map((row) => (
-                  <tr key={String(row.creator_id)}>
-                    <td><code>{String(row.creator_id_short || row.creator_id)}</code></td>
+                {rows.map((row: any, index: number) => (
+                  <tr key={`${type}-${row.entity_id}`}>
+                    <td>{index + 1}</td>
+                    <td>{entityLabel(row.entity_type)}</td>
+                    <td><code>{shortenId(row.entity_id)}</code></td>
                     <td>{formatNumber(row.views)}</td>
                     <td>{formatNumber(row.likes)}</td>
                     <td>{formatNumber(row.saves)}</td>
+                    <td>{formatNumber(row.shares)}</td>
+                    <td>{formatNumber(row.reports)}</td>
                     <td>{formatNumber(row.engagement_score)}</td>
                   </tr>
                 ))}
               </tbody>
             </AdminDataTable>
-            <WarningsList warnings={creators.warnings} />
-          </>
+          );
+        })}
+      </SectionShell>
+
+      <SectionShell
+        kicker="Search Intelligence"
+        title="Search Intelligence"
+        subtitle="Shows search demand and search quality without exposing raw search text."
+        loading={search.loading}
+        error={search.error}
+        requestId={search.requestId}
+        onRetry={retry}
+        exportRows={search.data ? flattenSearchInsights(search.data) : undefined}
+        exportName={`explore-search-${range}.csv`}
+      >
+        <div className="admin-stats-grid">
+          <MetricCard metricKey="searches" value={search.data?.summary?.total_searches} />
+          <MetricCard metricKey="no_result_rate" value={formatPercent(search.data?.summary?.no_result_rate)} />
+        </div>
+        <AdminDataTable label="Search fingerprints">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Search fingerprint</th>
+              <th>Searches</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(search.data?.breakdowns?.top_query_hashes || []).map((row: any, index: number) => (
+              <tr key={row.query_hash}>
+                <td>{index + 1}</td>
+                <td><code>{row.query_hash}</code></td>
+                <td>{formatNumber(row.count)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </AdminDataTable>
+        {(search.warnings || []).map((item) => (
+          <InsightCallout key={item.code} code={item.code} message={item.message} />
+        ))}
+      </SectionShell>
+
+      <SectionShell
+        kicker="Creator Insights"
+        title="Creator Insights"
+        subtitle="Shows which creators are generating views and engagement when creator metadata is available."
+        loading={creators.loading}
+        error={creators.error}
+        requestId={creators.requestId}
+        onRetry={retry}
+      >
+        {(creators.data?.creators || []).length === 0 ? (
+          <InsightCallout code="creator_id_not_in_analytics_events" />
+        ) : (
+          <AdminDataTable label="Creators">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Creator ID</th>
+                <th>Views</th>
+                <th>Saves</th>
+                <th>Likes</th>
+                <th>Shares</th>
+                <th>Reports</th>
+                <th>Engagement score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(creators.data?.creators || []).map((row: any, index: number) => (
+                <tr key={row.creator_id}>
+                  <td>{index + 1}</td>
+                  <td><code>{shortenId(row.creator_id)}</code></td>
+                  <td>{formatNumber(row.views)}</td>
+                  <td>{formatNumber(row.saves)}</td>
+                  <td>{formatNumber(row.likes)}</td>
+                  <td>{formatNumber(row.shares)}</td>
+                  <td>{formatNumber(row.reports)}</td>
+                  <td>{formatNumber(row.engagement_score)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </AdminDataTable>
         )}
-      </section>
+      </SectionShell>
+
+      <SectionShell
+        kicker="Market Insights"
+        title="Market Insights"
+        subtitle="Aggregated country, region, and city interest. Exact locations are never shown."
+        loading={locations.loading}
+        error={locations.error}
+        requestId={locations.requestId}
+        onRetry={retry}
+        exportRows={locations.data ? flattenLocations(locations.data) : undefined}
+        exportName={`explore-markets-${range}.csv`}
+      >
+        {(locations.data?.countries || []).length === 0 ? (
+          <InsightCallout code="location_metadata_missing" />
+        ) : (
+          <AdminDataTable label="Markets">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Country</th>
+                <th>Events</th>
+                <th>Sessions</th>
+                <th>Content views</th>
+                <th>Searches</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(locations.data?.countries || []).map((row: any, index: number) => (
+                <tr key={row.country}>
+                  <td>{index + 1}</td>
+                  <td>{row.country}</td>
+                  <td>{formatNumber(row.events)}</td>
+                  <td>{formatNumber(row.sessions)}</td>
+                  <td>{formatNumber(row.content_views)}</td>
+                  <td>{formatNumber(row.searches)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </AdminDataTable>
+        )}
+        <p className="admin-muted">Cities require at least {locations.data?.summary?.min_city_threshold || 3} events.</p>
+      </SectionShell>
+
+      <SectionShell
+        kicker="Investor Snapshot"
+        title="Investor Snapshot"
+        subtitle="Copy-ready summary for updates, incubator reports, and investor conversations."
+        loading={investor.loading}
+        error={investor.error}
+        requestId={investor.requestId}
+        onRetry={retry}
+        exportRows={investor.data ? flattenInvestorSnapshot(investor.data) : undefined}
+        exportName={`explore-investor-snapshot-${range}.csv`}
+      >
+        <pre className="admin-code-block">{investor.data?.copy_text}</pre>
+        <button type="button" className="admin-btn admin-btn--secondary" onClick={() => void copyInvestorSnapshot()}>
+          Copy investor snapshot
+        </button>
+        {copyMessage && <p className="admin-muted">{copyMessage}</p>}
+      </SectionShell>
 
       <section className="admin-panel">
-        <SectionHeader kicker="Locations" title="Market interest (aggregated only)" />
-        {locations.error ? (
-          <ErrorState title="Locations unavailable" message={joinError(locations.error, locations.requestId)} />
-        ) : locations.loading ? (
-          <LoadingState rows={3} />
-        ) : (
-          <>
-            <DistributionList
-              entries={(locations.data?.countries || []).map((item) => ({
-                value: String(item.country),
-                count: Number(item.events || 0),
-              }))}
-            />
-            <p className="admin-muted">Cities require at least {locations.data?.summary.min_city_threshold || 3} events.</p>
-            <WarningsList warnings={locations.warnings} />
-          </>
-        )}
-      </section>
-
-      <section className="admin-panel">
-        <SectionHeader kicker="Investor" title="Investor snapshot" />
-        {investor.error ? (
-          <ErrorState title="Snapshot unavailable" message={joinError(investor.error, investor.requestId)} />
-        ) : investor.loading ? (
-          <LoadingState rows={3} />
-        ) : (
-          <>
-            <pre className="admin-code-block">{investor.data?.copy_text}</pre>
-            <button type="button" className="admin-btn admin-btn--secondary" onClick={() => void copyInvestorSnapshot()}>
-              Copy investor snapshot
-            </button>
-            {copyMessage && <p className="admin-muted">{copyMessage}</p>}
-            <WarningsList warnings={investor.warnings} />
-          </>
-        )}
+        <SectionHeader kicker="Data Quality" title="Data Quality" />
+        <p className="admin-muted">Explains missing data, instrumentation gaps, and whether mobile analytics are active.</p>
+        <div className="admin-stats-grid">
+          {qualityItems.map((item) => (
+            <article className="admin-stat-card" key={item.label}>
+              <span className="admin-stat-card__label">{item.label}</span>
+              <strong>{item.status}</strong>
+            </article>
+          ))}
+        </div>
+        {(overview.warnings || []).map((item) => (
+          <InsightCallout key={`quality-${item.code}`} code={item.code} message={item.message} />
+        ))}
       </section>
     </AdminPageShell>
+  );
+}
+
+function DistributionList({
+  title,
+  entries,
+}: {
+  title?: string;
+  entries: Array<{ label: string; count: number }>;
+}) {
+  if (!entries.length) return null;
+  const max = Math.max(1, ...entries.map((entry) => entry.count));
+  return (
+    <div>
+      {title && <h4>{title}</h4>}
+      <div className="admin-distribution-list">
+        {entries.map((entry) => (
+          <div className="admin-distribution-row" key={entry.label}>
+            <span>{eventLabel(entry.label)}</span>
+            <div className="admin-distribution-row__bar" aria-hidden="true">
+              <span style={{ width: `${Math.max(4, (entry.count / max) * 100)}%` }} />
+            </div>
+            <strong>{formatNumber(entry.count)}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
