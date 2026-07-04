@@ -35,7 +35,8 @@ const operationsItems: NavItem[] = [
 
 const insightsItems: NavItem[] = [
   { label: "Product Insights", to: "/admin?section=insights", exactQuery: true },
-  { label: "Analytics", to: "/admin/analytics" },
+  { label: "Analytics Ops", to: "/admin/analytics" },
+  { label: "Business Insights", to: "/admin/analytics/business" },
 ];
 
 const systemItems: NavItem[] = [
@@ -83,9 +84,16 @@ function routeMeta(pathname: string, search: string) {
     };
   }
 
+  if (pathname === "/admin/analytics/business") {
+    return {
+      title: "Business Insights",
+      description: "Growth, funnel, content, search, and investor-readable analytics.",
+    };
+  }
+
   if (pathname === "/admin/analytics") {
     return {
-      title: "Analytics",
+      title: "Analytics Ops",
       description: "Product and ingestion insights from Explore event pipelines.",
     };
   }

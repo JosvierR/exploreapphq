@@ -15,6 +15,18 @@ import {
   resolveAggregationInput,
   runAnalyticsAggregationWindow,
 } from "./analyticsOperationsService.mjs";
+import {
+  BusinessInsightsError,
+  getBusinessOverview,
+  getCreatorPerformance,
+  getContentPerformance,
+  getEngagementFunnel,
+  getGrowthInsights,
+  getInvestorSnapshot,
+  getLocationInterest,
+  getSearchInsights,
+  resolveBusinessRange,
+} from "./businessInsightsService.mjs";
 import { classifySupabaseAnalyticsError, serializeErrorForLog } from "./analyticsRouter.mjs";
 import { jsonResponse, optionsResponse } from "../http/responses.mjs";
 import { requestIdFromRequest } from "../http/requestContext.mjs";
@@ -1162,6 +1174,63 @@ export async function handleCronAnalyticsAggregate(request) {
   return runAggregationRequest(request, { trigger: "cron", requireAdminAuth: false });
 }
 
+async function handleBusinessInsights(request, route, loader) {
+  let diagnostics = null;
+  try {
+    if (request.method === "OPTIONS") return optionsResponse();
+    if (request.method !== "GET") return methodNotAllowed(request);
+
+    const { supabase, diagnostics: diag } = await requireAdminContext(request);
+    diagnostics = diag;
+    const range = resolveBusinessRange(request);
+    const payload = await loader(supabase, range);
+
+    return jsonResponse(200, {
+      ok: true,
+      request_id: requestIdFromRequest(request),
+      ...payload,
+      diagnostics,
+    });
+  } catch (error) {
+    if (error instanceof BusinessInsightsError) {
+      return adminFailure(request, route, error, diagnostics);
+    }
+    return adminFailure(request, route, error, diagnostics);
+  }
+}
+
+export async function handleBusinessOverview(request) {
+  return handleBusinessInsights(request, "admin/analytics/business/overview", getBusinessOverview);
+}
+
+export async function handleBusinessGrowth(request) {
+  return handleBusinessInsights(request, "admin/analytics/business/growth", getGrowthInsights);
+}
+
+export async function handleBusinessFunnel(request) {
+  return handleBusinessInsights(request, "admin/analytics/business/funnel", getEngagementFunnel);
+}
+
+export async function handleBusinessContent(request) {
+  return handleBusinessInsights(request, "admin/analytics/business/content", getContentPerformance);
+}
+
+export async function handleBusinessSearch(request) {
+  return handleBusinessInsights(request, "admin/analytics/business/search", getSearchInsights);
+}
+
+export async function handleBusinessCreators(request) {
+  return handleBusinessInsights(request, "admin/analytics/business/creators", getCreatorPerformance);
+}
+
+export async function handleBusinessLocations(request) {
+  return handleBusinessInsights(request, "admin/analytics/business/locations", getLocationInterest);
+}
+
+export async function handleBusinessInvestorSnapshot(request) {
+  return handleBusinessInsights(request, "admin/analytics/business/investor-snapshot", getInvestorSnapshot);
+}
+
 const ADMIN_ANALYTICS_ROUTES = {
   "admin/analytics/overview": handleAdminAnalyticsOverview,
   "admin/analytics/timeseries": handleAdminAnalyticsTimeseries,
@@ -1171,6 +1240,14 @@ const ADMIN_ANALYTICS_ROUTES = {
   "admin/analytics/health": handleAdminAnalyticsHealth,
   "admin/analytics/dead-letters": handleAdminAnalyticsDeadLetters,
   "admin/analytics/aggregate": handleAdminAnalyticsAggregate,
+  "admin/analytics/business/overview": handleBusinessOverview,
+  "admin/analytics/business/growth": handleBusinessGrowth,
+  "admin/analytics/business/funnel": handleBusinessFunnel,
+  "admin/analytics/business/content": handleBusinessContent,
+  "admin/analytics/business/search": handleBusinessSearch,
+  "admin/analytics/business/creators": handleBusinessCreators,
+  "admin/analytics/business/locations": handleBusinessLocations,
+  "admin/analytics/business/investor-snapshot": handleBusinessInvestorSnapshot,
 };
 
 export async function dispatchAdminAnalyticsApi(request, route) {

@@ -345,3 +345,103 @@ export function runAnalyticsAggregation(input: { day: string } | { preset: "toda
     body: JSON.stringify(body),
   });
 }
+
+export type BusinessRangePreset = "24h" | "7d" | "30d" | "90d";
+
+export type BusinessRange = {
+  start: string;
+  end: string;
+  preset: BusinessRangePreset | "custom" | string;
+};
+
+export type BusinessWarning = {
+  code: string;
+  severity?: string;
+  message: string;
+};
+
+type BusinessParams = {
+  range?: BusinessRangePreset;
+  signal?: AbortSignal;
+};
+
+function businessQuery(range: BusinessRangePreset = "7d") {
+  return `range=${encodeURIComponent(range)}`;
+}
+
+function businessFetch<T>(path: string, params: BusinessParams = {}) {
+  return analyticsFetch<T & { request_id: string; range: BusinessRange; warnings?: BusinessWarning[] }>(
+    `${path}?${businessQuery(params.range)}`,
+    { signal: params.signal },
+  );
+}
+
+export function getBusinessOverview(params: BusinessParams = {}) {
+  return businessFetch<{
+    summary: Record<string, unknown>;
+    breakdowns: Record<string, BreakdownEntry[]>;
+    series: Array<Record<string, number | string>>;
+  }>("/api/admin/analytics/business/overview", params);
+}
+
+export function getBusinessGrowth(params: BusinessParams = {}) {
+  return businessFetch<{
+    summary: Record<string, number>;
+    breakdowns: Record<string, BreakdownEntry[]>;
+    series: Array<Record<string, number | string>>;
+  }>("/api/admin/analytics/business/growth", params);
+}
+
+export function getBusinessFunnel(params: BusinessParams = {}) {
+  return businessFetch<{
+    summary: Record<string, number>;
+    funnel: Array<{ key: string; label: string; count: number; unique_sessions: number; dropoff_pct: number }>;
+  }>("/api/admin/analytics/business/funnel", params);
+}
+
+export function getBusinessContent(params: BusinessParams = {}) {
+  return businessFetch<{
+    summary: Record<string, number>;
+    sections: {
+      videos: Array<Record<string, unknown>>;
+      places: Array<Record<string, unknown>>;
+      routes: Array<Record<string, unknown>>;
+      profiles: Array<Record<string, unknown>>;
+    };
+  }>("/api/admin/analytics/business/content", params);
+}
+
+export function getBusinessSearch(params: BusinessParams = {}) {
+  return businessFetch<{
+    summary: Record<string, number>;
+    breakdowns: {
+      top_query_hashes: Array<{ query_hash: string; count: number }>;
+      top_search_entity_types: BreakdownEntry[];
+    };
+    series: Array<Record<string, number | string>>;
+  }>("/api/admin/analytics/business/search", params);
+}
+
+export function getBusinessCreators(params: BusinessParams = {}) {
+  return businessFetch<{
+    summary: Record<string, number>;
+    creators: Array<Record<string, unknown>>;
+  }>("/api/admin/analytics/business/creators", params);
+}
+
+export function getBusinessLocations(params: BusinessParams = {}) {
+  return businessFetch<{
+    summary: Record<string, number>;
+    countries: Array<Record<string, unknown>>;
+    regions: Array<Record<string, unknown>>;
+    cities: Array<Record<string, unknown>>;
+  }>("/api/admin/analytics/business/locations", params);
+}
+
+export function getInvestorSnapshot(params: BusinessParams = {}) {
+  return businessFetch<{
+    period: string;
+    snapshot: Record<string, unknown>;
+    copy_text: string;
+  }>("/api/admin/analytics/business/investor-snapshot", params);
+}
