@@ -187,6 +187,27 @@ app.all("/api/admin/analytics/events/:eventId", (req, res) => {
   );
 });
 
+const businessAnalyticsSegments = [
+  "overview",
+  "growth",
+  "funnel",
+  "content",
+  "search",
+  "creators",
+  "locations",
+  "investor-snapshot",
+] as const;
+
+for (const segment of businessAnalyticsSegments) {
+  app.all(`/api/admin/analytics/business/${segment}`, (req, res) => {
+    void sendFetchResponse(
+      (request) => dispatchAdminAnalyticsApi(request, `admin/analytics/business/${segment}`),
+      req,
+      res,
+    );
+  });
+}
+
 app.all("/api/cron/analytics/aggregate", (req, res) => {
   void sendFetchResponse(handleCronAnalyticsAggregate, req, res);
 });

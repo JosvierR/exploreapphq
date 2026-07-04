@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { AdminAuthGate } from "@/pages/admin/AdminAuthGate";
 import {
   AdminDataTable,
@@ -403,6 +404,9 @@ function AdminAnalyticsContent() {
       description="Product and ingestion insights from Explore event pipelines."
       actions={
         <div className="admin-page-header__actions">
+          <Link className="admin-btn admin-btn--ghost" to="/admin/analytics/business">
+            Business Insights
+          </Link>
           <label className="admin-inline-field">
             <span>Range</span>
             <select value={range} onChange={(event) => setRange(event.target.value as AnalyticsRange)}>
