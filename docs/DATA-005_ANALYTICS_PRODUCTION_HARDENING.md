@@ -266,19 +266,60 @@ This means the RPC parameter and service role are fine, but the function body ru
 `DELETE`/`UPDATE` without `WHERE` under `service_role` (blocked by safe-update rules).
 SQL Editor still works because it uses a privileged role.
 
-Run in Supabase SQL Editor:
+Run **all** of this in Supabase SQL Editor (not only GRANT):
 
 ```sql
+-- 1) Inspect current settings
+select
+  p.proname,
+  pg_get_function_identity_arguments(p.oid) as args,
+  p.prosecdef as is_security_definer,
+  pg_get_userbyid(p.proowner) as owner,
+  p.proconfig as config
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname = 'aggregate_analytics_events_for_day';
+
+-- 2) Force privileged execution path for service_role callers
+alter function public.aggregate_analytics_events_for_day(date) owner to postgres;
 alter function public.aggregate_analytics_events_for_day(date) security definer;
 -- Must include extensions so pgcrypto digest() resolves.
 alter function public.aggregate_analytics_events_for_day(date) set search_path = public, extensions;
 grant execute on function public.aggregate_analytics_events_for_day(date) to service_role;
+
+-- 3) Confirm
+select
+  p.prosecdef as is_security_definer,
+  pg_get_userbyid(p.proowner) as owner,
+  p.proconfig as config
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname = 'aggregate_analytics_events_for_day';
 ```
+
+Expected after step 3:
+- `is_security_definer = true`
+- `owner = postgres`
+- `config` includes `search_path=public, extensions`
 
 If you previously set `search_path = public` only, you will see:
 `function digest(text, unknown) does not exist` — fix by including `extensions` as above.
 
 Then retry the cron endpoint. No redeploy is required for this SQL fix.
+
+If it still returns `DELETE requires a WHERE clause`, the function body itself must use
+`DELETE ... WHERE day = target_day` (not a bare `DELETE FROM table`).
+Inspect the body with:
+
+```sql
+select pg_get_functiondef(p.oid)
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname = 'aggregate_analytics_events_for_day';
+```
 
 If cron/admin aggregate returns `analytics_aggregation_failed` or `analytics_rpc_not_found`:
 
