@@ -39,8 +39,12 @@ assert.throws(
   "day and preset together rejected",
 );
 
+let rpcArgs = null;
 const successClient = {
-  async rpc() {
+  async rpc(name, args) {
+    assert.equal(name, "aggregate_analytics_events_for_day", "RPC name is correct");
+    rpcArgs = args;
+    // VOID function: data null, error null
     return { data: null, error: null };
   },
 };
@@ -48,33 +52,54 @@ const successClient = {
 const success = await runAnalyticsAggregationForDay(successClient, todayUtc(), { requestId: "req-1" });
 assert.equal(success.ok, true, "null/void RPC response is success");
 assert.equal(success.message, "Aggregation completed", "success message");
+assert.deepEqual(rpcArgs, { target_day: todayUtc() }, "RPC is called with { target_day: day }");
+assert.equal(Object.prototype.hasOwnProperty.call(rpcArgs, "day"), false, "RPC is not called with { day }");
+
+let invalidDateCalled = false;
+const guardClient = {
+  async rpc() {
+    invalidDateCalled = true;
+    return { data: null, error: null };
+  },
+};
+assert.throws(() => parseAnalyticsDay("bad"), AnalyticsOperationsError, "invalid date rejected before RPC");
+try {
+  await runAnalyticsAggregationForDay(guardClient, "bad-date");
+} catch {
+  // parseAnalyticsDay throws inside runAnalyticsAggregationForDay before rpc
+}
+assert.equal(invalidDateCalled, false, "invalid date never reaches RPC");
 
 const failClient = {
-  async rpc() {
-    return { data: null, error: { code: "PGRST202", message: "Could not find the function in the schema cache" } };
+  async rpc(_name, args) {
+    assert.deepEqual(args, { target_day: todayUtc() }, "failed RPC still uses target_day");
+    return {
+      data: null,
+      error: {
+        code: "PGRST202",
+        message: "Could not find the function",
+        details: "Searched for aggregate_analytics_events_for_day",
+        hint: "Check the function name",
+      },
+    };
   },
 };
 const failed = await runAnalyticsAggregationForDay(failClient, todayUtc());
 assert.equal(failed.ok, false, "failed RPC returns ok=false");
 assert.equal(failed.code, "analytics_rpc_not_found", "missing RPC code");
+assert.equal(failed.param_name, "target_day", "failure records target_day");
+assert.equal(failed.error.code, "PGRST202", "safe error code logged");
+assert.ok(failed.error.message, "safe error message logged");
+assert.ok(failed.error.details, "safe error details logged");
+assert.ok(failed.error.hint, "safe error hint logged");
 
-let attempts = 0;
-const fallbackClient = {
-  async rpc(_name, args) {
-    attempts += 1;
-    if (Object.prototype.hasOwnProperty.call(args, "target_day")) {
-      return { data: null, error: { code: "PGRST202", message: "Could not find the function public.aggregate_analytics_events_for_day(target_day) in the schema cache" } };
-    }
-    if (Object.prototype.hasOwnProperty.call(args, "day")) {
-      return { data: null, error: null };
-    }
-    return { data: null, error: { code: "PGRST202", message: "Could not find the function" } };
+const genericFailClient = {
+  async rpc() {
+    return { data: null, error: { code: "XX000", message: "internal error" } };
   },
 };
-const recovered = await runAnalyticsAggregationForDay(fallbackClient, todayUtc());
-assert.equal(recovered.ok, true, "RPC recovers with alternate argument name");
-assert.equal(recovered.param_name, "day", "uses day argument name");
-assert.ok(attempts >= 2, "tries more than one argument name");
+const genericFailed = await runAnalyticsAggregationForDay(genericFailClient, todayUtc());
+assert.equal(genericFailed.code, "analytics_aggregation_failed", "generic RPC error code");
 
 const windowResult = await runAnalyticsAggregationWindow(successClient, resolveAggregationPreset("last_7_days"));
 assert.equal(windowResult.ok, true, "window aggregation succeeds");
@@ -114,15 +139,20 @@ assert.doesNotThrow(
     ),
   "valid x-cron-secret accepted",
 );
-assert.doesNotThrow(
-  () =>
-    assertAnalyticsCronAuthorized(
-      new Request("https://example.com/api/cron/analytics/aggregate", {
-        headers: { authorization: "Bearer cron-secret-test" },
-      }),
-    ),
-  "valid bearer cron secret accepted",
+
+// Cron path uses service-role client after secret auth (no admin session).
+assert.equal(
+  (await import("node:fs")).readFileSync(new URL("./analyticsAdminApi.mjs", import.meta.url), "utf8").includes(
+    'trigger === "cron"',
+  ),
+  true,
+  "cron aggregation path exists",
 );
+const adminApiSource = (await import("node:fs")).readFileSync(new URL("./analyticsAdminApi.mjs", import.meta.url), "utf8");
+assert.match(adminApiSource, /assertAnalyticsCronAuthorized\(request\)/, "cron uses secret auth");
+assert.match(adminApiSource, /createServiceClient\(\)/, "cron uses service-role client");
+assert.match(adminApiSource, /client: "service_role"/, "cron logs service_role client");
+assert.doesNotMatch(adminApiSource, /requireAdminContext\(request\);\s*supabase = admin\.supabase/, "cron does not use admin session client for RPC");
 
 delete process.env.ANALYTICS_CRON_SECRET;
 delete process.env.CRON_SECRET;

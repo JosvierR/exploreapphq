@@ -112,20 +112,8 @@ export function resolveAggregationInput(body = {}) {
 }
 
 const AGGREGATION_RPC_NAME = "aggregate_analytics_events_for_day";
-// PostgREST requires the exact argument name from pg_proc. DATA-001 installs vary.
-const AGGREGATION_PARAM_CANDIDATES = ["target_day", "day", "p_day", "p_target_day", "d"];
-
-function isRpcSignatureMismatch(error) {
-  const code = classifySupabaseAnalyticsError(error);
-  if (code === "analytics_rpc_not_found") return true;
-  const serialized = serializeErrorForLog(error);
-  const message = `${serialized.message || ""} ${serialized.details || ""} ${serialized.hint || ""}`.toLowerCase();
-  return (
-    message.includes("could not find the function") ||
-    message.includes("no matches were found in the schema cache") ||
-    (message.includes("function") && message.includes("does not exist"))
-  );
-}
+// Exact DATA-001 argument name. Do not send { day }.
+const AGGREGATION_PARAM_NAME = "target_day";
 
 function publicAggregationCode(error) {
   const code = classifySupabaseAnalyticsError(error);
@@ -148,44 +136,54 @@ function publicAggregationMessage(code) {
   return "Aggregation failed";
 }
 
+function safeRpcErrorFields(error) {
+  const serialized = serializeErrorForLog(error);
+  return {
+    code: serialized.code || null,
+    message: serialized.message || null,
+    details: serialized.details || null,
+    hint: serialized.hint || null,
+  };
+}
+
+/**
+ * Call public.aggregate_analytics_events_for_day(target_day DATE) RETURNS VOID.
+ * VOID/null data with no error is success.
+ */
 export async function runAnalyticsAggregationForDay(supabase, day, context = {}) {
   const started = Date.now();
   const safeDay = parseAnalyticsDay(day);
-  let lastError = null;
-  let usedParam = null;
+  const operation = "aggregate_analytics_events_for_day";
 
   try {
-    for (const paramName of AGGREGATION_PARAM_CANDIDATES) {
-      const { data, error } = await supabase.rpc(AGGREGATION_RPC_NAME, {
-        [paramName]: safeDay,
-      });
+    const { data, error } = await supabase.rpc(AGGREGATION_RPC_NAME, {
+      target_day: safeDay,
+    });
 
-      if (!error) {
-        return {
-          day: safeDay,
-          ok: true,
-          message: "Aggregation completed",
-          duration_ms: Date.now() - started,
-          result: { success: true },
-          param_name: paramName,
-          request_id: context.requestId || null,
-        };
-      }
-
-      lastError = error;
-      usedParam = paramName;
-      if (!isRpcSignatureMismatch(error)) break;
+    // VOID RPC returns data: null, error: null — treat as success.
+    if (!error) {
+      return {
+        day: safeDay,
+        ok: true,
+        message: "Aggregation completed",
+        duration_ms: Date.now() - started,
+        result: { success: true, data: data ?? null },
+        param_name: AGGREGATION_PARAM_NAME,
+        request_id: context.requestId || null,
+      };
     }
 
-    const code = publicAggregationCode(lastError);
+    const code = publicAggregationCode(error);
+    const rpcError = safeRpcErrorFields(error);
     return {
       day: safeDay,
       ok: false,
       code,
       message: publicAggregationMessage(code),
       duration_ms: Date.now() - started,
-      param_name: usedParam,
-      error: serializeErrorForLog(lastError),
+      param_name: AGGREGATION_PARAM_NAME,
+      operation,
+      error: rpcError,
     };
   } catch (error) {
     const code = publicAggregationCode(error);
@@ -195,7 +193,9 @@ export async function runAnalyticsAggregationForDay(supabase, day, context = {})
       code,
       message: publicAggregationMessage(code),
       duration_ms: Date.now() - started,
-      error: serializeErrorForLog(error),
+      param_name: AGGREGATION_PARAM_NAME,
+      operation,
+      error: safeRpcErrorFields(error),
     };
   }
 }
@@ -227,7 +227,8 @@ export async function runAnalyticsAggregationWindow(supabase, days, context = {}
         day: item.day,
         code: item.code,
         message: item.message,
-        param_name: item.param_name || null,
+        operation: item.operation || "aggregate_analytics_events_for_day",
+        param_name: item.param_name || "target_day",
         error: item.error || null,
         duration_ms: item.duration_ms,
       })),

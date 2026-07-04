@@ -1080,20 +1080,22 @@ export async function handleAdminAnalyticsDeadLetters(request) {
 async function runAggregationRequest(request, { trigger, requireAdminAuth }) {
   const started = Date.now();
   let diagnostics = null;
-  let supabase = null;
+  const route = trigger === "cron" ? "cron/analytics/aggregate" : "admin/analytics/aggregate";
+  const requestId = requestIdFromRequest(request);
 
   try {
     if (request.method === "OPTIONS") return optionsResponse();
     if (request.method !== "POST") return methodNotAllowed(request);
 
+    // Auth only — RPC always uses the service-role client (EXECUTE is granted to service_role).
     if (requireAdminAuth) {
       const admin = await requireAdminContext(request);
-      supabase = admin.supabase;
       diagnostics = admin.diagnostics;
     } else {
       assertAnalyticsCronAuthorized(request);
-      supabase = createServiceClient();
     }
+
+    const supabase = createServiceClient();
 
     let body = {};
     try {
@@ -1105,31 +1107,40 @@ async function runAggregationRequest(request, { trigger, requireAdminAuth }) {
 
     const days = resolveAggregationInput(body);
     const result = await runAnalyticsAggregationWindow(supabase, days, {
-      requestId: requestIdFromRequest(request),
+      requestId,
     });
 
-    const route = trigger === "cron" ? "cron/analytics/aggregate" : "admin/analytics/aggregate";
+    for (const failure of result.failures || []) {
+      logger.warn("Analytics aggregation day failed", {
+        ...requestLogMeta(request, route),
+        request_id: requestId,
+        operation: failure.operation || "aggregate_analytics_events_for_day",
+        day: failure.day,
+        code: failure.code,
+        error: failure.error,
+        param_name: failure.param_name,
+        duration_ms: failure.duration_ms,
+        ...analyticsSupabaseConfigMeta(),
+      });
+    }
+
     logger.info("Analytics aggregation completed", {
       ...requestLogMeta(request, route),
+      request_id: requestId,
+      operation: "aggregate_analytics_events_for_day",
       trigger,
+      client: "service_role",
+      param_name: "target_day",
       status: result.ok ? 200 : 500,
       duration_ms: Date.now() - started,
       days: result.days.map((item) => item.day),
       failure_codes: (result.failures || []).map((item) => item.code),
-      failures: (result.failures || []).map((item) => ({
-        day: item.day,
-        code: item.code,
-        message: item.message,
-        param_name: item.param_name,
-        error: item.error,
-        duration_ms: item.duration_ms,
-      })),
       warning_codes: (result.warnings || []).map((item) => item.code).filter(Boolean),
     });
 
     return jsonResponse(result.ok ? 200 : 500, {
       ok: result.ok,
-      request_id: requestIdFromRequest(request),
+      request_id: requestId,
       trigger,
       days: result.days,
       warnings: result.warnings,
@@ -1137,19 +1148,9 @@ async function runAggregationRequest(request, { trigger, requireAdminAuth }) {
     });
   } catch (error) {
     if (error instanceof AnalyticsOperationsError) {
-      return adminFailure(
-        request,
-        trigger === "cron" ? "cron/analytics/aggregate" : "admin/analytics/aggregate",
-        error,
-        diagnostics,
-      );
+      return adminFailure(request, route, error, diagnostics);
     }
-    return adminFailure(
-      request,
-      trigger === "cron" ? "cron/analytics/aggregate" : "admin/analytics/aggregate",
-      error,
-      diagnostics,
-    );
+    return adminFailure(request, route, error, diagnostics);
   }
 }
 
