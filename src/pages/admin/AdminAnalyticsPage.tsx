@@ -12,9 +12,11 @@ import {
 } from "@/features/admin/components/AdminPrimitives";
 import {
   type AnalyticsDeadLetterRow,
+  type AnalyticsDeadLetterSummary,
   type AnalyticsEventRow,
   type AnalyticsHealth,
   type AnalyticsOverview,
+  type AnalyticsQualityWarning,
   type AnalyticsRange,
   type AnalyticsSearchInsights,
   type AnalyticsTimeseries,
@@ -165,7 +167,7 @@ function AdminAnalyticsContent() {
     requestId: null,
     warnings: [],
   });
-  const [deadLetters, setDeadLetters] = useState<SectionState<{ rows: AnalyticsDeadLetterRow[]; total: number }>>({
+  const [deadLetters, setDeadLetters] = useState<SectionState<{ rows: AnalyticsDeadLetterRow[]; total: number; summary?: AnalyticsDeadLetterSummary }>>({
     data: null,
     loading: true,
     error: null,
@@ -245,7 +247,20 @@ function AdminAnalyticsContent() {
         );
 
       void fetchAnalyticsHealth(signal)
-        .then((result) => setHealth({ data: result.health, loading: false, error: null, requestId: result.request_id, warnings: result.warnings || [] }))
+        .then((result) =>
+          setHealth({
+            data: {
+              ...result.health,
+              status: result.status || result.health.status,
+              quality_warnings: result.quality_warnings || result.health.quality_warnings || [],
+              aggregation_freshness: result.aggregation_freshness || result.health.aggregation_freshness,
+            },
+            loading: false,
+            error: null,
+            requestId: result.request_id,
+            warnings: result.warnings || [],
+          }),
+        )
         .catch((error) =>
           setHealth({
             data: null,
@@ -289,7 +304,11 @@ function AdminAnalyticsContent() {
       void fetchAnalyticsDeadLetters({ range, signal })
         .then((result) =>
           setDeadLetters({
-            data: { rows: result.dead_letters, total: result.pagination.total },
+            data: {
+              rows: result.items || result.dead_letters,
+              total: result.pagination.total,
+              summary: result.summary,
+            },
             loading: false,
             error: null,
             requestId: result.request_id,
@@ -348,22 +367,34 @@ function AdminAnalyticsContent() {
     ];
   }, [overview.data]);
 
-  async function handleAggregate(dayOffset: 0 | -1) {
-    const date = new Date();
-    date.setUTCDate(date.getUTCDate() + dayOffset);
-    const day = date.toISOString().slice(0, 10);
+  async function handleAggregate(input: { day?: string; preset?: "today" | "yesterday" | "last_7_days" }) {
     setAggregateLoading(true);
     setAggregateMessage(null);
     try {
-      const result = await runAnalyticsAggregation(day);
-      setAggregateMessage(`Aggregation for ${result.day} completed.`);
+      const result = await runAnalyticsAggregation(
+        input.preset ? { preset: input.preset } : { day: input.day || new Date().toISOString().slice(0, 10) },
+      );
+      const okDays = (result.days || []).filter((item) => item.ok).map((item) => item.day);
+      const failed = (result.days || []).filter((item) => !item.ok);
+      if (failed.length > 0) {
+        setAggregateMessage(
+          `Aggregation partial failure for ${failed.map((item) => item.day).join(", ")}. Request ID: ${result.request_id}`,
+        );
+      } else {
+        setAggregateMessage(`Aggregation completed for ${okDays.join(", ") || "selected days"}.`);
+      }
       setRefreshKey((value) => value + 1);
     } catch (error) {
-      setAggregateMessage(error instanceof AdminApiError ? error.message : "Aggregation failed.");
+      const message = error instanceof AdminApiError ? error.message : "Aggregation failed.";
+      const requestId = error instanceof AdminApiError ? error.requestId : null;
+      setAggregateMessage(requestId ? `${message} Request ID: ${requestId}` : message);
     } finally {
       setAggregateLoading(false);
     }
   }
+
+  const qualityWarnings: AnalyticsQualityWarning[] = health.data?.quality_warnings || [];
+  const freshness = health.data?.aggregation_freshness;
 
   return (
     <AdminPageShell
@@ -517,20 +548,44 @@ function AdminAnalyticsContent() {
       <section className="admin-panel">
         <SectionHeader kicker="Health" title="Ingestion health" meta={health.data ? <StatusBadge label={health.data.status} tone={healthTone(health.data.status)} /> : <WarningMeta warnings={health.warnings} />} />
         {health.error ? <ErrorState title="Health unavailable" message={joinErrorMessage(health.error, health.requestId)} /> : (
-          <div className="admin-stats-grid">
-            <StatCard label="Events 5m" value={formatNumber(health.data?.events_last_5m)} loading={health.loading} />
-            <StatCard label="Events 1h" value={formatNumber(health.data?.events_last_1h)} loading={health.loading} />
-            <StatCard label="Events 24h" value={formatNumber(health.data?.events_last_24h)} loading={health.loading} />
-            <StatCard label="Dead letters 24h" value={formatNumber(health.data?.dead_letters_last_24h)} loading={health.loading} tone="amber" />
-            <StatCard label="Last event" value={formatDate(health.data?.last_successful_received_at)} loading={health.loading} />
-          </div>
+          <>
+            <div className="admin-stats-grid">
+              <StatCard label="Events 5m" value={formatNumber(health.data?.events_last_5m)} loading={health.loading} />
+              <StatCard label="Events 1h" value={formatNumber(health.data?.events_last_1h)} loading={health.loading} />
+              <StatCard label="Events 24h" value={formatNumber(health.data?.events_last_24h)} loading={health.loading} />
+              <StatCard label="Dead letters 1h" value={formatNumber(health.data?.dead_letters_last_1h)} loading={health.loading} tone="amber" />
+              <StatCard label="Dead letters 24h" value={formatNumber(health.data?.dead_letters_last_24h)} loading={health.loading} tone="amber" />
+              <StatCard label="Dead-letter rate 24h" value={health.data?.dead_letter_rate_24h != null ? `${health.data.dead_letter_rate_24h}%` : "—"} loading={health.loading} tone="amber" />
+              <StatCard label="Last event" value={formatDate(health.data?.last_successful_received_at)} loading={health.loading} />
+              <StatCard label="Today aggregated" value={freshness?.is_today_aggregated ? "yes" : "no"} loading={health.loading} />
+              <StatCard label="Yesterday aggregated" value={freshness?.is_yesterday_aggregated ? "yes" : "no"} loading={health.loading} />
+              <StatCard label="Latest aggregate day" value={freshness?.latest_admin_metrics_day || freshness?.latest_overview_day || "—"} loading={health.loading} />
+            </div>
+            {qualityWarnings.length > 0 && (
+              <div className="admin-panel admin-panel--nested">
+                <SectionHeader kicker="Quality" title="Data quality warnings" />
+                <ul className="admin-muted">
+                  {qualityWarnings.map((warning) => (
+                    <li key={`${warning.code}-${warning.message}`}>
+                      <StatusBadge label={warning.severity} tone={warning.severity === "critical" ? "red" : warning.severity === "warning" ? "amber" : "slate"} />{" "}
+                      {warning.message}
+                      {warning.count != null ? ` (${warning.count})` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
         )}
         <div className="admin-page-header__actions">
-          <button type="button" className="admin-btn admin-btn--secondary" disabled={aggregateLoading} onClick={() => void handleAggregate(0)}>
-            Run today aggregation
+          <button type="button" className="admin-btn admin-btn--secondary" disabled={aggregateLoading} onClick={() => void handleAggregate({ preset: "today" })}>
+            Aggregate today
           </button>
-          <button type="button" className="admin-btn admin-btn--ghost" disabled={aggregateLoading} onClick={() => void handleAggregate(-1)}>
-            Run yesterday aggregation
+          <button type="button" className="admin-btn admin-btn--ghost" disabled={aggregateLoading} onClick={() => void handleAggregate({ preset: "yesterday" })}>
+            Aggregate yesterday
+          </button>
+          <button type="button" className="admin-btn admin-btn--ghost" disabled={aggregateLoading} onClick={() => void handleAggregate({ preset: "last_7_days" })}>
+            Aggregate last 7 days
           </button>
         </div>
         {aggregateMessage && <p className="admin-muted">{aggregateMessage}</p>}
@@ -541,28 +596,35 @@ function AdminAnalyticsContent() {
         {deadLetters.error ? <ErrorState title="Dead letters unavailable" message={joinErrorMessage(deadLetters.error, deadLetters.requestId)} /> : deadLetters.loading ? (
           <LoadingState rows={5} />
         ) : (
-          <AdminDataTable label="Dead letters">
-            <thead>
-              <tr>
-                <th>Received</th>
-                <th>Event ID</th>
-                <th>Reason</th>
-                <th>Source</th>
-                <th>Payload</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(deadLetters.data?.rows || []).map((row, index) => (
-                <tr key={`${row.event_id || "none"}-${index}`}>
-                  <td>{formatDate(row.received_at)}</td>
-                  <td>{row.event_id || "—"}</td>
-                  <td>{row.reason || "—"}</td>
-                  <td>{row.source}</td>
-                  <td>{row.payload_summary ? `${row.payload_summary.key_count} keys` : "hidden"}</td>
+          <>
+            <div className="admin-stats-grid">
+              <StatCard label="Last 24h" value={formatNumber(deadLetters.data?.summary?.last_24h)} loading={false} />
+              <StatCard label="Last 7d" value={formatNumber(deadLetters.data?.summary?.last_7d)} loading={false} />
+            </div>
+            <DistributionList entries={deadLetters.data?.summary?.by_reason || []} loading={false} />
+            <AdminDataTable label="Dead letters">
+              <thead>
+                <tr>
+                  <th>Received</th>
+                  <th>Event ID</th>
+                  <th>Reason</th>
+                  <th>Source</th>
+                  <th>Payload</th>
                 </tr>
-              ))}
-            </tbody>
-          </AdminDataTable>
+              </thead>
+              <tbody>
+                {(deadLetters.data?.rows || []).map((row, index) => (
+                  <tr key={`${row.event_id || "none"}-${index}`}>
+                    <td>{formatDate(row.received_at)}</td>
+                    <td>{row.event_id || "—"}</td>
+                    <td>{row.reason || "—"}</td>
+                    <td>{row.source}</td>
+                    <td>{row.payload_summary ? `${row.payload_summary.key_count} keys` : "hidden"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </AdminDataTable>
+          </>
         )}
       </section>
     </AdminPageShell>

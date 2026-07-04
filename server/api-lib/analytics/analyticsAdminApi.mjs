@@ -1,12 +1,20 @@
 import { createClient } from "@supabase/supabase-js";
 import WebSocket from "ws";
 import {
-  buildAggregateSuccessBody,
-  buildHealthPayload,
   buildOverviewFromEvents,
   buildTimeseriesFromEvents,
   makeAnalyticsWarning,
 } from "./analyticsAdminShapes.mjs";
+import {
+  AnalyticsOperationsError,
+  assertAnalyticsCronAuthorized,
+  clampEventExplorerLimit,
+  clampOffset,
+  getAnalyticsIngestionHealth,
+  getDeadLetterSummary,
+  resolveAggregationInput,
+  runAnalyticsAggregationWindow,
+} from "./analyticsOperationsService.mjs";
 import { classifySupabaseAnalyticsError, serializeErrorForLog } from "./analyticsRouter.mjs";
 import { jsonResponse, optionsResponse } from "../http/responses.mjs";
 import { requestIdFromRequest } from "../http/requestContext.mjs";
@@ -16,6 +24,7 @@ import { logger, requestLogMeta } from "../observability/logger.mjs";
 const EVENTS_TABLE = "analytics_events";
 const DEAD_LETTERS_TABLE = "analytics_event_dead_letters";
 const EVENT_PAGE_SIZE = 50;
+const EVENT_PAGE_MAX = 100;
 const DEAD_LETTER_PAGE_SIZE = 50;
 const SAMPLE_LIMIT = 2000;
 const TIMESERIES_DAYS = 31;
@@ -158,10 +167,15 @@ function adminFailure(request, route, error, diagnostics = null) {
   }
 
   const status = error?.status || 500;
+  const code =
+    error?.code ||
+    (status === 500 || status === 503 ? routeFailureCode(route) : classifySupabaseAnalyticsError(error?.cause || error));
+
   logger.warn("Admin analytics request failed", {
     ...requestLogMeta(request, route),
     status,
-    code: error?.code || classifySupabaseAnalyticsError(error?.cause || error),
+    code,
+    operation: error?.operation || route,
     error: serializeErrorForLog(error?.cause || error),
     ...analyticsSupabaseConfigMeta(),
   });
@@ -175,10 +189,10 @@ function adminFailure(request, route, error, diagnostics = null) {
           ? "Access denied."
           : status === 400
             ? error.message
-            : routeFailureMessage(route),
-    code:
-      error?.code ||
-      (status === 500 || status === 503 ? routeFailureCode(route) : classifySupabaseAnalyticsError(error?.cause || error)),
+            : status === 503 && code === "analytics_cron_not_configured"
+              ? "Analytics cron is not configured."
+              : routeFailureMessage(route),
+    code,
     request_id: requestIdFromRequest(request),
     diagnostics,
   });
@@ -864,19 +878,24 @@ export async function handleAdminAnalyticsEvents(request) {
     diagnostics = diag;
     const url = new URL(request.url);
     const { since, until } = parseRange(request);
-    const limit = Math.min(Number(url.searchParams.get("limit") || EVENT_PAGE_SIZE), EVENT_PAGE_SIZE);
-    const offset = Math.max(Number(url.searchParams.get("offset") || 0), 0);
+    const limit = clampEventExplorerLimit(url.searchParams.get("limit"), {
+      defaultLimit: EVENT_PAGE_SIZE,
+      maxLimit: EVENT_PAGE_MAX,
+    });
+    const offset = clampOffset(url.searchParams.get("offset"));
     const eventName = url.searchParams.get("event_name");
     const source = url.searchParams.get("source");
     const platform = url.searchParams.get("platform");
     const entityType = url.searchParams.get("entity_type");
-    const auth = url.searchParams.get("auth");
+    const auth = url.searchParams.get("auth") || url.searchParams.get("has_user_id");
+    const eventId = url.searchParams.get("event_id");
+    const entityId = url.searchParams.get("entity_id");
     const search = url.searchParams.get("q");
 
     let query = supabase
       .from(EVENTS_TABLE)
       .select(
-        "event_id, received_at, occurred_at, event_name, source, platform, entity_type, entity_id, anonymous_id, user_id, session_id, app_version, build_number, properties, context",
+        "event_id, received_at, occurred_at, event_name, source, platform, entity_type, entity_id, anonymous_id, user_id, session_id, app_version, build_number",
         { count: "exact" },
       )
       .gte("received_at", since)
@@ -888,8 +907,10 @@ export async function handleAdminAnalyticsEvents(request) {
     if (source) query = query.eq("source", source);
     if (platform) query = query.eq("platform", platform);
     if (entityType) query = query.eq("entity_type", entityType);
-    if (auth === "authenticated") query = query.not("user_id", "is", null);
-    if (auth === "anonymous") query = query.is("user_id", null);
+    if (auth === "authenticated" || auth === "true") query = query.not("user_id", "is", null);
+    if (auth === "anonymous" || auth === "false") query = query.is("user_id", null);
+    if (eventId) query = query.eq("event_id", eventId);
+    if (entityId) query = query.eq("entity_id", entityId);
     if (search) {
       if (search.length > 80) throw new AdminAnalyticsError(400, "Search query is too long.");
       query = query.or(`event_id.eq.${search},entity_id.eq.${search}`);
@@ -946,74 +967,59 @@ export async function handleAdminAnalyticsEventDetail(request, eventId) {
 
 export async function handleAdminAnalyticsHealth(request) {
   let diagnostics = null;
+  const started = Date.now();
   try {
     if (request.method === "OPTIONS") return optionsResponse();
     if (request.method !== "GET") return methodNotAllowed(request);
 
     const { supabase, diagnostics: diag } = await requireAdminContext(request);
     diagnostics = diag;
-    const warnings = [...(diagnostics?.warnings || [])];
-    const deadLettersTimeColumn = diagnostics?.analytics_dead_letters_time_column;
-    const [events5m, events1h, events24h, deadLetters1h, deadLetters24h, latest, deadReasons, overviewDaily, topContentDaily, searchDaily, adminMetricsDaily] = await Promise.all([
-      countEventsSince(supabase, lastMinutes(5)),
-      countEventsSince(supabase, lastMinutes(60)),
-      countEventsSince(supabase, lastMinutes(24 * 60)),
-      countDeadLettersSince(supabase, lastMinutes(60), deadLettersTimeColumn),
-      countDeadLettersSince(supabase, lastMinutes(24 * 60), deadLettersTimeColumn),
-      supabase.from(EVENTS_TABLE).select("received_at").order("received_at", { ascending: false }).limit(1),
-      fetchDeadLetterReasonRows(supabase, deadLettersTimeColumn, lastMinutes(24 * 60)),
-      queryViewRows(supabase, request, "admin/analytics/health", "admin_analytics_overview_daily", { limit: 1 }),
-      queryViewRows(supabase, request, "admin/analytics/health", "admin_top_content_daily", { limit: 1 }),
-      queryViewRows(supabase, request, "admin/analytics/health", "admin_search_insights_daily", { limit: 1 }),
-      queryViewRows(supabase, request, "admin/analytics/health", "admin_metrics_daily", { limit: 1 }),
-    ]);
 
-    if (latest.error) throw latest.error;
-    for (const probe of [overviewDaily, topContentDaily, searchDaily, adminMetricsDaily]) {
-      if (probe.warning) warnings.push(probe.warning);
-    }
-    const usingRawEventsFallback = !overviewDaily.available || overviewDaily.rows.length === 0;
-    if (usingRawEventsFallback) {
-      warnings.push(makeAnalyticsWarning("using_raw_events_fallback", "Using raw events fallback for admin analytics."));
-    }
+    const health = await getAnalyticsIngestionHealth(supabase, {
+      deadLettersTimeColumn: diagnostics?.analytics_dead_letters_time_column,
+    });
 
-    const payload = buildHealthPayload({
-      events5m,
-      events1h,
-      events24h,
-      deadLetters1h,
-      deadLetters24h,
-      latestEventReceivedAt: latest.data?.[0]?.received_at || null,
-      latestAggregationDay: adminMetricsDaily.available ? adminMetricsDaily.rows?.[0]?.day ?? null : null,
-      rejectionReasons: countBy(deadReasons || [], "reason"),
-      rejectionSources: countBy(deadReasons || [], "source"),
-      diagnostics: {
-        ...diagnostics,
-        overview_daily_view_available: overviewDaily.available,
-        top_content_daily_view_available: topContentDaily.available,
-        search_insights_daily_view_available: searchDaily.available,
-        admin_metrics_daily_available: adminMetricsDaily.available,
-        using_raw_events_fallback: usingRawEventsFallback,
-      },
-      warnings,
+    logger.info("Analytics health computed", {
+      ...requestLogMeta(request, "admin/analytics/health"),
+      status: health.status,
+      duration_ms: Date.now() - started,
+      warning_codes: (health.quality_warnings || []).map((item) => item.code),
     });
 
     return jsonResponse(200, {
       ok: true,
       request_id: requestIdFromRequest(request),
-      health: payload.health,
-      diagnostics: payload.health
-        ? {
-            ...diagnostics,
-            overview_daily_view_available: overviewDaily.available,
-            top_content_daily_view_available: topContentDaily.available,
-            search_insights_daily_view_available: searchDaily.available,
-            admin_metrics_daily_available: adminMetricsDaily.available,
-            using_raw_events_fallback: usingRawEventsFallback,
-            warnings,
-          }
-        : diagnostics,
-      warnings,
+      status: health.status,
+      last_event_received_at: health.last_event_received_at,
+      events_last_5m: health.events_last_5m,
+      events_last_1h: health.events_last_1h,
+      events_last_24h: health.events_last_24h,
+      dead_letters_last_1h: health.dead_letters_last_1h,
+      dead_letters_last_24h: health.dead_letters_last_24h,
+      dead_letter_rate_24h: health.dead_letter_rate_24h,
+      top_dead_letter_reasons_24h: health.top_dead_letter_reasons_24h,
+      aggregation_freshness: health.aggregation_freshness,
+      quality_warnings: health.quality_warnings,
+      health: {
+        status: health.status,
+        events_last_5m: health.events_last_5m,
+        events_last_1h: health.events_last_1h,
+        events_last_24h: health.events_last_24h,
+        dead_letters_last_1h: health.dead_letters_last_1h,
+        dead_letters_last_24h: health.dead_letters_last_24h,
+        dead_letter_rate_24h: health.dead_letter_rate_24h,
+        rejection_reasons: health.top_dead_letter_reasons_24h,
+        rejection_sources: [],
+        last_successful_received_at: health.last_event_received_at,
+        latest_aggregation_day: health.aggregation_freshness?.latest_admin_metrics_day || null,
+        aggregation_freshness: health.aggregation_freshness,
+        quality_warnings: health.quality_warnings,
+      },
+      diagnostics: {
+        ...diagnostics,
+        ...health.diagnostics,
+      },
+      warnings: health.diagnostics.warnings || [],
     });
   } catch (error) {
     return adminFailure(request, "admin/analytics/health", error, diagnostics);
@@ -1031,83 +1037,118 @@ export async function handleAdminAnalyticsDeadLetters(request) {
     const url = new URL(request.url);
     const { since, until } = parseRange(request);
     const limit = Math.min(Number(url.searchParams.get("limit") || DEAD_LETTER_PAGE_SIZE), DEAD_LETTER_PAGE_SIZE);
-    const offset = Math.max(Number(url.searchParams.get("offset") || 0), 0);
+    const offset = clampOffset(url.searchParams.get("offset"));
     const reason = url.searchParams.get("reason");
     const source = url.searchParams.get("source");
-    const { data, error, count } = await fetchDeadLetterRows(supabase, {
-      timestampColumn: diagnostics?.analytics_dead_letters_time_column,
-      since,
-      until,
-      offset,
-      limit,
-      reason,
-      source,
-    });
-    if (error) throw error;
+    const timestampColumn = diagnostics?.analytics_dead_letters_time_column;
+
+    const [rowsResult, summary] = await Promise.all([
+      fetchDeadLetterRows(supabase, {
+        timestampColumn,
+        since,
+        until,
+        offset,
+        limit,
+        reason,
+        source,
+      }),
+      getDeadLetterSummary(supabase, { deadLettersTimeColumn: timestampColumn }),
+    ]);
+
+    if (rowsResult.error) throw rowsResult.error;
 
     return jsonResponse(200, {
       ok: true,
       request_id: requestIdFromRequest(request),
-      pagination: { limit, offset, total: count ?? 0 },
-      dead_letters: (data || []).map(mapDeadLetterRow),
+      pagination: { limit, offset, total: rowsResult.count ?? 0 },
+      items: (rowsResult.data || []).map(mapDeadLetterRow),
+      dead_letters: (rowsResult.data || []).map(mapDeadLetterRow),
+      summary: {
+        last_24h: summary.last_24h,
+        last_7d: summary.last_7d,
+        by_reason: summary.by_reason,
+        by_source: summary.by_source,
+      },
       diagnostics,
-      warnings: diagnostics.warnings,
+      warnings: [...(diagnostics.warnings || []), ...(summary.warnings || [])],
     });
   } catch (error) {
     return adminFailure(request, "admin/analytics/dead-letters", error, diagnostics);
   }
 }
 
-export async function handleAdminAnalyticsAggregate(request) {
+async function runAggregationRequest(request, { trigger, requireAdminAuth }) {
+  const started = Date.now();
   let diagnostics = null;
+  let supabase = null;
+
   try {
     if (request.method === "OPTIONS") return optionsResponse();
     if (request.method !== "POST") return methodNotAllowed(request);
 
-    const { supabase, diagnostics: diag } = await requireAdminContext(request);
-    diagnostics = diag;
+    if (requireAdminAuth) {
+      const admin = await requireAdminContext(request);
+      supabase = admin.supabase;
+      diagnostics = admin.diagnostics;
+    } else {
+      assertAnalyticsCronAuthorized(request);
+      supabase = createServiceClient();
+    }
 
-    let body;
+    let body = {};
     try {
-      body = await request.json();
+      const text = await request.text();
+      body = text ? JSON.parse(text) : {};
     } catch {
       throw new AdminAnalyticsError(400, "Request body must be valid JSON.");
     }
 
-    const day = String(body?.day || "").trim();
-    if (!DATE_RE.test(day)) {
-      throw new AdminAnalyticsError(400, "day must be YYYY-MM-DD.");
-    }
-
-    const { data, error } = await supabase.rpc("aggregate_analytics_events_for_day", { target_day: day });
-    if (error) {
-      if (analyticsSchemaMissing(error)) {
-        throw error;
-      }
-      throw new AdminAnalyticsError(503, "Aggregation function is not available.", { cause: error });
-    }
-
-    logger.info("Analytics aggregation triggered", {
-      ...requestLogMeta(request, "admin/analytics/aggregate"),
-      day,
-      result: safeAggregateResult(data),
+    const days = resolveAggregationInput(body);
+    const result = await runAnalyticsAggregationWindow(supabase, days, {
+      requestId: requestIdFromRequest(request),
     });
 
-    const responseBody = buildAggregateSuccessBody(day);
-    return jsonResponse(200, {
-      ...responseBody,
+    logger.info("Analytics aggregation completed", {
+      ...requestLogMeta(request, trigger === "cron" ? "cron/analytics/aggregate" : "admin/analytics/aggregate"),
+      trigger,
+      status: result.ok ? 200 : 500,
+      duration_ms: Date.now() - started,
+      days: result.days.map((item) => item.day),
+      warning_codes: (result.warnings || []).map((item) => item.code).filter(Boolean),
+    });
+
+    return jsonResponse(result.ok ? 200 : 500, {
+      ok: result.ok,
       request_id: requestIdFromRequest(request),
+      trigger,
+      days: result.days,
+      warnings: result.warnings,
       diagnostics,
     });
   } catch (error) {
-    return adminFailure(request, "admin/analytics/aggregate", error, diagnostics);
+    if (error instanceof AnalyticsOperationsError) {
+      return adminFailure(
+        request,
+        trigger === "cron" ? "cron/analytics/aggregate" : "admin/analytics/aggregate",
+        error,
+        diagnostics,
+      );
+    }
+    return adminFailure(
+      request,
+      trigger === "cron" ? "cron/analytics/aggregate" : "admin/analytics/aggregate",
+      error,
+      diagnostics,
+    );
   }
 }
 
-function safeAggregateResult(data) {
-  if (data == null) return { success: true };
-  if (typeof data === "object") return sanitizeAdminJson(data);
-  return { value: data };
+export async function handleAdminAnalyticsAggregate(request) {
+  return runAggregationRequest(request, { trigger: "admin", requireAdminAuth: true });
+}
+
+export async function handleCronAnalyticsAggregate(request) {
+  return runAggregationRequest(request, { trigger: "cron", requireAdminAuth: false });
 }
 
 const ADMIN_ANALYTICS_ROUTES = {

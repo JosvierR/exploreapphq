@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { dispatchAdminAnalyticsApi, handleAdminAnalyticsOverview } from "./analyticsAdminApi.mjs";
 import {
-  buildAggregateSuccessBody,
   buildHealthPayload,
   buildOverviewFromEvents,
   buildTimeseriesFromEvents,
   makeAnalyticsWarning,
 } from "./analyticsAdminShapes.mjs";
+import { runAnalyticsAggregationForDay } from "./analyticsOperationsService.mjs";
 
 const warnings = [makeAnalyticsWarning("daily_view_unavailable", "Using raw events fallback.")];
 const rows = [
@@ -95,7 +95,10 @@ const healthPayload = buildHealthPayload({
 });
 assert.equal(healthPayload.health.status, "healthy", "health is healthy when events exist and dead letters are zero");
 
-const aggregateBody = buildAggregateSuccessBody("2026-07-03");
+const aggregateBody = await runAnalyticsAggregationForDay(
+  { async rpc() { return { data: null, error: null }; } },
+  new Date().toISOString().slice(0, 10),
+);
 assert.equal(aggregateBody.message, "Aggregation completed", "aggregate void/null success returns message");
 
 const methodResponse = await handleAdminAnalyticsOverview(

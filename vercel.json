@@ -28,5 +28,11 @@
       "includeFiles": "netlify/functions/**,server/emails/**,server/api-lib/**",
       "maxDuration": 10
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/analytics/aggregate",
+      "schedule": "15 5 * * *"
+    }
+  ]
 }
