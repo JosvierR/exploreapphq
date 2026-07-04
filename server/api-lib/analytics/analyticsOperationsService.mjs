@@ -120,6 +120,7 @@ function publicAggregationCode(error) {
   if (code === "analytics_rpc_not_found") return "analytics_rpc_not_found";
   if (code === "analytics_permission_denied") return "analytics_rpc_permission_denied";
   if (code === "analytics_rpc_unsafe_mutation") return "analytics_rpc_unsafe_mutation";
+  if (code === "analytics_rpc_missing_extension") return "analytics_rpc_missing_extension";
   if (code === "analytics_schema_missing") return "analytics_schema_missing";
   return "analytics_aggregation_failed";
 }
@@ -128,11 +129,14 @@ function publicAggregationMessage(code) {
   if (code === "analytics_rpc_not_found") {
     return "Aggregation RPC was not found or argument names do not match.";
   }
-  if (code === "analytics_rpc_permission_denied") {
+  if (code === "analytics_permission_denied" || code === "analytics_rpc_permission_denied") {
     return "Service role cannot execute the aggregation RPC.";
   }
   if (code === "analytics_rpc_unsafe_mutation") {
     return "Aggregation RPC failed because a DELETE/UPDATE lacks a WHERE clause under service_role. Mark the function SECURITY DEFINER or add WHERE day = target_day.";
+  }
+  if (code === "analytics_rpc_missing_extension") {
+    return "Aggregation RPC cannot resolve pgcrypto digest(). Set search_path = public, extensions on the function.";
   }
   if (code === "analytics_schema_missing") {
     return "Analytics schema is not installed.";

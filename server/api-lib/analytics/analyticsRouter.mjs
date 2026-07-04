@@ -287,6 +287,9 @@ export function classifySupabaseAnalyticsError(error) {
   if (code === "21000" || message.includes("delete requires a where clause") || message.includes("update requires a where clause")) {
     return "analytics_rpc_unsafe_mutation";
   }
+  if (code === "42883" || message.includes("digest(") || (message.includes("function") && message.includes("does not exist") && message.includes("digest"))) {
+    return "analytics_rpc_missing_extension";
+  }
   if (
     code === "PGRST202" ||
     (message.includes("could not find the function") && message.includes("schema cache"))

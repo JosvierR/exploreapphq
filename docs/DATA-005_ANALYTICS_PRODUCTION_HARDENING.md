@@ -270,9 +270,13 @@ Run in Supabase SQL Editor:
 
 ```sql
 alter function public.aggregate_analytics_events_for_day(date) security definer;
-alter function public.aggregate_analytics_events_for_day(date) set search_path = public;
+-- Must include extensions so pgcrypto digest() resolves.
+alter function public.aggregate_analytics_events_for_day(date) set search_path = public, extensions;
 grant execute on function public.aggregate_analytics_events_for_day(date) to service_role;
 ```
+
+If you previously set `search_path = public` only, you will see:
+`function digest(text, unknown) does not exist` — fix by including `extensions` as above.
 
 Then retry the cron endpoint. No redeploy is required for this SQL fix.
 

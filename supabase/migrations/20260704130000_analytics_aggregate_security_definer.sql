@@ -19,7 +19,8 @@ begin
       and p.proname = 'aggregate_analytics_events_for_day'
   loop
     execute format('alter function %s security definer', fn.signature);
-    execute format('alter function %s set search_path = public', fn.signature);
+    -- Include extensions so pgcrypto digest() resolves under SECURITY DEFINER.
+    execute format('alter function %s set search_path = public, extensions', fn.signature);
     execute format('grant execute on function %s to service_role', fn.signature);
     execute format('grant execute on function %s to authenticated', fn.signature);
   end loop;

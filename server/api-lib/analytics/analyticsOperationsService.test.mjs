@@ -110,6 +110,22 @@ const unsafeDelete = await runAnalyticsAggregationForDay(unsafeDeleteClient, tod
 assert.equal(unsafeDelete.code, "analytics_rpc_unsafe_mutation", "unsafe DELETE maps to dedicated code");
 assert.match(unsafeDelete.message, /SECURITY DEFINER|WHERE/i, "unsafe DELETE message is actionable");
 
+const digestClient = {
+  async rpc() {
+    return {
+      data: null,
+      error: {
+        code: "42883",
+        message: "function digest(text, unknown) does not exist",
+        hint: "No function matches the given name and argument types.",
+      },
+    };
+  },
+};
+const digestFailed = await runAnalyticsAggregationForDay(digestClient, todayUtc());
+assert.equal(digestFailed.code, "analytics_rpc_missing_extension", "missing digest maps to extension code");
+assert.match(digestFailed.message, /extensions|digest/i, "digest error message is actionable");
+
 const windowResult = await runAnalyticsAggregationWindow(successClient, resolveAggregationPreset("last_7_days"));
 assert.equal(windowResult.ok, true, "window aggregation succeeds");
 assert.equal(windowResult.days.length, 7, "window returns 7 days");
