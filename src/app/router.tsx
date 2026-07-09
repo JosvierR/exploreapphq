@@ -13,6 +13,7 @@ import { ThanksPage } from "@/pages/marketing/ThanksPage";
 import { FeedbackPage } from "@/pages/marketing/FeedbackPage";
 import { NotFoundPage } from "@/pages/marketing/NotFoundPage";
 import { DeepLinkFallbackPage } from "@/pages/marketing/DeepLinkFallbackPage";
+import { ChallengeMissionPage } from "@/pages/marketing/ChallengeMissionPage";
 import { AdminDashboardPage } from "@/pages/admin/AdminDashboardPage";
 import { AdminAnalyticsPage } from "@/pages/admin/AdminAnalyticsPage";
 import { AdminBusinessInsightsPage } from "@/pages/admin/AdminBusinessInsightsPage";
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
       { path: "/access", element: <AccessPage /> },
       { path: "/feedback/*", element: <FeedbackPage /> },
       { path: "/team", element: <Navigate to="/admin" replace /> },
+      { path: "/challenges/:type", element: <ChallengeMissionPage /> },
       { path: "/v/:videoId", element: <DeepLinkFallbackPage kind="video" paramName="videoId" /> },
       { path: "/p/:placeId", element: <DeepLinkFallbackPage kind="place" paramName="placeId" /> },
       { path: "/r/:routeId", element: <DeepLinkFallbackPage kind="route" paramName="routeId" /> },

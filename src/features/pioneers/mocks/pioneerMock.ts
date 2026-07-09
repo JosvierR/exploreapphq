@@ -21,7 +21,7 @@ export const PIONEER_CHALLENGES: PioneerChallenge[] = [
     badgeId: "badge-places",
     progressCurrent: 2,
     progressTarget: 5,
-    appDeepLink: "explore://challenges/places",
+    appDeepLink: "/challenges/places",
     communityCount: 2,
   },
   {
@@ -35,7 +35,7 @@ export const PIONEER_CHALLENGES: PioneerChallenge[] = [
     badgeId: "badge-routes",
     progressCurrent: 1,
     progressTarget: 3,
-    appDeepLink: "explore://challenges/routes",
+    appDeepLink: "/challenges/routes",
     communityCount: 1,
   },
   {
@@ -49,7 +49,7 @@ export const PIONEER_CHALLENGES: PioneerChallenge[] = [
     badgeId: "badge-videos",
     progressCurrent: 3,
     progressTarget: 6,
-    appDeepLink: "explore://challenges/videos",
+    appDeepLink: "/challenges/videos",
     communityCount: 3,
   },
 ];
@@ -260,31 +260,38 @@ export const PIONEER_REWARDS: PioneerReward[] = [
     id: "badge",
     titleKey: "pioneer.reward.badge.title",
     descriptionKey: "pioneer.reward.badge.desc",
+    image: APP_SCREENS.gallery[6],
   },
   {
     id: "profile",
     titleKey: "pioneer.reward.profile.title",
     descriptionKey: "pioneer.reward.profile.desc",
+    image: APP_SCREENS.hero,
   },
   {
     id: "repost",
     titleKey: "pioneer.reward.repost.title",
     descriptionKey: "pioneer.reward.repost.desc",
+    image: APP_SCREENS.gallery[1],
   },
   {
     id: "ranking",
     titleKey: "pioneer.reward.ranking.title",
     descriptionKey: "pioneer.reward.ranking.desc",
+    image: APP_SCREENS.routeMap,
   },
   {
     id: "early",
     titleKey: "pioneer.reward.early.title",
     descriptionKey: "pioneer.reward.early.desc",
+    image: APP_SCREENS.gallery[5],
   },
   {
     id: "creator",
     titleKey: "pioneer.reward.creator.title",
     descriptionKey: "pioneer.reward.creator.desc",
+    image: APP_SCREENS.gallery[3],
+    featured: true,
   },
 ];
 
@@ -298,14 +305,14 @@ export const PIONEER_STATS: PioneerStats = {
 export const PIONEER_VIDEO_CARDS: PioneerVideoCard[] = [
   {
     id: "feed-beach",
-    image: APP_SCREENS.videoFeed[0],
+    image: APP_SCREENS.gallery[4],
     titleKey: "pioneer.video.card1.title",
     creator: "Paola M.",
     typeKey: "pioneer.video.type.video",
   },
   {
     id: "promo-city",
-    image: APP_SCREENS.videoFeed[1],
+    image: APP_SCREENS.gallery[2],
     titleKey: "pioneer.video.card2.title",
     creator: "David R.",
     typeKey: "pioneer.video.type.place",
@@ -319,21 +326,21 @@ export const PIONEER_VIDEO_CARDS: PioneerVideoCard[] = [
   },
   {
     id: "gallery-food",
-    image: APP_SCREENS.gallery[2],
+    image: APP_SCREENS.gallery[3],
     titleKey: "pioneer.video.card4.title",
     creator: "Marco A.",
     typeKey: "pioneer.video.type.place",
   },
   {
     id: "gallery-view",
-    image: APP_SCREENS.gallery[4],
+    image: APP_SCREENS.videoFeed[2],
     titleKey: "pioneer.video.card5.title",
     creator: "Elena V.",
     typeKey: "pioneer.video.type.video",
   },
   {
     id: "gallery-create",
-    image: APP_SCREENS.gallery[6],
+    image: APP_SCREENS.heroStack.left,
     titleKey: "pioneer.video.card6.title",
     creator: "Jorge C.",
     typeKey: "pioneer.video.type.route",

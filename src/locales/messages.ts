@@ -146,6 +146,11 @@ export const messages = {
     "pioneer.whatIs.point1": "Authentic videos from places people can visit",
     "pioneer.whatIs.point2": "Useful routes built from real movement",
     "pioneer.whatIs.point3": "Places with life, context and community memory",
+    "pioneer.whatIs.signal1": "Real places",
+    "pioneer.whatIs.signal2": "Useful routes",
+    "pioneer.whatIs.signal3": "Vertical videos",
+    "pioneer.whatIs.creatorTitle": "Your city needs your lens",
+    "pioneer.whatIs.creatorDesc": "Every pioneer turns a street, beach or viewpoint into a signal others can trust before they go.",
     "pioneer.challenges.eyebrow": "Weekly challenges",
     "pioneer.challenges.title": "Small missions that fill the map.",
     "pioneer.challenges.lead":
@@ -153,6 +158,8 @@ export const messages = {
     "pioneer.challenges.live": "Weekly missions linked to the app",
     "pioneer.challenge.community": "Community",
     "pioneer.challenge.openApp": "Open mission in Explore",
+    "pioneer.challenge.openAppHint": "If Explore is installed, the mission opens in the app. Otherwise you can download it below.",
+    "pioneer.challenge.backToMissions": "Back to weekly missions",
     "pioneer.challenge.learnMore": "See how Explore works",
     "pioneer.challenge.getApp": "Get the app",
     "pioneer.challenge.places.title": "Places with life",
@@ -229,6 +236,7 @@ export const messages = {
     "pioneer.showcase.title": "Vertical videos, routes and places with context.",
     "pioneer.showcase.lead":
       "The landing uses real app screenshots as a preview of the content pioneers will help seed inside Explore.",
+    "pioneer.showcase.live": "Fresh uploads from the community",
     "pioneer.showcase.social":
       "Tag Explore when you publish quality place content. The strongest contributions can be reposted with creator credit.",
     "pioneer.video.type.video": "Video",
@@ -405,6 +413,11 @@ export const messages = {
     "pioneer.whatIs.point1": "Videos auténticos de lugares que se pueden visitar",
     "pioneer.whatIs.point2": "Rutas útiles creadas desde movimiento real",
     "pioneer.whatIs.point3": "Lugares con vida, contexto y memoria de comunidad",
+    "pioneer.whatIs.signal1": "Lugares reales",
+    "pioneer.whatIs.signal2": "Rutas útiles",
+    "pioneer.whatIs.signal3": "Videos verticales",
+    "pioneer.whatIs.creatorTitle": "Tu ciudad necesita tu lente",
+    "pioneer.whatIs.creatorDesc": "Cada pionero convierte una calle, playa o mirador en una señal en la que otros pueden confiar antes de ir.",
     "pioneer.challenges.eyebrow": "Retos semanales",
     "pioneer.challenges.title": "Misiones pequeñas que llenan el mapa.",
     "pioneer.challenges.lead":
@@ -412,6 +425,8 @@ export const messages = {
     "pioneer.challenges.live": "Misiones semanales enlazadas a la app",
     "pioneer.challenge.community": "Comunidad",
     "pioneer.challenge.openApp": "Abrir misión en Explore",
+    "pioneer.challenge.openAppHint": "Si tienes Explore instalada, la misión se abre en la app. Si no, puedes descargarla abajo.",
+    "pioneer.challenge.backToMissions": "Volver a las misiones semanales",
     "pioneer.challenge.learnMore": "Ver cómo funciona Explore",
     "pioneer.challenge.getApp": "Descargar la app",
     "pioneer.challenge.places.title": "Lugares con vida",
@@ -488,6 +503,7 @@ export const messages = {
     "pioneer.showcase.title": "Videos verticales, rutas y lugares con contexto.",
     "pioneer.showcase.lead":
       "La landing usa screenshots reales de la app como preview del contenido que los pioneros ayudarán a sembrar dentro de Explore.",
+    "pioneer.showcase.live": "Subidas recientes de la comunidad",
     "pioneer.showcase.social":
       "Etiqueta a Explore cuando publiques contenido de calidad sobre lugares. Los mejores aportes pueden repostearse con crédito al creador.",
     "pioneer.video.type.video": "Video",

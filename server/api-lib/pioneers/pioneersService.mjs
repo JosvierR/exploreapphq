@@ -14,9 +14,9 @@ const POINTS = {
 };
 
 const CHALLENGE_DEEP_LINKS = {
-  places: "explore://challenges/places",
-  routes: "explore://challenges/routes",
-  videos: "explore://challenges/videos",
+  places: "/challenges/places",
+  routes: "/challenges/routes",
+  videos: "/challenges/videos",
 };
 
 function getSupabaseUrl() {

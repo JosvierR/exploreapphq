@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { motion, useReducedMotion } from "motion/react";
-import { LiquidButton } from "@/components/animate-ui/components/buttons/liquid";
+import { OpenExploreMissionButton } from "@/features/pioneers/components/OpenExploreMissionButton";
+import type { ChallengeType } from "@/lib/exploreAppLink";
 import { SlidingNumber } from "@/components/animate-ui/primitives/texts/sliding-number";
 import { T } from "@/components/ui/T";
 import { STORE_URLS } from "@/lib/constants";
@@ -88,11 +89,10 @@ export function PioneerChallengeCards({ challenges, source = "mock" }: PioneerCh
                 </small>
 
                 <div className="pioneer-challenge-card__actions">
-                  <LiquidButton asChild className="pioneer-liquid-button pioneer-liquid-button--block" size="lg">
-                    <a href={challenge.appDeepLink}>
-                      <T k="pioneer.challenge.openApp" />
-                    </a>
-                  </LiquidButton>
+                  <OpenExploreMissionButton
+                    challengeId={challenge.id as ChallengeType}
+                    className="pioneer-liquid-button pioneer-liquid-button--block"
+                  />
                   <Link className="pioneer-secondary-button pioneer-secondary-button--block" to="/explorar">
                     <T k="pioneer.challenge.learnMore" />
                   </Link>

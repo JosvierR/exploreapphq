@@ -1,6 +1,5 @@
 import { useReducedMotion } from "motion/react";
 import { LiquidButton } from "@/components/animate-ui/components/buttons/liquid";
-import { ShimmeringText } from "@/components/animate-ui/primitives/texts/shimmering";
 import { SlidingNumber } from "@/components/animate-ui/primitives/texts/sliding-number";
 import { T } from "@/components/ui/T";
 import { useI18n } from "@/features/i18n/I18nProvider";
@@ -21,11 +20,14 @@ const HERO_BADGES: TranslationKey[] = [
   "pioneer.hero.badge.badges",
 ];
 
-function HeroStat({ value, label }: { value: number; label: TranslationKey }) {
+function HeroStat({ value, label, icon }: { value: number; label: TranslationKey; icon: string }) {
   const reduceMotion = useReducedMotion();
 
   return (
     <div className="pioneer-hero-stat">
+      <span className="pioneer-hero-stat__icon" aria-hidden="true">
+        {icon}
+      </span>
       <strong>
         +{reduceMotion ? value : <SlidingNumber number={value} inView />}
       </strong>
@@ -38,7 +40,6 @@ function HeroStat({ value, label }: { value: number; label: TranslationKey }) {
 
 export function PioneerHero({ stats, loading = false, source = "mock" }: PioneerHeroProps) {
   const { t } = useI18n();
-  const reduceMotion = useReducedMotion();
 
   return (
     <section className="pioneer-hero" id="top" aria-labelledby="pioneer-hero-title">
@@ -46,16 +47,7 @@ export function PioneerHero({ stats, loading = false, source = "mock" }: Pioneer
       <div className="container pioneer-hero__grid">
         <div className="pioneer-hero__copy pioneer-hero__copy--enter">
           <p className="pioneer-eyebrow">
-            {reduceMotion ? (
-              <T k="pioneer.hero.eyebrow" />
-            ) : (
-              <ShimmeringText
-                text={t("pioneer.hero.eyebrow")}
-                color="rgba(184, 194, 204, 0.72)"
-                shimmeringColor="#ffffff"
-                duration={1.4}
-              />
-            )}
+            <T k="pioneer.hero.eyebrow" />
           </p>
           <h1 id="pioneer-hero-title" className="pioneer-hero__title">
             <span className="pioneer-hero__title-lead">
@@ -112,12 +104,17 @@ export function PioneerHero({ stats, loading = false, source = "mock" }: Pioneer
               </p>
             ) : (
               <>
-                <HeroStat value={stats.placesThisWeek} label="pioneer.stats.places" />
-                <HeroStat value={stats.routesThisWeek} label="pioneer.stats.routes" />
-                <HeroStat value={stats.videosThisWeek} label="pioneer.stats.videos" />
+                <HeroStat value={stats.placesThisWeek} label="pioneer.stats.places" icon="📍" />
+                <HeroStat value={stats.routesThisWeek} label="pioneer.stats.routes" icon="↝" />
+                <HeroStat value={stats.videosThisWeek} label="pioneer.stats.videos" icon="▶" />
               </>
             )}
           </div>
+          {source === "api" && (
+            <p className="pioneer-live-pill pioneer-hero__live">
+              <T k="pioneer.leaderboard.live" />
+            </p>
+          )}
         </div>
 
         <div className="pioneer-hero__visual pioneer-hero__visual--enter" aria-label={t("pioneer.hero.visual.label")}>

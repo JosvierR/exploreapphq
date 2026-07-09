@@ -191,3 +191,12 @@
     order: -1;
   }
 }
+
+.challenge-mission-back {
+  margin-top: 1rem;
+}
+
+.challenge-mission-back a {
+  color: var(--explore-cyan);
+  font-weight: 700;
+}

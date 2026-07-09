@@ -56,7 +56,13 @@ export function PioneersPage() {
         />
         <PioneerRewards rewards={snapshot.rewards} />
         <WebMobileSystem />
-        <PioneerVideoShowcase videoCards={snapshot.videoCards} />
+        <PioneerVideoShowcase
+          videoCards={snapshot.videoCards}
+          topVideos={snapshot.topVideos}
+          topPlaces={snapshot.topPlaces}
+          topRoutes={snapshot.topRoutes}
+          source={snapshot.source}
+        />
         <PioneerFinalCTA />
       </PioneersPageShell>
     </main>
