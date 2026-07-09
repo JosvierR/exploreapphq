@@ -5,7 +5,7 @@ import {
   PIONEER_REWARDS,
   PIONEER_STATS,
   PIONEER_VIDEO_CARDS,
-} from "@/features/pioneers/data/pioneerMock";
+} from "@/features/pioneers/mocks/pioneerMock";
 import type {
   LeaderboardQuery,
   LeaderboardResponse,

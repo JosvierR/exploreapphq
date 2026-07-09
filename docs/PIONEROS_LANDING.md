@@ -42,7 +42,7 @@ Installed through `shadcn` after dry-runs:
 
 The current pioneers data is mock-only and centralized in:
 
-- `src/features/pioneers/data/pioneerMock.ts`
+- `src/features/pioneers/mocks/pioneerMock.ts`
 - `src/features/pioneers/api/pioneersApi.ts`
 
 TODO markers:
