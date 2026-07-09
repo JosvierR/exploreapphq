@@ -10,6 +10,8 @@ import type { TranslationKey } from "@/locales/messages";
 
 type PioneerHeroProps = {
   stats: PioneerStats;
+  loading?: boolean;
+  source?: "mock" | "api";
 };
 
 const HERO_BADGES: TranslationKey[] = [
@@ -34,7 +36,7 @@ function HeroStat({ value, label }: { value: number; label: TranslationKey }) {
   );
 }
 
-export function PioneerHero({ stats }: PioneerHeroProps) {
+export function PioneerHero({ stats, loading = false, source = "mock" }: PioneerHeroProps) {
   const { t } = useI18n();
   const reduceMotion = useReducedMotion();
 
@@ -104,9 +106,17 @@ export function PioneerHero({ stats }: PioneerHeroProps) {
             </span>
           </div>
           <div className="pioneer-hero__stats" aria-label={t("pioneer.hero.stats.label")}>
-            <HeroStat value={stats.placesThisWeek} label="pioneer.stats.places" />
-            <HeroStat value={stats.routesThisWeek} label="pioneer.stats.routes" />
-            <HeroStat value={stats.videosThisWeek} label="pioneer.stats.videos" />
+            {loading && source !== "api" ? (
+              <p className="pioneer-hero__loading">
+                <T k="pioneer.hero.loading" />
+              </p>
+            ) : (
+              <>
+                <HeroStat value={stats.placesThisWeek} label="pioneer.stats.places" />
+                <HeroStat value={stats.routesThisWeek} label="pioneer.stats.routes" />
+                <HeroStat value={stats.videosThisWeek} label="pioneer.stats.videos" />
+              </>
+            )}
           </div>
         </div>
 
