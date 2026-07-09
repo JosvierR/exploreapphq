@@ -1,18 +1,20 @@
-import { LandingSections } from "@/components/sections/LandingSections";
+import { LandingSectionsLegacy } from "@/components/sections/legacy/LandingSectionsLegacy";
 import { useI18n } from "@/features/i18n/I18nProvider";
 import { usePageMeta } from "@/hooks/usePageMeta";
 
-export function HomePage() {
+export function HomePageLegacy() {
   const { t } = useI18n();
   usePageMeta({
     title: t("meta.title"),
     description: t("meta.description"),
-    path: "/",
+    path: "/home-classic",
   });
 
   return (
     <main>
-      <LandingSections />
+      <LandingSectionsLegacy />
     </main>
   );
 }
+
+export default HomePageLegacy;

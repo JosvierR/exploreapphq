@@ -1,4 +1,29 @@
 /* Explore — onboarding-aligned dark + electric blue */
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--shadcn-accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 12px);
+  --radius-md: calc(var(--radius) - 8px);
+  --radius-lg: var(--radius);
+  --radius-xl: var(--radius-lg);
+}
+
 :root {
   --explore-blue: #009bff;
   --explore-blue-bright: #009bff;
@@ -10,6 +35,21 @@
   --bg-elevated: #071b2a;
   --bg-card: rgba(14, 38, 56, 0.85);
   --border-card: rgba(255, 255, 255, 0.2);
+  --background: #0b0f14;
+  --foreground: #ffffff;
+  --card: #0e2638;
+  --card-foreground: #ffffff;
+  --primary: #009bff;
+  --primary-foreground: #ffffff;
+  --secondary: #0e2638;
+  --secondary-foreground: #ffffff;
+  --muted: #10283a;
+  --muted-foreground: #b8c2cc;
+  --shadcn-accent: #10283a;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --input: rgba(255, 255, 255, 0.16);
+  --ring: rgba(0, 155, 255, 0.45);
   --bg-light: #f7f8fc;
   --bg-cream: #fafbfd;
   --text: #ffffff;
