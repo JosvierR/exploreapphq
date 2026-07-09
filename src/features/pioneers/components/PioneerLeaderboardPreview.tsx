@@ -180,13 +180,14 @@ export function PioneerLeaderboardPreview({
           )}
         </div>
 
-        <div className="pioneer-content-boards">
-          <ContentLeaderboardColumn type="video" items={content.topVideos} />
-          <ContentLeaderboardColumn type="place" items={content.topPlaces} />
-          <ContentLeaderboardColumn type="route" items={content.topRoutes} />
-        </div>
+        <div className="pioneer-leaderboard-frame">
+          <div className="pioneer-content-boards">
+            <ContentLeaderboardColumn type="video" items={content.topVideos} />
+            <ContentLeaderboardColumn type="place" items={content.topPlaces} />
+            <ContentLeaderboardColumn type="route" items={content.topRoutes} />
+          </div>
 
-        <div className="pioneer-ranking__panel">
+          <div className="pioneer-ranking__panel">
           <div className="pioneer-ranking__summary">
             <div>
               <span className="pioneer-ranking__label">
@@ -217,74 +218,92 @@ export function PioneerLeaderboardPreview({
             </div>
           </div>
 
-          <div className="pioneer-ranking__table-head" aria-hidden="true">
-            <span>
-              <T k="pioneer.leaderboard.col.rank" />
-            </span>
-            <span>
-              <T k="pioneer.leaderboard.col.pioneer" />
-            </span>
-            <span>
-              <T k="pioneer.leaderboard.col.contributions" />
-            </span>
-            <span>
-              <T k="pioneer.leaderboard.col.score" />
-            </span>
+          <div className="pioneer-ranking__table-wrap">
+            <table className="pioneer-ranking-table">
+              <thead>
+                <tr>
+                  <th scope="col">
+                    <T k="pioneer.leaderboard.col.rank" />
+                  </th>
+                  <th scope="col">
+                    <T k="pioneer.leaderboard.col.pioneer" />
+                  </th>
+                  <th scope="col" className="pioneer-ranking-table__contrib-col">
+                    <T k="pioneer.leaderboard.col.contributions" />
+                  </th>
+                  <th scope="col" className="pioneer-ranking-table__score-col">
+                    <T k="pioneer.leaderboard.col.score" />
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {entries.length === 0 ? (
+                  <tr>
+                    <td colSpan={4}>
+                      <p className="pioneer-empty-state">
+                        <T k="pioneer.leaderboard.emptyUsers" />
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  entries.slice(0, 10).map((entry) => (
+                    <tr
+                      key={entry.id}
+                      className={`pioneer-ranking-table__row pioneer-ranking-table__row--${entry.rank <= 3 ? "podium" : "standard"} pioneer-ranking-table__row--place-${entry.rank}`}
+                    >
+                      <td>
+                        <span className={`pioneer-rank-medal pioneer-rank-medal--${entry.rank <= 3 ? entry.rank : "default"}`}>
+                          {String(entry.rank).padStart(2, "0")}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="pioneer-rank-row__identity">
+                          <div className="pioneer-rank-row__avatar">
+                            {entry.avatarUrl ? (
+                              <img src={entry.avatarUrl} alt="" loading="lazy" />
+                            ) : (
+                              <span>{initials(entry.displayName)}</span>
+                            )}
+                          </div>
+                          <div className="pioneer-rank-row__person">
+                            <strong>{entry.displayName}</strong>
+                            <span>{entry.handle}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="pioneer-ranking-table__contrib-col">
+                        <div className="pioneer-rank-row__breakdown">
+                          <span className="pioneer-rank-chip pioneer-rank-chip--video">
+                            <T k="pioneer.leaderboard.metric.videos" /> {entry.videosCount}
+                          </span>
+                          <span className="pioneer-rank-chip pioneer-rank-chip--place">
+                            <T k="pioneer.leaderboard.metric.places" /> {entry.placesCount}
+                          </span>
+                          <span className="pioneer-rank-chip pioneer-rank-chip--route">
+                            <T k="pioneer.leaderboard.metric.routes" /> {entry.routesCount}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="pioneer-ranking-table__score-col">
+                        <div className="pioneer-rank-row__score">
+                          <strong>
+                            {reduceMotion ? (
+                              metricForTab(entry, activeTab)
+                            ) : (
+                              <SlidingNumber number={metricForTab(entry, activeTab)} inView />
+                            )}
+                          </strong>
+                          <small>
+                            <T k="pioneer.leaderboard.pointsShort" />
+                          </small>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-
-          <div className="pioneer-ranking__list">
-            {entries.length === 0 ? (
-              <p className="pioneer-empty-state">
-                <T k="pioneer.leaderboard.emptyUsers" />
-              </p>
-            ) : (
-              entries.slice(0, 10).map((entry) => (
-                <article
-                  key={entry.id}
-                  className={`pioneer-rank-row pioneer-rank-row--${entry.rank <= 3 ? "podium" : "standard"} pioneer-rank-row--place-${entry.rank}`}
-                >
-                  <span className={`pioneer-rank-medal pioneer-rank-medal--${entry.rank <= 3 ? entry.rank : "default"}`}>
-                    {String(entry.rank).padStart(2, "0")}
-                  </span>
-                  <div className="pioneer-rank-row__identity">
-                    <div className="pioneer-rank-row__avatar">
-                      {entry.avatarUrl ? (
-                        <img src={entry.avatarUrl} alt="" loading="lazy" />
-                      ) : (
-                        <span>{initials(entry.displayName)}</span>
-                      )}
-                    </div>
-                    <div className="pioneer-rank-row__person">
-                      <strong>{entry.displayName}</strong>
-                      <span>{entry.handle}</span>
-                    </div>
-                  </div>
-                  <div className="pioneer-rank-row__breakdown">
-                    <span className="pioneer-rank-chip pioneer-rank-chip--video">
-                      <T k="pioneer.leaderboard.metric.videos" /> {entry.videosCount}
-                    </span>
-                    <span className="pioneer-rank-chip pioneer-rank-chip--place">
-                      <T k="pioneer.leaderboard.metric.places" /> {entry.placesCount}
-                    </span>
-                    <span className="pioneer-rank-chip pioneer-rank-chip--route">
-                      <T k="pioneer.leaderboard.metric.routes" /> {entry.routesCount}
-                    </span>
-                  </div>
-                  <div className="pioneer-rank-row__score">
-                    <strong>
-                      {reduceMotion ? (
-                        metricForTab(entry, activeTab)
-                      ) : (
-                        <SlidingNumber number={metricForTab(entry, activeTab)} inView />
-                      )}
-                    </strong>
-                    <small>
-                      <T k="pioneer.leaderboard.pointsShort" />
-                    </small>
-                  </div>
-                </article>
-              ))
-            )}
           </div>
         </div>
       </div>

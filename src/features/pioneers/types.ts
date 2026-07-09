@@ -47,6 +47,8 @@ export type PioneerReward = {
   id: string;
   titleKey: TranslationKey;
   descriptionKey: TranslationKey;
+  image?: string;
+  featured?: boolean;
 };
 
 export type PioneerStats = {

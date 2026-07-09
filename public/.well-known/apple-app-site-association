@@ -14,7 +14,10 @@
           "/place/*",
           "/route/*",
           "/profile/*",
-          "/users/*"
+          "/challenges/places",
+          "/challenges/routes",
+          "/challenges/videos",
+          "/challenges/*",
         ]
       }
     ]
