@@ -1,3 +1,4 @@
+import { lazy, Suspense, type ReactNode } from "react";
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import { VercelAnalytics } from "@/features/analytics/VercelAnalytics";
 import { AdminErrorBoundary } from "@/features/admin/components/AdminErrorBoundary";
@@ -18,6 +19,9 @@ import { AdminBusinessInsightsPage } from "@/pages/admin/AdminBusinessInsightsPa
 import { ReportsAdminPage } from "@/pages/admin/ReportsAdminPage";
 import { WaitlistAdminPage } from "@/pages/admin/WaitlistAdminPage";
 
+const PioneersPage = lazy(() => import("@/pages/marketing/PioneersPage"));
+const HomePageLegacy = lazy(() => import("@/pages/marketing/legacy/HomePageLegacy"));
+
 function AppRoot() {
   return (
     <>
@@ -25,6 +29,10 @@ function AppRoot() {
       <VercelAnalytics />
     </>
   );
+}
+
+function LazyMarketingPage({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<main aria-busy="true" />}>{children}</Suspense>;
 }
 
 export const router = createBrowserRouter([
@@ -62,6 +70,22 @@ export const router = createBrowserRouter([
         element: <MarketingLayout />,
         children: [
           { path: "/", element: <HomePage /> },
+          {
+            path: "/home-classic",
+            element: (
+              <LazyMarketingPage>
+                <HomePageLegacy />
+              </LazyMarketingPage>
+            ),
+          },
+          {
+            path: "/pioneros",
+            element: (
+              <LazyMarketingPage>
+                <PioneersPage />
+              </LazyMarketingPage>
+            ),
+          },
           { path: "/terms", element: <TermsPage /> },
           { path: "/privacy", element: <PrivacyPage /> },
           { path: "/safety", element: <SafetyPage /> },

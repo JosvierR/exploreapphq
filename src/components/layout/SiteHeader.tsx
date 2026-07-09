@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useI18n } from "@/features/i18n/I18nProvider";
 import { useHeaderScroll } from "@/hooks/useHeaderScroll";
 import { T } from "@/components/ui/T";
@@ -11,13 +11,27 @@ const NAV = [
   { href: "#how-it-works", key: "nav.how" as const },
   { href: "#nearby", key: "nav.nearby" as const },
   { href: "#creators", key: "nav.creators" as const },
+  { href: "/pioneros", key: "nav.pioneers" as const },
   { href: "#contact", key: "nav.contact" as const },
+];
+
+const PIONEERS_NAV = [
+  { href: "#retos", key: "pioneer.nav.challenges" as const },
+  { href: "#ranking", key: "pioneer.nav.leaderboard" as const },
+  { href: "#recompensas", key: "pioneer.nav.rewards" as const },
+  { href: "#unirme", key: "pioneer.nav.join" as const },
 ];
 
 export function SiteHeader() {
   const scrolled = useHeaderScroll();
   const { locale, setLocale } = useI18n();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const isPioneers = location.pathname === "/pioneros";
+  const navItems = isPioneers ? PIONEERS_NAV : NAV;
+  const logoTo = isPioneers ? "/pioneros" : "/";
+  const ctaHref = isPioneers ? "#unirme" : "#download";
+  const ctaKey = isPioneers ? "pioneer.hero.cta.primary" : "cta.start";
 
   const closeMobile = () => {
     setMobileOpen(false);
@@ -35,11 +49,11 @@ export function SiteHeader() {
     <>
       <header className={`site-header${scrolled ? " is-scrolled" : ""}`} role="banner">
         <div className="container header-inner">
-          <Link to="/" className="brand" aria-label="Explore home" onClick={closeMobile}>
+          <Link to={logoTo} className="brand" aria-label="Explore home" onClick={closeMobile}>
             <BrandLogo />
           </Link>
           <nav className="nav-desktop" aria-label="Main">
-            {NAV.map((item) => (
+            {navItems.map((item) => (
               <a key={item.key} href={item.href}>
                 <T k={item.key} />
               </a>
@@ -61,8 +75,8 @@ export function SiteHeader() {
             <Link to="/admin" className="btn btn-ghost">
               Admin
             </Link>
-            <a href="#download" className="btn btn-primary">
-              <T k="cta.start" />
+            <a href={ctaHref} className="btn btn-primary">
+              <T k={ctaKey} />
             </a>
             <button
               type="button"
@@ -81,7 +95,7 @@ export function SiteHeader() {
       </header>
 
       <nav id="nav-mobile" className={`nav-mobile${mobileOpen ? " is-open" : ""}`} aria-label="Mobile">
-        {NAV.map((item) => (
+        {navItems.map((item) => (
           <a key={item.key} href={item.href} onClick={closeMobile}>
             <T k={item.key} />
           </a>
@@ -89,8 +103,8 @@ export function SiteHeader() {
         <Link to="/admin" className="btn btn-ghost" onClick={closeMobile}>
           Admin
         </Link>
-        <a href="#download" className="btn btn-primary" onClick={closeMobile}>
-          <T k="cta.start" />
+        <a href={ctaHref} className="btn btn-primary" onClick={closeMobile}>
+          <T k={ctaKey} />
         </a>
       </nav>
     </>

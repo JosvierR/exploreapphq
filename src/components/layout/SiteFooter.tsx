@@ -42,6 +42,9 @@ export function SiteFooter() {
             <a href="#preview">
               <T k="preview.title" />
             </a>
+            <Link to="/pioneros">
+              <T k="nav.pioneers" />
+            </Link>
           </div>
           <div className="footer-col">
             <h5>
