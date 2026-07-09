@@ -47,11 +47,16 @@ const initials = (name: string) =>
     .slice(0, 2)
     .toUpperCase();
 
-const medalForRank = (rank: number) => {
-  if (rank === 1) return "🥇";
-  if (rank === 2) return "🥈";
-  if (rank === 3) return "🥉";
-  return null;
+const CONTENT_ICONS: Record<"video" | "place" | "route", string> = {
+  video: "▶",
+  place: "📍",
+  route: "↝",
+};
+
+const METRIC_LABELS: Record<"video" | "place" | "route", TranslationKey> = {
+  video: "pioneer.leaderboard.metricLabel.likes",
+  place: "pioneer.leaderboard.metricLabel.rating",
+  route: "pioneer.leaderboard.metricLabel.stops",
 };
 
 function ContentLeaderboardColumn({
@@ -62,11 +67,16 @@ function ContentLeaderboardColumn({
   items: PioneerContentEntry[];
 }) {
   return (
-    <div className="pioneer-content-board">
+    <div className={`pioneer-content-board pioneer-content-board--${type}`}>
       <div className="pioneer-content-board__head">
-        <h3>
-          <T k={CONTENT_LABELS[type]} />
-        </h3>
+        <div className="pioneer-content-board__title">
+          <span className="pioneer-content-board__icon" aria-hidden="true">
+            {CONTENT_ICONS[type]}
+          </span>
+          <h3>
+            <T k={CONTENT_LABELS[type]} />
+          </h3>
+        </div>
         <span className="pioneer-content-board__count">{items.length}</span>
       </div>
       <div className="pioneer-content-board__list">
@@ -76,14 +86,20 @@ function ContentLeaderboardColumn({
           </p>
         ) : (
           items.map((item) => (
-            <Link key={item.id} to={item.href} className="pioneer-content-row">
-              <span className="pioneer-content-row__rank">{String(item.rank).padStart(2, "0")}</span>
-              <div className="pioneer-content-row__thumb">
+            <Link
+              key={item.id}
+              to={item.href}
+              className={`pioneer-content-row${item.rank === 1 ? " pioneer-content-row--leader" : ""}`}
+            >
+              <span className={`pioneer-content-row__rank${item.rank <= 3 ? ` pioneer-content-row__rank--${item.rank}` : ""}`}>
+                {String(item.rank).padStart(2, "0")}
+              </span>
+              <div className={`pioneer-content-row__thumb pioneer-content-row__thumb--${type}`}>
                 {item.thumbnailUrl ? (
                   <img src={item.thumbnailUrl} alt="" loading="lazy" />
                 ) : (
                   <span className={`pioneer-content-row__fallback pioneer-content-row__fallback--${type}`}>
-                    {type === "video" ? "▶" : type === "place" ? "📍" : "↝"}
+                    {CONTENT_ICONS[type]}
                   </span>
                 )}
               </div>
@@ -91,7 +107,12 @@ function ContentLeaderboardColumn({
                 <strong>{item.title}</strong>
                 <span>{item.creatorName || item.subtitle || "Explore"}</span>
               </div>
-              <strong className="pioneer-content-row__metric">{item.metric}</strong>
+              <div className="pioneer-content-row__metric">
+                <strong>{item.metric}</strong>
+                <small>
+                  <T k={METRIC_LABELS[type]} />
+                </small>
+              </div>
             </Link>
           ))
         )}
@@ -196,6 +217,21 @@ export function PioneerLeaderboardPreview({
             </div>
           </div>
 
+          <div className="pioneer-ranking__table-head" aria-hidden="true">
+            <span>
+              <T k="pioneer.leaderboard.col.rank" />
+            </span>
+            <span>
+              <T k="pioneer.leaderboard.col.pioneer" />
+            </span>
+            <span>
+              <T k="pioneer.leaderboard.col.contributions" />
+            </span>
+            <span>
+              <T k="pioneer.leaderboard.col.score" />
+            </span>
+          </div>
+
           <div className="pioneer-ranking__list">
             {entries.length === 0 ? (
               <p className="pioneer-empty-state">
@@ -205,40 +241,47 @@ export function PioneerLeaderboardPreview({
               entries.slice(0, 10).map((entry) => (
                 <article
                   key={entry.id}
-                  className={`pioneer-rank-row pioneer-rank-row--${entry.rank <= 3 ? "podium" : "standard"}`}
+                  className={`pioneer-rank-row pioneer-rank-row--${entry.rank <= 3 ? "podium" : "standard"} pioneer-rank-row--place-${entry.rank}`}
                 >
-                  <span className="pioneer-rank-row__rank">
-                    {medalForRank(entry.rank) || String(entry.rank).padStart(2, "0")}
+                  <span className={`pioneer-rank-medal pioneer-rank-medal--${entry.rank <= 3 ? entry.rank : "default"}`}>
+                    {String(entry.rank).padStart(2, "0")}
                   </span>
-                  <div className="pioneer-rank-row__avatar">
-                    {entry.avatarUrl ? (
-                      <img src={entry.avatarUrl} alt="" loading="lazy" />
-                    ) : (
-                      <span>{initials(entry.displayName)}</span>
-                    )}
-                  </div>
-                  <div className="pioneer-rank-row__person">
-                    <strong>{entry.displayName}</strong>
-                    <span>{entry.handle}</span>
+                  <div className="pioneer-rank-row__identity">
+                    <div className="pioneer-rank-row__avatar">
+                      {entry.avatarUrl ? (
+                        <img src={entry.avatarUrl} alt="" loading="lazy" />
+                      ) : (
+                        <span>{initials(entry.displayName)}</span>
+                      )}
+                    </div>
+                    <div className="pioneer-rank-row__person">
+                      <strong>{entry.displayName}</strong>
+                      <span>{entry.handle}</span>
+                    </div>
                   </div>
                   <div className="pioneer-rank-row__breakdown">
-                    <span>
-                      <T k="pioneer.leaderboard.metric.videos" />: {entry.videosCount}
+                    <span className="pioneer-rank-chip pioneer-rank-chip--video">
+                      <T k="pioneer.leaderboard.metric.videos" /> {entry.videosCount}
                     </span>
-                    <span>
-                      <T k="pioneer.leaderboard.metric.places" />: {entry.placesCount}
+                    <span className="pioneer-rank-chip pioneer-rank-chip--place">
+                      <T k="pioneer.leaderboard.metric.places" /> {entry.placesCount}
                     </span>
-                    <span>
-                      <T k="pioneer.leaderboard.metric.routes" />: {entry.routesCount}
+                    <span className="pioneer-rank-chip pioneer-rank-chip--route">
+                      <T k="pioneer.leaderboard.metric.routes" /> {entry.routesCount}
                     </span>
                   </div>
-                  <strong className="pioneer-rank-row__score">
-                    {reduceMotion ? (
-                      metricForTab(entry, activeTab)
-                    ) : (
-                      <SlidingNumber number={metricForTab(entry, activeTab)} inView />
-                    )}
-                  </strong>
+                  <div className="pioneer-rank-row__score">
+                    <strong>
+                      {reduceMotion ? (
+                        metricForTab(entry, activeTab)
+                      ) : (
+                        <SlidingNumber number={metricForTab(entry, activeTab)} inView />
+                      )}
+                    </strong>
+                    <small>
+                      <T k="pioneer.leaderboard.pointsShort" />
+                    </small>
+                  </div>
                 </article>
               ))
             )}
