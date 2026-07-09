@@ -38,13 +38,18 @@ export function observabilityConfigStatus() {
   };
 }
 
+function deploymentTarget() {
+  if (process.env.VERCEL) return process.env.VERCEL_ENV || "vercel";
+  if (process.env.DEPLOYMENT_TARGET) return String(process.env.DEPLOYMENT_TARGET).trim();
+  return "local";
+}
+
 function labelsFor(entry) {
   return {
     service: entry.service || "explore-web-admin",
     environment: entry.environment || "production",
     level: entry.level || "info",
-    route: entry.route || "unknown",
-    deployment: "vercel",
+    deployment: deploymentTarget(),
   };
 }
 

@@ -29,8 +29,3 @@ export function tryOpenExploreApp(schemeUrl: string): void {
 
   window.location.href = schemeUrl;
 }
-
-export function openExploreChallenge(type: ChallengeType): void {
-  if (typeof window === "undefined") return;
-  window.location.assign(challengeWebPath(type));
-}

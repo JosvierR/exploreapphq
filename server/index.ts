@@ -32,6 +32,10 @@ import {
 } from "./api-lib/system/systemRouter.mjs";
 // @ts-ignore
 import { handlePioneersLanding } from "./api-lib/pioneers/pioneersRouter.mjs";
+// @ts-ignore
+import { ensureRequestId } from "./api-lib/http/requestContext.mjs";
+// @ts-ignore
+import { errorSummary, logger } from "./api-lib/observability/logger.mjs";
 import { requireAdmin } from "./adminAuth.js";
 import { config } from "./config.js";
 import {
@@ -106,7 +110,11 @@ async function sendFetchResponse(
     if (buffer.length > 0) res.send(buffer);
     else res.end();
   } catch (err) {
-    console.error("[moderation-api]", err);
+    logger.error("Express API handler failed", {
+      route: req.originalUrl || req.url,
+      method: req.method,
+      error: errorSummary(err),
+    });
     res.status(500).json({ ok: false, error: "Unexpected server error." });
   }
 }

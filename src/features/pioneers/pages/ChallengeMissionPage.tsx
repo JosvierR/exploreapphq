@@ -3,43 +3,21 @@ import { Link, useParams } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { T } from "@/components/ui/T";
 import { useI18n } from "@/features/i18n/I18nProvider";
-import { APP_SCREENS, STORE_URLS } from "@/lib/constants";
+import { CHALLENGE_MISSION_META } from "@/features/pioneers/lib/challengeConfig";
 import {
   challengeAppScheme,
   challengeWebPath,
   isChallengeType,
   tryOpenExploreApp,
-  type ChallengeType,
-} from "@/lib/exploreAppLink";
-import type { TranslationKey } from "@/locales/messages";
+} from "@/features/pioneers/lib/exploreAppLink";
+import { STORE_URLS } from "@/lib/constants";
 import "@/styles/deeplink.css";
-
-const MISSION_COPY: Record<
-  ChallengeType,
-  { titleKey: TranslationKey; descriptionKey: TranslationKey; image: string }
-> = {
-  places: {
-    titleKey: "pioneer.challenge.places.title",
-    descriptionKey: "pioneer.challenge.places.desc",
-    image: APP_SCREENS.gallery[2],
-  },
-  routes: {
-    titleKey: "pioneer.challenge.routes.title",
-    descriptionKey: "pioneer.challenge.routes.desc",
-    image: APP_SCREENS.routeMap,
-  },
-  videos: {
-    titleKey: "pioneer.challenge.videos.title",
-    descriptionKey: "pioneer.challenge.videos.desc",
-    image: APP_SCREENS.videoFeed[0],
-  },
-};
 
 export function ChallengeMissionPage() {
   const { type: rawType } = useParams();
   const { t } = useI18n();
   const type = rawType && isChallengeType(rawType) ? rawType : null;
-  const config = type ? MISSION_COPY[type] : null;
+  const config = type ? CHALLENGE_MISSION_META[type] : null;
   const schemeUrl = type ? challengeAppScheme(type) : null;
 
   useEffect(() => {
@@ -58,7 +36,9 @@ export function ChallengeMissionPage() {
             </Link>
             <h1>Mission not found</h1>
             <p>
-              <Link to="/#retos">Back to weekly missions</Link>
+              <Link to="/#retos">
+                <T k="pioneer.challenge.backToMissions" />
+              </Link>
             </p>
           </div>
         </section>

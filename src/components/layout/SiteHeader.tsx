@@ -4,6 +4,7 @@ import { useI18n } from "@/features/i18n/I18nProvider";
 import { useHeaderScroll } from "@/hooks/useHeaderScroll";
 import { T } from "@/components/ui/T";
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import { isPioneersHomePath } from "@/features/pioneers/lib/paths";
 import type { Locale } from "@/locales/messages";
 
 const PIONEERS_NAV = [
@@ -20,10 +21,6 @@ const DISCOVER_NAV = [
   { href: "#creators", key: "nav.creators" as const },
   { href: "#contact", key: "nav.contact" as const },
 ];
-
-function isPioneersHomePath(pathname: string) {
-  return pathname === "/" || pathname === "/pioneros";
-}
 
 export function SiteHeader() {
   const scrolled = useHeaderScroll();
@@ -88,9 +85,6 @@ export function SiteHeader() {
                 </button>
               ))}
             </div>
-            <Link to="/admin" className="btn btn-ghost">
-              Admin
-            </Link>
             <a href={ctaHref} className="btn btn-primary">
               <T k={ctaKey} />
             </a>
@@ -125,9 +119,6 @@ export function SiteHeader() {
             <T k="nav.pioneers" />
           </Link>
         )}
-        <Link to="/admin" className="btn btn-ghost" onClick={closeMobile}>
-          Admin
-        </Link>
         <a href={ctaHref} className="btn btn-primary" onClick={closeMobile}>
           <T k={ctaKey} />
         </a>
