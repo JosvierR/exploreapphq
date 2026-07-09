@@ -10,7 +10,7 @@ export function PioneerVideoShowcase({ videoCards }: PioneerVideoShowcaseProps) 
   const reduceMotion = useReducedMotion();
 
   return (
-    <section className="pioneer-section" aria-labelledby="pioneer-showcase-title">
+    <section className="pioneer-section" id="showcase" aria-labelledby="pioneer-showcase-title">
       <div className="container pioneer-showcase">
         <div className="pioneer-section-heading">
           <p className="pioneer-eyebrow">

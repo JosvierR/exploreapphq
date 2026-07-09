@@ -7,7 +7,7 @@ export function HomePage() {
   usePageMeta({
     title: t("meta.title"),
     description: t("meta.description"),
-    path: "/",
+    path: "/explorar",
   });
 
   return (
@@ -16,3 +16,5 @@ export function HomePage() {
     </main>
   );
 }
+
+export default HomePage;

@@ -5,7 +5,7 @@ import { AdminErrorBoundary } from "@/features/admin/components/AdminErrorBounda
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { MarketingLayout } from "@/components/layout/MarketingLayout";
 import { AccessPage } from "@/pages/auth/AccessPage";
-import { HomePage } from "@/pages/marketing/HomePage";
+import { PioneersPage } from "@/pages/marketing/PioneersPage";
 import { TermsPage } from "@/pages/marketing/TermsPage";
 import { PrivacyPage } from "@/pages/marketing/PrivacyPage";
 import { SafetyPage } from "@/pages/marketing/SafetyPage";
@@ -19,7 +19,7 @@ import { AdminBusinessInsightsPage } from "@/pages/admin/AdminBusinessInsightsPa
 import { ReportsAdminPage } from "@/pages/admin/ReportsAdminPage";
 import { WaitlistAdminPage } from "@/pages/admin/WaitlistAdminPage";
 
-const PioneersPage = lazy(() => import("@/pages/marketing/PioneersPage"));
+const HomePage = lazy(() => import("@/pages/marketing/HomePage"));
 const HomePageLegacy = lazy(() => import("@/pages/marketing/legacy/HomePageLegacy"));
 
 function AppRoot() {
@@ -69,20 +69,21 @@ export const router = createBrowserRouter([
       {
         element: <MarketingLayout />,
         children: [
-          { path: "/", element: <HomePage /> },
+          { path: "/", element: <PioneersPage /> },
+          { path: "/pioneros", element: <Navigate to="/" replace /> },
+          {
+            path: "/explorar",
+            element: (
+              <LazyMarketingPage>
+                <HomePage />
+              </LazyMarketingPage>
+            ),
+          },
           {
             path: "/home-classic",
             element: (
               <LazyMarketingPage>
                 <HomePageLegacy />
-              </LazyMarketingPage>
-            ),
-          },
-          {
-            path: "/pioneros",
-            element: (
-              <LazyMarketingPage>
-                <PioneersPage />
               </LazyMarketingPage>
             ),
           },

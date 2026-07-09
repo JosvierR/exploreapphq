@@ -12,6 +12,13 @@ type PioneerHeroProps = {
   stats: PioneerStats;
 };
 
+const HERO_BADGES: TranslationKey[] = [
+  "pioneer.hero.badge.videos",
+  "pioneer.hero.badge.places",
+  "pioneer.hero.badge.routes",
+  "pioneer.hero.badge.badges",
+];
+
 function HeroStat({ value, label }: { value: number; label: TranslationKey }) {
   const reduceMotion = useReducedMotion();
 
@@ -33,8 +40,9 @@ export function PioneerHero({ stats }: PioneerHeroProps) {
 
   return (
     <section className="pioneer-hero" id="top" aria-labelledby="pioneer-hero-title">
+      <div className="pioneer-hero__glow" aria-hidden="true" />
       <div className="container pioneer-hero__grid">
-        <div className="pioneer-hero__copy">
+        <div className="pioneer-hero__copy pioneer-hero__copy--enter">
           <p className="pioneer-eyebrow">
             {reduceMotion ? (
               <T k="pioneer.hero.eyebrow" />
@@ -48,11 +56,26 @@ export function PioneerHero({ stats }: PioneerHeroProps) {
             )}
           </p>
           <h1 id="pioneer-hero-title" className="pioneer-hero__title">
-            <T k="pioneer.hero.title" />
+            <span className="pioneer-hero__title-lead">
+              <T k="pioneer.hero.titleLead" />
+            </span>
+            <span className="pioneer-hero__title-accent">
+              <T k="pioneer.hero.titleAccent" />
+            </span>
           </h1>
           <p className="pioneer-hero__lead">
             <T k="pioneer.hero.subtitle" />
           </p>
+          <div className="pioneer-hero__badges" aria-label={t("pioneer.hero.badges.label")}>
+            {HERO_BADGES.map((key, index) => (
+              <span
+                key={key}
+                className={`pioneer-badge${index === 0 ? " pioneer-badge--accent" : ""}`}
+              >
+                <T k={key} />
+              </span>
+            ))}
+          </div>
           <div className="pioneer-hero__actions">
             <LiquidButton asChild className="pioneer-liquid-button" size="lg" hoverScale={1.02} tapScale={0.98}>
               <a href="#unirme">
@@ -63,6 +86,23 @@ export function PioneerHero({ stats }: PioneerHeroProps) {
               <T k="pioneer.hero.cta.secondary" />
             </a>
           </div>
+          <div className="pioneer-hero__flow" aria-hidden="true">
+            <span>
+              <T k="pioneer.hero.flow.video" />
+            </span>
+            <span className="pioneer-hero__flow-arrow">→</span>
+            <span>
+              <T k="pioneer.hero.flow.place" />
+            </span>
+            <span className="pioneer-hero__flow-arrow">→</span>
+            <span>
+              <T k="pioneer.hero.flow.route" />
+            </span>
+            <span className="pioneer-hero__flow-arrow">→</span>
+            <span>
+              <T k="pioneer.hero.flow.badge" />
+            </span>
+          </div>
           <div className="pioneer-hero__stats" aria-label={t("pioneer.hero.stats.label")}>
             <HeroStat value={stats.placesThisWeek} label="pioneer.stats.places" />
             <HeroStat value={stats.routesThisWeek} label="pioneer.stats.routes" />
@@ -70,7 +110,7 @@ export function PioneerHero({ stats }: PioneerHeroProps) {
           </div>
         </div>
 
-        <div className="pioneer-hero__visual" aria-label={t("pioneer.hero.visual.label")}>
+        <div className="pioneer-hero__visual pioneer-hero__visual--enter" aria-label={t("pioneer.hero.visual.label")}>
           <div className="pioneer-map-card">
             <img src={APP_SCREENS.heroMap} alt="" loading="eager" />
             <div className="pioneer-map-card__overlay">
@@ -92,16 +132,25 @@ export function PioneerHero({ stats }: PioneerHeroProps) {
             <img className="pioneer-phone pioneer-phone--side" src={APP_SCREENS.heroStack.right} alt="" loading="eager" />
           </div>
           <div className="pioneer-float-card pioneer-float-card--video">
+            <span className="pioneer-float-card__icon" aria-hidden="true">
+              ▶
+            </span>
             <span>
               <T k="pioneer.hero.float.video" />
             </span>
           </div>
           <div className="pioneer-float-card pioneer-float-card--route">
+            <span className="pioneer-float-card__icon" aria-hidden="true">
+              ↝
+            </span>
             <span>
               <T k="pioneer.hero.float.route" />
             </span>
           </div>
           <div className="pioneer-float-card pioneer-float-card--badge">
+            <span className="pioneer-float-card__icon" aria-hidden="true">
+              ★
+            </span>
             <span>
               <T k="pioneer.hero.float.badge" />
             </span>
