@@ -1,6 +1,6 @@
 import { jsonResponse, optionsResponse } from "../http/responses.mjs";
 import { requestIdFromRequest } from "../http/requestContext.mjs";
-import { errorSummary, logger, requestLogMeta } from "../observability/logger.mjs";
+import { handleApiError } from "../observability/errors.mjs";
 import { getPioneersLandingData } from "./pioneersService.mjs";
 
 function parseRange(url) {
@@ -42,14 +42,6 @@ export async function handlePioneersLanding(request) {
       ...payload,
     });
   } catch (error) {
-    logger.error("Pioneers landing API failed", {
-      ...requestLogMeta(request, "pioneers/landing"),
-      error: errorSummary(error),
-    });
-    return jsonResponse(500, {
-      ok: false,
-      error: "Failed to load pioneers data.",
-      request_id: requestId,
-    });
+    return handleApiError(error, request, { route: "pioneers/landing", domain: "pioneers" });
   }
 }

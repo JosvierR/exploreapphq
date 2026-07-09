@@ -1,4 +1,5 @@
 import { APP_SCREENS } from "@/lib/constants";
+import { CHALLENGE_WEB_PATHS } from "@/features/pioneers/lib/challengeConfig";
 import type {
   LeaderboardTab,
   PioneerChallenge,
@@ -21,7 +22,7 @@ export const PIONEER_CHALLENGES: PioneerChallenge[] = [
     badgeId: "badge-places",
     progressCurrent: 2,
     progressTarget: 5,
-    appDeepLink: "/challenges/places",
+    appDeepLink: CHALLENGE_WEB_PATHS.places,
     communityCount: 2,
   },
   {
@@ -35,7 +36,7 @@ export const PIONEER_CHALLENGES: PioneerChallenge[] = [
     badgeId: "badge-routes",
     progressCurrent: 1,
     progressTarget: 3,
-    appDeepLink: "/challenges/routes",
+    appDeepLink: CHALLENGE_WEB_PATHS.routes,
     communityCount: 1,
   },
   {
@@ -49,7 +50,7 @@ export const PIONEER_CHALLENGES: PioneerChallenge[] = [
     badgeId: "badge-videos",
     progressCurrent: 3,
     progressTarget: 6,
-    appDeepLink: "/challenges/videos",
+    appDeepLink: CHALLENGE_WEB_PATHS.videos,
     communityCount: 3,
   },
 ];

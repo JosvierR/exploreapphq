@@ -5,7 +5,7 @@ import { AdminErrorBoundary } from "@/features/admin/components/AdminErrorBounda
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { MarketingLayout } from "@/components/layout/MarketingLayout";
 import { AccessPage } from "@/pages/auth/AccessPage";
-import { PioneersPage } from "@/pages/marketing/PioneersPage";
+import { PioneersPage, ChallengeMissionPage } from "@/features/pioneers";
 import { TermsPage } from "@/pages/marketing/TermsPage";
 import { PrivacyPage } from "@/pages/marketing/PrivacyPage";
 import { SafetyPage } from "@/pages/marketing/SafetyPage";
@@ -13,7 +13,6 @@ import { ThanksPage } from "@/pages/marketing/ThanksPage";
 import { FeedbackPage } from "@/pages/marketing/FeedbackPage";
 import { NotFoundPage } from "@/pages/marketing/NotFoundPage";
 import { DeepLinkFallbackPage } from "@/pages/marketing/DeepLinkFallbackPage";
-import { ChallengeMissionPage } from "@/pages/marketing/ChallengeMissionPage";
 import { AdminDashboardPage } from "@/pages/admin/AdminDashboardPage";
 import { AdminAnalyticsPage } from "@/pages/admin/AdminAnalyticsPage";
 import { AdminBusinessInsightsPage } from "@/pages/admin/AdminBusinessInsightsPage";
@@ -21,7 +20,6 @@ import { ReportsAdminPage } from "@/pages/admin/ReportsAdminPage";
 import { WaitlistAdminPage } from "@/pages/admin/WaitlistAdminPage";
 
 const HomePage = lazy(() => import("@/pages/marketing/HomePage"));
-const HomePageLegacy = lazy(() => import("@/pages/marketing/legacy/HomePageLegacy"));
 
 function AppRoot() {
   return (
@@ -78,14 +76,6 @@ export const router = createBrowserRouter([
             element: (
               <LazyMarketingPage>
                 <HomePage />
-              </LazyMarketingPage>
-            ),
-          },
-          {
-            path: "/home-classic",
-            element: (
-              <LazyMarketingPage>
-                <HomePageLegacy />
               </LazyMarketingPage>
             ),
           },

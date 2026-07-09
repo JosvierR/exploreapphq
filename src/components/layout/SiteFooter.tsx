@@ -2,10 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { T } from "@/components/ui/T";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { SITE, SOCIAL, STORE_URLS } from "@/lib/constants";
-
-function isPioneersHomePath(pathname: string) {
-  return pathname === "/" || pathname === "/pioneros";
-}
+import { isPioneersHomePath } from "@/features/pioneers/lib/paths";
 
 export function SiteFooter() {
   const year = new Date().getFullYear();

@@ -2,7 +2,7 @@
 
 ## Scope
 
-`/` is now the **Pioneros Explore** community landing for activating early contributors. The consumer discovery page moved to `/explorar`.
+`/` is the **Pioneros Explore** community landing for activating early contributors. The consumer discovery page lives at `/explorar`.
 
 ## Routes
 
@@ -11,59 +11,58 @@
 | `/` | `PioneersPage` | Main home — pioneer program |
 | `/pioneros` | redirect → `/` | Legacy URL alias |
 | `/explorar` | `HomePage` | Consumer discovery landing |
-| `/home-classic` | `HomePageLegacy` | Frozen backup of the original home |
+| `/challenges/:type` | `ChallengeMissionPage` | Mission deep-link fallback (`places`, `routes`, `videos`) |
 
-## Legacy Backups
+## Feature module layout
 
-- `src/pages/marketing/legacy/HomePageLegacy.tsx`
-- `src/components/sections/legacy/LandingSectionsLegacy.tsx`
-- `src/components/sections/legacy/HeroVisualLegacy.tsx`
-
-## Animate UI Components
-
-Installed through `shadcn` after dry-runs:
-
-- `@animate-ui/components-backgrounds-gradient`
-- `@animate-ui/primitives-texts-shimmering`
-- `@animate-ui/primitives-texts-sliding-number`
-- `@animate-ui/components-buttons-liquid`
-- `@animate-ui/components-animate-avatar-group`
-
-## Backend TODOs
-
-Mock data:
-
-- `src/features/pioneers/mocks/pioneerMock.ts`
-- `src/features/pioneers/api/pioneersApi.ts`
-
-TODO markers:
-
-- `GET /api/pioneers/leaderboard?range=7d&category=total`
-- `GET /api/pioneers/challenges/active`
-
-## Page meta / social sharing
-
-`/` sets document title and Open Graph / Twitter tags via `usePageMeta` in `PioneersPage.tsx`.
-Helpers: `src/lib/pageMeta.ts`, `src/hooks/usePageMeta.ts`.
-
-## Revert to consumer home
-
-```tsx
-{ path: "/", element: <HomePage /> },
-{ path: "/pioneros", element: <PioneersPage /> },
 ```
+src/features/pioneers/
+├── api/pioneersApi.ts          # Client fetch + mock fallback
+├── components/                 # Section UI (hero, challenges, leaderboard, …)
+├── hooks/usePioneerLanding.ts  # Landing data hook
+├── lib/
+│   ├── paths.ts                # isPioneersHomePath()
+│   ├── challengeConfig.ts      # Mission metadata + web paths
+│   └── exploreAppLink.ts       # App scheme + open helpers
+├── mocks/pioneerMock.ts        # Fallback when API unavailable
+├── pages/
+│   ├── PioneersPage.tsx
+│   └── ChallengeMissionPage.tsx
+├── styles/pioneers.css         # Scoped via PioneersPageShell
+├── types.ts
+└── index.ts                    # Public exports
+```
+
+## Backend
+
+`GET /api/pioneers/landing?range=7d&category=total`
+
+- `server/api-lib/pioneers/pioneersService.mjs` — Supabase queries
+- `server/api-lib/pioneers/pioneersRouter.mjs` — HTTP handler
+
+Returns: stats, challenges, leaderboard users, top videos/places/routes. Rewards and video showcase cards still fall back to client mocks when not returned by API.
+
+## Deep links
+
+- Web: `/challenges/places|routes|videos`
+- App scheme: `explore://challenges/{type}`
+- Universal Links: paths registered in `public/.well-known/apple-app-site-association`
+
+## Page meta
+
+`/` sets title and OG tags via `usePageMeta` in `PioneersPage.tsx`. Helpers: `src/lib/pageMeta.ts`, `src/hooks/usePageMeta.ts`.
 
 ## Validation
 
 ```bash
 npm run lint
 npm run build
-npm run preview
+npm run dev:all
 ```
 
 Manual routes:
 
 - `http://localhost:4173/`
 - `http://localhost:4173/explorar`
-- `http://localhost:4173/home-classic`
+- `http://localhost:4173/challenges/places`
 - `http://localhost:4173/pioneros` (redirects to `/`)

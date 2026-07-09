@@ -4,8 +4,11 @@
 
 ```
 Browser (Vite React SPA)
-  └─ /admin/*  → AdminAuthGate (Supabase session)
-  └─ /api/*    → Vercel single function: api/index.js
+  └─ /            → Pioneers landing (`src/features/pioneers/`)
+  └─ /explorar    → Consumer home
+  └─ /team        → Redirect to `/admin` (hidden operator entry; no public nav link)
+  └─ /admin/*     → AdminAuthGate (`src/features/admin/components/AdminAuthGate.tsx`)
+  └─ /api/*       → Vercel single function: api/index.js
                     └─ server/api-lib/router.mjs
                          ├─ moderation/   reports, ops, admin auth
                          ├─ analytics/    events ingest + insights
@@ -22,7 +25,8 @@ Local Express (`server/index.ts`) mounts the same handlers for development.
 | Folder | Responsibility |
 |--------|----------------|
 | `http/` | Request IDs, Vercel adapter, route resolution, JSON responses |
-| `observability/` | Structured logs, Prometheus metrics, Loki push |
+| `observability/` | Structured logs, Prometheus metrics, Loki push, shared `HttpError` / `handleApiError` |
+| `pioneers/` | Public pioneers landing API |
 | `moderation/` | Reports, admin users, ops summary, moderation actions |
 | `analytics/` | `POST /api/events` + admin insights APIs |
 | `system/` | Health, metrics endpoints, board admin bootstrap |
@@ -34,8 +38,9 @@ Learn a domain by reading its folder top-down. Prefer importing from domain fold
 
 | Path | Responsibility |
 |------|----------------|
-| `src/pages/admin/` | Admin pages (dashboard, reports, analytics, waitlist) |
-| `src/features/admin/` | Shared admin primitives, auth provider, system page |
+| `src/features/pioneers/` | Pioneros landing pages, sections, API client, styles |
+| `src/pages/admin/` | Admin route pages (dashboard, reports, analytics, waitlist) |
+| `src/features/admin/` | Auth gate, primitives, system page, observability hooks |
 | `src/lib/` | Typed API clients (`moderationAdminApi`, `adminAnalyticsApi`) |
 | `src/components/layout/` | `AdminLayout` nav/shell |
 | `src/styles/` | Admin design system CSS |
@@ -64,7 +69,7 @@ Production:
 
 - Logs: JSON to stdout (Vercel) + optional Grafana Cloud Loki (`GRAFANA_*` env)
 - Metrics: `GET /api/metrics` with `Authorization: Bearer $METRICS_TOKEN`
-- Admin UI: `/admin?section=system`
+- Admin UI: `/admin?section=system` (operators can also open `/team` — not linked in public header)
 
 ## Auth model
 

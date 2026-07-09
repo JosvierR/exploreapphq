@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { LiquidButton } from "@/components/animate-ui/components/buttons/liquid";
 import { T } from "@/components/ui/T";
-import { challengeWebPath, type ChallengeType } from "@/lib/exploreAppLink";
+import { challengeWebPath, type ChallengeType } from "@/features/pioneers/lib/exploreAppLink";
 
 type OpenExploreMissionButtonProps = {
   challengeId: ChallengeType;

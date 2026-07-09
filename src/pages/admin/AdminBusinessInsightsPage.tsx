@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { AdminAuthGate } from "@/pages/admin/AdminAuthGate";
+import { AdminAuthGate } from "@/features/admin/components/AdminAuthGate";
 import {
   AdminDataTable,
   AdminPageShell,

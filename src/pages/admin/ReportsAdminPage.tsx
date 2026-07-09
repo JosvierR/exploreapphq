@@ -1,6 +1,6 @@
 import { type KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { AdminAuthGate } from "@/pages/admin/AdminAuthGate";
+import { AdminAuthGate } from "@/features/admin/components/AdminAuthGate";
 import {
   applyModerationAction,
   dismissReport,

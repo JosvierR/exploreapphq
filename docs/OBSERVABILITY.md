@@ -95,6 +95,12 @@ Server-only variables:
 
 If not configured, logs go to stdout only. If Loki push fails, the user request still succeeds and the failure is logged as a warning.
 
+Loki stream labels are intentionally low-cardinality: `service`, `environment`, `level`, `deployment`. Route and request metadata stay in the JSON log line, not as Loki labels.
+
+## API error handling
+
+Use `HttpError` and `handleApiError` from `server/api-lib/observability/errors.mjs` for consistent JSON errors, request IDs, and structured logs.
+
 Local Loki (Docker) does not require a token when `GRAFANA_LOKI_URL` points at `localhost` / `127.0.0.1`.
 
 ## Local OSS stack (free)
@@ -126,4 +132,5 @@ Implementation modules:
 - `server/api-lib/observability/logger.mjs`
 - `server/api-lib/observability/metrics.mjs`
 - `server/api-lib/observability/lokiLogger.mjs`
+- `server/api-lib/observability/errors.mjs`
 

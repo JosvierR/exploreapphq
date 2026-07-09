@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useReducedMotion } from "motion/react";
 import { GradientBackground } from "@/components/animate-ui/components/backgrounds/gradient";
+import "@/features/pioneers/styles/pioneers.css";
 
 export function PioneersPageShell({ children }: { children: ReactNode }) {
   const reduceMotion = useReducedMotion();

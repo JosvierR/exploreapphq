@@ -1,7 +1,4 @@
-import { useEffect, useState } from "react";
 import { useI18n } from "@/features/i18n/I18nProvider";
-import { usePageMeta } from "@/hooks/usePageMeta";
-import { fetchPioneerLanding, getPioneerLandingSnapshot } from "@/features/pioneers/api/pioneersApi";
 import { PioneerChallengeCards } from "@/features/pioneers/components/PioneerChallengeCards";
 import { PioneerFinalCTA } from "@/features/pioneers/components/PioneerFinalCTA";
 import { PioneerHero } from "@/features/pioneers/components/PioneerHero";
@@ -11,34 +8,18 @@ import { PioneersPageShell } from "@/features/pioneers/components/PioneersPageSh
 import { PioneerVideoShowcase } from "@/features/pioneers/components/PioneerVideoShowcase";
 import { PioneerWhatIs } from "@/features/pioneers/components/PioneerWhatIs";
 import { WebMobileSystem } from "@/features/pioneers/components/WebMobileSystem";
-import type { PioneerLandingSnapshot } from "@/features/pioneers/types";
+import { usePioneerLanding } from "@/features/pioneers/hooks/usePioneerLanding";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 export function PioneersPage() {
   const { t } = useI18n();
-  const [snapshot, setSnapshot] = useState<PioneerLandingSnapshot>(() => getPioneerLandingSnapshot());
-  const [loading, setLoading] = useState(true);
+  const { snapshot, loading } = usePioneerLanding();
 
   usePageMeta({
     title: t("pioneer.meta.title"),
     description: t("pioneer.meta.description"),
     path: "/",
   });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    fetchPioneerLanding({ range: "7d", category: "total" })
-      .then((data) => {
-        if (!cancelled) setSnapshot(data);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   return (
     <main>
