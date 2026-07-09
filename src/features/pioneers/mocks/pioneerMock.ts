@@ -2,6 +2,7 @@ import { APP_SCREENS } from "@/lib/constants";
 import type {
   LeaderboardTab,
   PioneerChallenge,
+  PioneerContentEntry,
   PioneerLeaderboardEntry,
   PioneerReward,
   PioneerStats,
@@ -20,6 +21,8 @@ export const PIONEER_CHALLENGES: PioneerChallenge[] = [
     badgeId: "badge-places",
     progressCurrent: 2,
     progressTarget: 5,
+    appDeepLink: "explore://challenges/places",
+    communityCount: 2,
   },
   {
     id: "routes",
@@ -32,6 +35,8 @@ export const PIONEER_CHALLENGES: PioneerChallenge[] = [
     badgeId: "badge-routes",
     progressCurrent: 1,
     progressTarget: 3,
+    appDeepLink: "explore://challenges/routes",
+    communityCount: 1,
   },
   {
     id: "videos",
@@ -44,6 +49,8 @@ export const PIONEER_CHALLENGES: PioneerChallenge[] = [
     badgeId: "badge-videos",
     progressCurrent: 3,
     progressTarget: 6,
+    appDeepLink: "explore://challenges/videos",
+    communityCount: 3,
   },
 ];
 
@@ -146,6 +153,105 @@ export const LEADERBOARD_USERS: PioneerLeaderboardEntry[] = [
     routesCount: 5,
     placesCount: 12,
     badges: ["badge-routes"],
+  },
+];
+
+export const MOCK_TOP_VIDEOS: PioneerContentEntry[] = [
+  {
+    id: "mock-video-1",
+    type: "video",
+    title: "Atardecer en la costa",
+    subtitle: "Paola M.",
+    creatorName: "Paola M.",
+    metric: 128,
+    rank: 1,
+    href: "/explorar",
+  },
+  {
+    id: "mock-video-2",
+    type: "video",
+    title: "Mercado local en 30s",
+    subtitle: "David R.",
+    creatorName: "David R.",
+    metric: 96,
+    rank: 2,
+    href: "/explorar",
+  },
+  {
+    id: "mock-video-3",
+    type: "video",
+    title: "Ruta corta con vista",
+    subtitle: "Nina L.",
+    creatorName: "Nina L.",
+    metric: 84,
+    rank: 3,
+    href: "/explorar",
+  },
+];
+
+export const MOCK_TOP_PLACES: PioneerContentEntry[] = [
+  {
+    id: "mock-place-1",
+    type: "place",
+    title: "Café Mirador Norte",
+    subtitle: "Marco A.",
+    creatorName: "Marco A.",
+    metric: 4.9,
+    rank: 1,
+    href: "/explorar",
+  },
+  {
+    id: "mock-place-2",
+    type: "place",
+    title: "Plaza del Reloj",
+    subtitle: "Elena V.",
+    creatorName: "Elena V.",
+    metric: 4.8,
+    rank: 2,
+    href: "/explorar",
+  },
+  {
+    id: "mock-place-3",
+    type: "place",
+    title: "Mirador del Río",
+    subtitle: "Jorge C.",
+    creatorName: "Jorge C.",
+    metric: 4.7,
+    rank: 3,
+    href: "/explorar",
+  },
+];
+
+export const MOCK_TOP_ROUTES: PioneerContentEntry[] = [
+  {
+    id: "mock-route-1",
+    type: "route",
+    title: "Loop histórico del centro",
+    subtitle: "David R.",
+    creatorName: "David R.",
+    metric: 8,
+    rank: 1,
+    href: "/explorar",
+  },
+  {
+    id: "mock-route-2",
+    type: "route",
+    title: "Caminata costera corta",
+    subtitle: "Paola M.",
+    creatorName: "Paola M.",
+    metric: 6,
+    rank: 2,
+    href: "/explorar",
+  },
+  {
+    id: "mock-route-3",
+    type: "route",
+    title: "Ruta cafeteras",
+    subtitle: "Lara S.",
+    creatorName: "Lara S.",
+    metric: 5,
+    rank: 3,
+    href: "/explorar",
   },
 ];
 

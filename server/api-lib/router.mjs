@@ -17,6 +17,7 @@ import {
   handleBootstrapBoardAdmins,
   handleTokenMetrics,
 } from "./system/systemRouter.mjs";
+import { handlePioneersLanding } from "./pioneers/pioneersRouter.mjs";
 
 function isModerationRoute(route) {
   return (
@@ -77,6 +78,8 @@ export async function dispatchApi(incomingRequest) {
       response = await adminNotifyLaunch(request);
     } else if (route === "admin/broadcast") {
       response = await adminBroadcast(request);
+    } else if (route === "pioneers/landing") {
+      response = await handlePioneersLanding(request);
     } else if (route === "feedback/submit") {
       response = await feedbackSubmit(request);
     } else if (request.method === "OPTIONS") {

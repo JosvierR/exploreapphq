@@ -31,7 +31,7 @@ import {
   handleTokenMetrics,
 } from "./api-lib/system/systemRouter.mjs";
 // @ts-ignore
-import { ensureRequestId } from "./api-lib/http/requestContext.mjs";
+import { handlePioneersLanding } from "./api-lib/pioneers/pioneersRouter.mjs";
 import { requireAdmin } from "./adminAuth.js";
 import { config } from "./config.js";
 import {
@@ -210,6 +210,10 @@ for (const segment of businessAnalyticsSegments) {
 
 app.all("/api/cron/analytics/aggregate", (req, res) => {
   void sendFetchResponse(handleCronAnalyticsAggregate, req, res);
+});
+
+app.all("/api/pioneers/landing", (req, res) => {
+  void sendFetchResponse(handlePioneersLanding, req, res);
 });
 
 app.all("/api/admin/system/health", (req, res) => {
