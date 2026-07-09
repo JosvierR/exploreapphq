@@ -1,10 +1,16 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { T } from "@/components/ui/T";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { SITE, SOCIAL, STORE_URLS } from "@/lib/constants";
 
+function isPioneersHomePath(pathname: string) {
+  return pathname === "/" || pathname === "/pioneros";
+}
+
 export function SiteFooter() {
   const year = new Date().getFullYear();
+  const { pathname } = useLocation();
+  const pioneersHome = isPioneersHomePath(pathname);
 
   return (
     <footer className="site-footer" id="contact">
@@ -15,7 +21,7 @@ export function SiteFooter() {
               <BrandLogo />
             </Link>
             <p>
-              <T k="footer.desc" />
+              <T k={pioneersHome ? "footer.pioneers.desc" : "footer.desc"} />
             </p>
             <div className="social-links" style={{ marginTop: "1rem" }}>
               <a href={SOCIAL.instagram} target="_blank" rel="noopener noreferrer">
@@ -28,31 +34,64 @@ export function SiteFooter() {
           </div>
           <div className="footer-col">
             <h5>
-              <T k="footer.home" />
+              <T k={pioneersHome ? "footer.pioneers.program" : "footer.home"} />
             </h5>
-            <a href="#top">
-              <T k="footer.home" />
-            </a>
-            <a href="#benefits">
-              <T k="footer.explore" />
-            </a>
-            <a href="#how-it-works">
-              <T k="footer.how" />
-            </a>
-            <a href="#preview">
-              <T k="preview.title" />
-            </a>
-            <Link to="/pioneros">
-              <T k="nav.pioneers" />
-            </Link>
+            {pioneersHome ? (
+              <>
+                <a href="#top">
+                  <T k="footer.home" />
+                </a>
+                <a href="#retos">
+                  <T k="pioneer.nav.challenges" />
+                </a>
+                <a href="#ranking">
+                  <T k="pioneer.nav.leaderboard" />
+                </a>
+                <a href="#recompensas">
+                  <T k="pioneer.nav.rewards" />
+                </a>
+                <Link to="/explorar">
+                  <T k="nav.discover" />
+                </Link>
+              </>
+            ) : (
+              <>
+                <a href="#top">
+                  <T k="footer.home" />
+                </a>
+                <a href="#benefits">
+                  <T k="footer.explore" />
+                </a>
+                <a href="#how-it-works">
+                  <T k="footer.how" />
+                </a>
+                <a href="#preview">
+                  <T k="preview.title" />
+                </a>
+                <Link to="/">
+                  <T k="nav.pioneers" />
+                </Link>
+              </>
+            )}
           </div>
           <div className="footer-col">
             <h5>
               <T k="footer.creators" />
             </h5>
-            <a href="#creators">
-              <T k="footer.creators" />
-            </a>
+            {pioneersHome ? (
+              <>
+                <a href="#unirme">
+                  <T k="pioneer.nav.join" />
+                </a>
+                <a href="#showcase">
+                  <T k="pioneer.showcase.title" />
+                </a>
+              </>
+            ) : (
+              <a href="#creators">
+                <T k="footer.creators" />
+              </a>
+            )}
             <a href={`mailto:${SITE.email}`}>
               <T k="nav.contact" />
             </a>

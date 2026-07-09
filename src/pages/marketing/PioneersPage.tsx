@@ -19,7 +19,7 @@ export function PioneersPage() {
   usePageMeta({
     title: t("pioneer.meta.title"),
     description: t("pioneer.meta.description"),
-    path: "/pioneros",
+    path: "/",
   });
 
   return (

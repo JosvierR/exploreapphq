@@ -183,6 +183,17 @@ button { font: inherit; cursor: pointer; border: none; background: none; }
   transition: color 0.2s;
 }
 .nav-desktop a:hover { color: var(--text); }
+.nav-link-muted {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(90, 200, 250, 0.88) !important;
+}
+.nav-link-muted:hover {
+  color: #fff !important;
+}
+.site-header--pioneers.is-scrolled {
+  background: rgba(11, 15, 20, 0.92);
+}
 .header-actions {
   display: flex;
   align-items: center;
