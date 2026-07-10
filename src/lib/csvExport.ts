@@ -1,3 +1,5 @@
+import { analyticsColumnLabel, entityLabel } from "@/lib/analyticsDisplay";
+
 function escapeCsv(value: unknown) {
   const text = value == null ? "" : String(value);
   if (/[",\n]/.test(text)) return `"${text.replaceAll('"', '""')}"`;
@@ -7,7 +9,7 @@ function escapeCsv(value: unknown) {
 export function toCsv(rows: Array<Record<string, unknown>>) {
   if (!rows.length) return "";
   const headers = Object.keys(rows[0]);
-  const lines = [headers.join(",")];
+  const lines = [headers.map((header) => escapeCsv(analyticsColumnLabel(header))).join(",")];
   for (const row of rows) {
     lines.push(headers.map((header) => escapeCsv(row[header])).join(","));
   }
@@ -69,9 +71,10 @@ export function flattenContentPerformance(data: any) {
   const rows: Array<Record<string, unknown>> = [];
   for (const [type, items] of Object.entries(sections)) {
     (items as any[]).forEach((item, index) => {
+      const rawType = String(item.entity_type || type).replace(/s$/, "");
       rows.push({
         rank: index + 1,
-        type,
+        type: entityLabel(rawType),
         content_id: item.entity_id,
         views: item.views,
         likes: item.likes,

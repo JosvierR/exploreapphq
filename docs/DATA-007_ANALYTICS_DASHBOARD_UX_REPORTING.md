@@ -42,6 +42,24 @@ Copy:
 
 - Investor snapshot text
 
+## Display Labels
+
+Analytics admin display names are centralized in `src/lib/analyticsDisplay.ts`.
+The catalog contains labels for metrics, event names, entity/content types,
+platforms, sources, event properties, warning codes, rejected-event reasons,
+filters, and auth states.
+
+Rules:
+
+- Keep API, Supabase, and mobile identifiers unchanged.
+- Use explicit maps for known analytics keys from the event allowlist and
+  business insights service.
+- Use `humanizeKey()` only as a fallback; it title-cases snake_case and
+  preserves acronyms such as `iOS`, `ID`, `CTR`, `API`, and `URL`.
+- Event detail views should render readable field/value tables through
+  `formatAnalyticsJson()` instead of raw JSON.
+- CSV exports should use human-readable headers through the same catalog.
+
 ## Privacy
 
 - No raw search queries (search fingerprints only)
@@ -69,7 +87,10 @@ Empty states explain what to do next instead of showing only "No data".
 7. Confirm search table has fingerprints only
 8. Confirm locations never show lat/lng
 9. Confirm `/admin/analytics` still works
-10. Confirm no new files under `/api`
+10. Open an event detail in `/admin/analytics` and confirm properties/context render as readable tables
+11. Confirm primary dashboards do not show raw `screen_view`, `screen_time`, `active_users_estimate`, `ios`, or `no_result_rate`
+12. Confirm exported CSV headers are human-readable
+13. Confirm no new files under `/api`
 
 ## Related
 
