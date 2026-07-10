@@ -30,6 +30,7 @@ import {
   targetSubtitle,
   targetTitle,
 } from "@/lib/adminModerationFormat";
+import { humanizeKey } from "@/lib/analyticsDisplay";
 import "@/styles/admin-moderation.css";
 
 type ConsoleSection = "overview" | "users" | "content" | "moderation" | "insights" | "analytics" | "system" | "admins";
@@ -286,7 +287,7 @@ function UsersSection({ summary }: { summary: AdminOpsSummary | null }) {
         <StatCard label="New users 7d" value={summary?.users.new_7d} loading={false} tone="green" />
         <StatCard label="Deactivated" value={summary?.users.deactivated} loading={false} tone="warning" />
         <StatCard label="Ghost/test users" value={summary?.users.ghost} loading={false} tone="neutral" />
-        <StatCard label="DAU/WAU" value="Foundation required" loading={false} tone="violet" hint="analytics_events needed" />
+        <StatCard label="DAU/WAU" value="Foundation required" loading={false} tone="violet" hint="Analytics events needed" />
       </MetricGroup>
 
       <section className="admin-panel">
@@ -537,7 +538,7 @@ function AnalyticsFoundationSection() {
         Explore needs the Analytics/Data Foundation. This console only reports metrics available from current operational tables.
       </p>
       <div className="admin-foundation-grid">
-        {["analytics_events", "daily active users", "weekly active users", "impressions", "click-through rate", "route starts"].map((item) => (
+        {["Analytics events", "Daily active users", "Weekly active users", "Impressions", "Click-through rate", "Route starts"].map((item) => (
           <span key={item}>{item}</span>
         ))}
       </div>
@@ -811,7 +812,7 @@ function ActionList({ actions, loading }: { actions: AdminModerationAction[]; lo
             {action.action_type.slice(0, 1).toUpperCase()}
           </span>
           <span>
-            <strong>{labelFromValue(action.action_type)}</strong>
+            <strong>{humanizeKey(action.action_type)}</strong>
             <small>
               {formatContentTypeLabel(action.target_type)} {shortId(action.target_id)} by {shortId(action.admin_id)}
             </small>
@@ -834,7 +835,7 @@ function InsightCard({ title, value, detail, loading }: { title: string; value: 
 }
 
 function StatusPill({ label, tone }: { label: string; tone: "green" | "warning" | "danger" | "neutral" }) {
-  return <span className={`admin-status-pill admin-status-pill--${tone}`}>{labelFromValue(label)}</span>;
+  return <span className={`admin-status-pill admin-status-pill--${tone}`}>{humanizeKey(label)}</span>;
 }
 
 function CopyButton({ value, label }: { value: string; label: string }) {
@@ -970,19 +971,11 @@ function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function labelFromValue(value: string) {
-  return value
-    .split("_")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 function topEntry<T extends OpsBreakdownEntry, K extends keyof T>(entries: T[], key: K) {
   const top = [...entries].sort((a, b) => b.count - a.count)[0];
   if (!top || !top[key]) return null;
   return {
-    label: labelFromValue(String(top[key])),
+    label: humanizeKey(String(top[key])),
     detail: `${formatNumber(top.count)} record${top.count === 1 ? "" : "s"}`,
   };
 }
