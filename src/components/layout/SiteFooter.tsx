@@ -10,7 +10,7 @@ export function SiteFooter() {
   const pioneersHome = isPioneersHomePath(pathname);
 
   return (
-    <footer className="site-footer" id="contact">
+    <footer className={`site-footer${pioneersHome ? " site-footer--pioneers" : ""}`} id="contact">
       <div className="container">
         <div className="footer-grid">
           <div className="footer-brand">

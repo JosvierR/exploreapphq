@@ -48,9 +48,6 @@ export function LandingSections() {
     { key: "preview.place", img: APP_SCREENS.gallery[1] },
     { key: "preview.map", img: APP_SCREENS.gallery[2] },
     { key: "preview.route", img: APP_SCREENS.gallery[3] },
-    { key: "preview.create", img: APP_SCREENS.gallery[4] },
-    { key: "preview.upload", img: APP_SCREENS.gallery[5] },
-    { key: "preview.profile", img: APP_SCREENS.gallery[6] },
   ];
 
   const routeSteps: TranslationKey[] = [
@@ -343,7 +340,7 @@ export function LandingSections() {
           <Reveal>
             <SectionTitle title="preview.title" />
           </Reveal>
-          <div className="mockup-grid mockup-grid--7">
+          <div className="mockup-grid">
             {previewItems.map((item, i) => (
               <Reveal key={item.key} delay={i * 0.04}>
                 <figure className="mockup-tile explore-mockup">

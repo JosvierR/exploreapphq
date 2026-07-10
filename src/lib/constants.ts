@@ -39,4 +39,5 @@ export const APP_SCREENS = {
     creator: "/5.png",
   },
   videoShowcase: ["/V1.png", "/V2.png", "/V3.png", "/V4.png", "/V5.png"] as const,
+  whatIsMosaic: ["/P5.png", "/P6.png", "/P7.png", "/P8.png"] as const,
 } as const;

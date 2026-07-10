@@ -8,12 +8,7 @@ const POINTS = [
   "pioneer.whatIs.point3",
 ] as const;
 
-const CREATOR_MOSAIC = [
-  APP_SCREENS.gallery[0],
-  APP_SCREENS.gallery[4],
-  APP_SCREENS.gallery[2],
-  APP_SCREENS.hero,
-] as const;
+const CREATOR_MOSAIC = APP_SCREENS.whatIsMosaic;
 
 export function PioneerWhatIs() {
   const reduceMotion = useReducedMotion();

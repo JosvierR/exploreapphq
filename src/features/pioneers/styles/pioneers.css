@@ -1538,36 +1538,68 @@
   background: rgba(255, 0, 255, 0.1);
 }
 
+.pioneer-social-note {
+  max-width: 640px;
+  margin: 2rem auto 0;
+  padding: 1rem 1.25rem;
+  border: 2px solid var(--pixel-accent);
+  background: rgba(255, 0, 255, 0.06);
+  text-align: center;
+}
+
+.pioneer-social-note p {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--pixel-font-mono);
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
 /* ============================================================
    MOSAICO DE IMÁGENES (PIONEER WHAT IS)
    ============================================================ */
 .pioneer-what__mosaic {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
+  position: relative;
+  height: 150px;
+  border-radius: 4px;
+  overflow: hidden;
   margin-bottom: 1.5rem;
+  transition: height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.pioneer-what__mosaic:has(.pioneer-what__mosaic-item:hover),
+.pioneer-what__mosaic:has(.pioneer-what__mosaic-item:focus-visible) {
+  height: 440px;
 }
 
 .pioneer-what__mosaic-item {
-  width: 100%;
-  aspect-ratio: 3 / 4;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 25%;
+  height: 100%;
   object-fit: cover;
   border: 2px solid var(--pixel-main);
-  border-radius: 4px;
   background: #000;
   image-rendering: pixelated;
-  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: zoom-in;
+  z-index: 1;
+  transition: left 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s, border-color 0.3s, z-index 0s;
 }
 
-.pioneer-what__mosaic-item:hover {
-  transform: scale(1.05);
-  box-shadow: 0 0 15px var(--pixel-accent);
+.pioneer-what__mosaic-item:nth-child(1) { left: 0%; }
+.pioneer-what__mosaic-item:nth-child(2) { left: 25%; }
+.pioneer-what__mosaic-item:nth-child(3) { left: 50%; }
+.pioneer-what__mosaic-item:nth-child(4) { left: 75%; }
+
+.pioneer-what__mosaic-item:hover,
+.pioneer-what__mosaic-item:focus-visible {
+  left: 0;
+  width: 100%;
+  object-fit: contain;
+  z-index: 5;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 24px var(--pixel-accent);
   border-color: var(--pixel-accent);
-}
-
-.pioneer-what__mosaic-item--1 {
-  grid-column: span 2;
-  aspect-ratio: 16 / 11;
 }
 
 /* ============================================================
@@ -1760,10 +1792,11 @@
     grid-template-columns: 1fr;
   }
   .pioneer-what__mosaic {
-    grid-template-columns: repeat(2, 1fr);
+    height: 220px;
   }
-  .pioneer-what__mosaic-item--1 {
-    grid-column: span 2;
+  .pioneer-what__mosaic:has(.pioneer-what__mosaic-item:hover),
+  .pioneer-what__mosaic:has(.pioneer-what__mosaic-item:focus-visible) {
+    height: 380px;
   }
 }
 
@@ -1774,4 +1807,173 @@
   .pioneer-map-pin {
     animation: none;
   }
+}
+
+/* ============================================================
+   SYNTHWAVE BLUE · HEADER Y FOOTER (PIONEROS)
+   ============================================================ */
+.site-header--pioneers {
+  background: rgba(10, 10, 32, 0.55);
+  border-bottom: 2px solid rgba(0, 212, 255, 0.35);
+  backdrop-filter: blur(12px) saturate(1.2);
+}
+
+.site-header--pioneers.is-scrolled {
+  background: rgba(10, 10, 32, 0.92);
+  border-bottom-color: var(--pixel-main);
+  box-shadow: 0 0 24px rgba(0, 212, 255, 0.25);
+}
+
+.site-header--pioneers .brand {
+  font-family: var(--pixel-font-pixel);
+  font-size: 0.65rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 0 10px var(--pixel-glow);
+}
+
+.site-header--pioneers .brand-logo-img {
+  border: 2px solid var(--pixel-main);
+  box-shadow: 0 0 12px var(--pixel-glow);
+}
+
+.site-header--pioneers .nav-desktop a,
+.site-header--pioneers .nav-link-muted {
+  font-family: var(--pixel-font-mono);
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted) !important;
+  transition: color 0.2s, text-shadow 0.2s;
+}
+
+.site-header--pioneers .nav-desktop a:hover,
+.site-header--pioneers .nav-link-muted:hover {
+  color: var(--pixel-main) !important;
+  text-shadow: 0 0 8px var(--pixel-glow);
+}
+
+.site-header--pioneers .lang-switch {
+  border: 2px solid var(--pixel-main);
+  border-radius: 4px;
+  background: rgba(10, 10, 32, 0.6);
+}
+
+.site-header--pioneers .lang-switch button {
+  font-family: var(--pixel-font-pixel);
+  font-size: 0.55rem;
+  color: var(--text-muted);
+}
+
+.site-header--pioneers .lang-switch button.is-active {
+  background: var(--pixel-main);
+  color: #000;
+  box-shadow: 0 0 10px var(--pixel-glow);
+}
+
+.site-header--pioneers .header-actions .btn-primary {
+  border: 2px solid var(--pixel-main);
+  background: rgba(0, 212, 255, 0.1);
+  color: #fff;
+  border-radius: 4px;
+  box-shadow: 0 0 16px var(--pixel-glow);
+  font-family: var(--pixel-font-pixel);
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.site-header--pioneers .header-actions .btn-primary:hover {
+  background: rgba(255, 0, 255, 0.15);
+  border-color: var(--pixel-accent);
+  box-shadow: 0 0 18px rgba(255, 0, 255, 0.4);
+}
+
+.site-header--pioneers .nav-toggle span {
+  background: var(--pixel-main);
+  box-shadow: 0 0 6px var(--pixel-glow);
+}
+
+.site-header--pioneers .nav-mobile {
+  background: rgba(10, 10, 32, 0.98);
+  border-left: 2px solid var(--pixel-main);
+}
+
+.site-header--pioneers .nav-mobile a {
+  font-family: var(--pixel-font-mono);
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  border-bottom-color: rgba(0, 212, 255, 0.2);
+  color: var(--text);
+}
+
+.site-header--pioneers .nav-mobile a:hover {
+  color: var(--pixel-main);
+}
+
+.site-header--pioneers .nav-mobile .btn-primary {
+  border: 2px solid var(--pixel-main);
+  background: rgba(0, 212, 255, 0.12);
+  color: #fff;
+  border-radius: 4px;
+  font-family: var(--pixel-font-pixel);
+  font-size: 0.55rem;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.site-footer--pioneers {
+  background: var(--pixel-bg);
+  border-top: 2px solid var(--pixel-main);
+  box-shadow: 0 -20px 40px rgba(0, 212, 255, 0.06) inset;
+}
+
+.site-footer--pioneers .brand {
+  font-family: var(--pixel-font-pixel);
+  font-size: 0.65rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 0 10px var(--pixel-glow);
+}
+
+.site-footer--pioneers .brand-logo-img {
+  border: 2px solid var(--pixel-main);
+  box-shadow: 0 0 12px var(--pixel-glow);
+}
+
+.site-footer--pioneers .footer-brand p {
+  font-family: var(--pixel-font-mono);
+  font-size: 1rem;
+  color: var(--text-muted);
+}
+
+.site-footer--pioneers .footer-col h5 {
+  font-family: var(--pixel-font-pixel);
+  font-size: 0.55rem;
+  color: var(--pixel-accent);
+  text-shadow: 0 0 8px rgba(255, 0, 255, 0.4);
+}
+
+.site-footer--pioneers .footer-col a {
+  font-family: var(--pixel-font-mono);
+  font-size: 1rem;
+  color: var(--text-muted);
+}
+
+.site-footer--pioneers .footer-col a:hover {
+  color: var(--pixel-main);
+  text-shadow: 0 0 6px var(--pixel-glow);
+}
+
+.site-footer--pioneers .social-links a:hover {
+  color: var(--pixel-accent);
+}
+
+.site-footer--pioneers .footer-bottom {
+  border-top-color: rgba(0, 212, 255, 0.2);
+  font-family: var(--pixel-font-mono);
+  font-size: 0.9rem;
+  color: var(--text-muted);
 }
