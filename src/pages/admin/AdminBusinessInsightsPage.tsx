@@ -24,12 +24,15 @@ import {
 import {
   entityLabel,
   eventLabel,
+  filterLabel,
   formatNumber,
   formatPercent,
   formatRangeLabel,
   formatTrend,
   metricLabel,
+  platformLabel,
   shortenId,
+  sourceLabel,
   warningCopy,
 } from "@/lib/analyticsDisplay";
 import {
@@ -84,20 +87,23 @@ function SimpleBarChart({
   if (!points.length) return <EmptyState title="No chart data yet" message="Activity will appear here as events arrive." />;
   const max = Math.max(1, ...points.map((point) => Number(point[valueKey] || 0)));
   return (
-    <div className="admin-distribution-list">
-      {points.map((point) => {
-        const label = String(point[labelKey] || "");
-        const value = Number(point[valueKey] || 0);
-        return (
-          <div className="admin-distribution-row" key={`${label}-${valueKey}`}>
-            <span>{label}</span>
-            <div className="admin-distribution-row__bar" aria-hidden="true">
-              <span style={{ width: `${Math.max(4, (value / max) * 100)}%` }} />
+    <div>
+      <h4>{metricLabel(valueKey)}</h4>
+      <div className="admin-distribution-list">
+        {points.map((point) => {
+          const label = String(point[labelKey] || "");
+          const value = Number(point[valueKey] || 0);
+          return (
+            <div className="admin-distribution-row" key={`${label}-${valueKey}`}>
+              <span>{label}</span>
+              <div className="admin-distribution-row__bar" aria-hidden="true">
+                <span style={{ width: `${Math.max(4, (value / max) * 100)}%` }} />
+              </div>
+              <strong>{formatNumber(value)}</strong>
             </div>
-            <strong>{formatNumber(value)}</strong>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -328,7 +334,7 @@ function AdminBusinessInsightsContent() {
             <span>Range</span>
             <select value={range} onChange={(event) => setRange(event.target.value as BusinessRangePreset)}>
               {RANGES.map((item) => (
-                <option key={item} value={item}>{item}</option>
+                <option key={item} value={item}>{filterLabel(`range:${item}`)}</option>
               ))}
             </select>
           </label>
@@ -336,7 +342,7 @@ function AdminBusinessInsightsContent() {
             <span>Platform</span>
             <select value={platform} onChange={(event) => setPlatform(event.target.value as (typeof PLATFORMS)[number])}>
               {PLATFORMS.map((item) => (
-                <option key={item} value={item}>{item}</option>
+                <option key={item} value={item}>{item === "all" ? filterLabel("platform:all") : platformLabel(item)}</option>
               ))}
             </select>
           </label>
@@ -344,7 +350,7 @@ function AdminBusinessInsightsContent() {
             <span>Source</span>
             <select value={source} onChange={(event) => setSource(event.target.value as (typeof SOURCES)[number])}>
               {SOURCES.map((item) => (
-                <option key={item} value={item}>{item}</option>
+                <option key={item} value={item}>{item === "all" ? filterLabel("source:all") : sourceLabel(item)}</option>
               ))}
             </select>
           </label>
@@ -352,7 +358,7 @@ function AdminBusinessInsightsContent() {
             <span>Content</span>
             <select value={entityType} onChange={(event) => setEntityType(event.target.value as (typeof CONTENT_TYPES)[number])}>
               {CONTENT_TYPES.map((item) => (
-                <option key={item} value={item}>{item}</option>
+                <option key={item} value={item}>{item === "all" ? filterLabel("content:all") : entityLabel(item)}</option>
               ))}
             </select>
           </label>
@@ -408,6 +414,7 @@ function AdminBusinessInsightsContent() {
             label: item.value,
             count: item.count,
           }))}
+          labelForValue={platformLabel}
         />
       </SectionShell>
 
@@ -465,7 +472,7 @@ function AdminBusinessInsightsContent() {
             return <InsightCallout key={type} code="no_content_entity_id" />;
           }
           return (
-            <AdminDataTable key={type} label={type}>
+            <AdminDataTable key={type} label={entityLabel(type)}>
               <thead>
                 <tr>
                   <th>Rank</th>
@@ -662,9 +669,11 @@ function AdminBusinessInsightsContent() {
 function DistributionList({
   title,
   entries,
+  labelForValue = eventLabel,
 }: {
   title?: string;
   entries: Array<{ label: string; count: number }>;
+  labelForValue?: (value: string) => string;
 }) {
   if (!entries.length) return null;
   const max = Math.max(1, ...entries.map((entry) => entry.count));
@@ -674,7 +683,7 @@ function DistributionList({
       <div className="admin-distribution-list">
         {entries.map((entry) => (
           <div className="admin-distribution-row" key={entry.label}>
-            <span>{eventLabel(entry.label)}</span>
+            <span>{labelForValue(entry.label)}</span>
             <div className="admin-distribution-row__bar" aria-hidden="true">
               <span style={{ width: `${Math.max(4, (entry.count / max) * 100)}%` }} />
             </div>

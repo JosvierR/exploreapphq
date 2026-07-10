@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminAuthGate } from "@/features/admin/components/AdminAuthGate";
+import { AnalyticsEventDetail } from "@/features/admin/components/AnalyticsEventDetail";
 import {
   AdminDataTable,
   AdminPageShell,
@@ -34,6 +35,18 @@ import {
   fetchAnalyticsTopContent,
   runAnalyticsAggregation,
 } from "@/lib/adminAnalyticsApi";
+import {
+  authLabel,
+  deadLetterReasonLabel,
+  entityLabel,
+  eventLabel,
+  filterLabel,
+  metricLabel,
+  platformLabel,
+  sourceLabel,
+  warningCodeLabel,
+  warningCopy,
+} from "@/lib/analyticsDisplay";
 import { AdminApiError } from "@/lib/moderationAdminApi";
 
 type SectionState<T> = {
@@ -45,20 +58,24 @@ type SectionState<T> = {
 };
 
 const RANGES: AnalyticsRange[] = ["24h", "7d", "30d"];
+const SOURCE_FILTERS = ["", "mobile", "web", "backend", "admin"] as const;
+const PLATFORM_FILTERS = ["", "ios", "android", "web", "server"] as const;
+const ENTITY_FILTERS = ["", "video", "place", "route", "profile", "user", "screen", "search", "system"] as const;
+const AUTH_FILTERS = ["", "authenticated", "anonymous"] as const;
 
 function formatNumber(value: number | string | null | undefined) {
-  if (value == null) return "—";
+  if (value == null) return "Not available";
   if (typeof value === "string") return value;
   return new Intl.NumberFormat().format(value);
 }
 
 function formatPercent(value: number | null | undefined) {
-  if (value == null) return "—";
+  if (value == null) return "Not available";
   return `${value}%`;
 }
 
 function formatDate(value: string | null | undefined) {
-  if (!value) return "—";
+  if (!value) return "Not available";
   return new Date(value).toLocaleString();
 }
 
@@ -68,15 +85,23 @@ function healthTone(status: string) {
   return "amber" as const;
 }
 
-function DistributionList({ entries, loading }: { entries: BreakdownEntry[]; loading: boolean }) {
+function DistributionList({
+  entries,
+  loading,
+  labelForValue = (value) => value || "Not available",
+}: {
+  entries: BreakdownEntry[];
+  loading: boolean;
+  labelForValue?: (value: string) => string;
+}) {
   const max = Math.max(1, ...entries.map((entry) => entry.count));
   if (loading) return <LoadingState rows={4} />;
   if (entries.length === 0) return <EmptyState title="No data" message="Counts will appear as events arrive." />;
   return (
     <div className="admin-distribution-list">
       {entries.map((entry) => (
-        <div className="admin-distribution-row" key={entry.value}>
-          <span>{entry.value}</span>
+        <div className="admin-distribution-row" key={`${entry.value}-${entry.count}`}>
+          <span>{labelForValue(entry.value)}</span>
           <div className="admin-distribution-row__bar" aria-hidden="true">
             <span style={{ width: `${Math.max(4, (entry.count / max) * 100)}%` }} />
           </div>
@@ -131,7 +156,7 @@ function TopContentTable({ items, loading }: { items: TopContentItem[]; loading:
       <tbody>
         {items.map((item) => (
           <tr key={`${item.entity_type}-${item.entity_id}`}>
-            <td>{item.entity_type}</td>
+            <td>{entityLabel(item.entity_type)}</td>
             <td><code>{item.entity_id}</code></td>
             <td>{formatNumber(item.event_count ?? item.impressions ?? item.clicks)}</td>
             <td>{formatDate(item.last_event_at)}</td>
@@ -357,14 +382,14 @@ function AdminAnalyticsContent() {
     const data = overview.data;
     if (!data) return [];
     return [
-      { label: "Events today", value: formatNumber(data.events_today), tone: "blue" as const },
-      { label: "Events 24h", value: formatNumber(data.events_last_24h), tone: "blue" as const },
-      { label: "Events 7d", value: formatNumber(data.events_last_7d), tone: "purple" as const },
-      { label: "Anonymous IDs 24h", value: formatNumber(data.active_anonymous_ids), tone: "slate" as const },
-      { label: "Auth users 24h", value: formatNumber(data.active_authenticated_users), tone: "green" as const },
-      { label: "Sessions 24h", value: formatNumber(data.sessions), tone: "slate" as const },
-      { label: "Avg events / session", value: formatNumber(data.avg_events_per_session), tone: "slate" as const },
-      { label: "Dead letters 24h", value: formatNumber(data.dead_letters_last_24h), tone: "amber" as const },
+      { label: metricLabel("events_today"), value: formatNumber(data.events_today), tone: "blue" as const },
+      { label: metricLabel("events_last_24h"), value: formatNumber(data.events_last_24h), tone: "blue" as const },
+      { label: metricLabel("events_last_7d"), value: formatNumber(data.events_last_7d), tone: "purple" as const },
+      { label: metricLabel("active_anonymous_ids"), value: formatNumber(data.active_anonymous_ids), tone: "slate" as const },
+      { label: metricLabel("active_authenticated_users"), value: formatNumber(data.active_authenticated_users), tone: "green" as const },
+      { label: metricLabel("sessions"), value: formatNumber(data.sessions), tone: "slate" as const },
+      { label: metricLabel("avg_events_per_session"), value: formatNumber(data.avg_events_per_session), tone: "slate" as const },
+      { label: metricLabel("dead_letters_last_24h"), value: formatNumber(data.dead_letters_last_24h), tone: "amber" as const },
     ];
   }, [overview.data]);
 
@@ -412,7 +437,7 @@ function AdminAnalyticsContent() {
             <select value={range} onChange={(event) => setRange(event.target.value as AnalyticsRange)}>
               {RANGES.map((item) => (
                 <option key={item} value={item}>
-                  {item}
+                  {filterLabel(`range:${item}`)}
                 </option>
               ))}
             </select>
@@ -444,17 +469,17 @@ function AdminAnalyticsContent() {
 
         <section className="admin-panel">
           <SectionHeader kicker="Breakdown" title="Event names" />
-          <DistributionList entries={overview.data?.breakdowns.event_name || []} loading={overview.loading} />
+          <DistributionList entries={overview.data?.breakdowns.event_name || []} loading={overview.loading} labelForValue={eventLabel} />
         </section>
 
         <section className="admin-panel">
           <SectionHeader kicker="Breakdown" title="Source" />
-          <DistributionList entries={overview.data?.breakdowns.source || []} loading={overview.loading} />
+          <DistributionList entries={overview.data?.breakdowns.source || []} loading={overview.loading} labelForValue={sourceLabel} />
         </section>
 
         <section className="admin-panel">
           <SectionHeader kicker="Breakdown" title="Platform" />
-          <DistributionList entries={overview.data?.breakdowns.platform || []} loading={overview.loading} />
+          <DistributionList entries={overview.data?.breakdowns.platform || []} loading={overview.loading} labelForValue={platformLabel} />
         </section>
       </div>
 
@@ -476,9 +501,9 @@ function AdminAnalyticsContent() {
           <LoadingState rows={4} />
         ) : (
           <div className="admin-stats-grid">
-            <StatCard label="Total searches" value={formatNumber(search.data?.total_searches)} loading={false} />
-            <StatCard label="No-result searches" value={formatNumber(search.data?.no_result_searches)} loading={false} />
-            <StatCard label="CTR" value={formatPercent(search.data?.click_through_rate)} loading={false} />
+            <StatCard label={metricLabel("total_searches")} value={formatNumber(search.data?.total_searches)} loading={false} />
+            <StatCard label={metricLabel("no_result_searches")} value={formatNumber(search.data?.no_result_searches)} loading={false} />
+            <StatCard label={metricLabel("click_through_rate")} value={formatPercent(search.data?.click_through_rate)} loading={false} />
           </div>
         )}
         <DistributionList entries={(search.data?.top_query_hashes || []).map((item) => ({ value: item.query_hash, count: item.count }))} loading={search.loading} />
@@ -487,10 +512,36 @@ function AdminAnalyticsContent() {
       <section className="admin-panel">
         <SectionHeader kicker="Explorer" title="Recent events" />
         <div className="admin-filter-row">
-          <input placeholder="event_name" value={eventFilters.event_name} onChange={(e) => setEventFilters((s) => ({ ...s, event_name: e.target.value }))} />
-          <input placeholder="source" value={eventFilters.source} onChange={(e) => setEventFilters((s) => ({ ...s, source: e.target.value }))} />
-          <input placeholder="platform" value={eventFilters.platform} onChange={(e) => setEventFilters((s) => ({ ...s, platform: e.target.value }))} />
-          <input placeholder="entity_id / event_id" value={eventFilters.q} onChange={(e) => setEventFilters((s) => ({ ...s, q: e.target.value }))} />
+          <input placeholder="Event name" value={eventFilters.event_name} onChange={(e) => setEventFilters((s) => ({ ...s, event_name: e.target.value }))} />
+          <select value={eventFilters.source} onChange={(e) => setEventFilters((s) => ({ ...s, source: e.target.value }))}>
+            {SOURCE_FILTERS.map((item) => (
+              <option key={item || "all"} value={item}>
+                {item ? sourceLabel(item) : filterLabel("source:all")}
+              </option>
+            ))}
+          </select>
+          <select value={eventFilters.platform} onChange={(e) => setEventFilters((s) => ({ ...s, platform: e.target.value }))}>
+            {PLATFORM_FILTERS.map((item) => (
+              <option key={item || "all"} value={item}>
+                {item ? platformLabel(item) : filterLabel("platform:all")}
+              </option>
+            ))}
+          </select>
+          <select value={eventFilters.entity_type} onChange={(e) => setEventFilters((s) => ({ ...s, entity_type: e.target.value }))}>
+            {ENTITY_FILTERS.map((item) => (
+              <option key={item || "all"} value={item}>
+                {item ? entityLabel(item) : filterLabel("entity:all")}
+              </option>
+            ))}
+          </select>
+          <select value={eventFilters.auth} onChange={(e) => setEventFilters((s) => ({ ...s, auth: e.target.value as "" | "authenticated" | "anonymous" }))}>
+            {AUTH_FILTERS.map((item) => (
+              <option key={item || "all"} value={item}>
+                {item ? authLabel(item) : filterLabel("auth:all")}
+              </option>
+            ))}
+          </select>
+          <input placeholder="Content ID or event ID" value={eventFilters.q} onChange={(e) => setEventFilters((s) => ({ ...s, q: e.target.value }))} />
           <button type="button" className="admin-btn admin-btn--secondary" onClick={() => { setEventOffset(0); setRefreshKey((v) => v + 1); }}>
             Apply filters
           </button>
@@ -514,11 +565,11 @@ function AdminAnalyticsContent() {
                 {(events.data?.rows || []).map((row) => (
                   <tr key={row.event_id} className="admin-table__interactive-row" onClick={() => setSelectedEventId(row.event_id)}>
                     <td>{formatDate(row.received_at)}</td>
-                    <td>{row.event_name}</td>
-                    <td>{row.source}</td>
-                    <td>{row.platform}</td>
-                    <td>{row.entity_type || "—"} {row.entity_id ? <code>{row.entity_id}</code> : null}</td>
-                    <td>{row.user_id_present ? "yes" : "anon"}</td>
+                    <td>{eventLabel(row.event_name)}</td>
+                    <td>{sourceLabel(row.source)}</td>
+                    <td>{platformLabel(row.platform)}</td>
+                    <td>{row.entity_type ? entityLabel(row.entity_type) : "Not available"} {row.entity_id ? <code>{row.entity_id}</code> : null}</td>
+                    <td>{authLabel(row.user_id_present)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -528,7 +579,7 @@ function AdminAnalyticsContent() {
                 Previous
               </button>
               <span>
-                {eventOffset + 1}–{eventOffset + (events.data?.rows.length || 0)} of {events.data?.total || 0}
+                {eventOffset + 1} - {eventOffset + (events.data?.rows.length || 0)} of {events.data?.total || 0}
               </span>
               <button
                 type="button"
@@ -543,8 +594,8 @@ function AdminAnalyticsContent() {
         )}
         {selectedEvent && (
           <div className="admin-panel admin-panel--nested">
-            <SectionHeader kicker="Event detail" title={selectedEvent.event_id} />
-            <pre className="admin-code-block">{JSON.stringify({ properties: selectedEvent.properties, context: selectedEvent.context }, null, 2)}</pre>
+            <SectionHeader kicker="Event detail" title={eventLabel(selectedEvent.event_name)} meta={<code>{selectedEvent.event_id}</code>} />
+            <AnalyticsEventDetail event={selectedEvent} />
           </div>
         )}
       </section>
@@ -554,28 +605,31 @@ function AdminAnalyticsContent() {
         {health.error ? <ErrorState title="Health unavailable" message={joinErrorMessage(health.error, health.requestId)} /> : (
           <>
             <div className="admin-stats-grid">
-              <StatCard label="Events 5m" value={formatNumber(health.data?.events_last_5m)} loading={health.loading} />
-              <StatCard label="Events 1h" value={formatNumber(health.data?.events_last_1h)} loading={health.loading} />
-              <StatCard label="Events 24h" value={formatNumber(health.data?.events_last_24h)} loading={health.loading} />
-              <StatCard label="Dead letters 1h" value={formatNumber(health.data?.dead_letters_last_1h)} loading={health.loading} tone="amber" />
-              <StatCard label="Dead letters 24h" value={formatNumber(health.data?.dead_letters_last_24h)} loading={health.loading} tone="amber" />
-              <StatCard label="Dead-letter rate 24h" value={health.data?.dead_letter_rate_24h != null ? `${health.data.dead_letter_rate_24h}%` : "—"} loading={health.loading} tone="amber" />
-              <StatCard label="Last event" value={formatDate(health.data?.last_successful_received_at)} loading={health.loading} />
-              <StatCard label="Today aggregated" value={freshness?.is_today_aggregated ? "yes" : "no"} loading={health.loading} />
-              <StatCard label="Yesterday aggregated" value={freshness?.is_yesterday_aggregated ? "yes" : "no"} loading={health.loading} />
-              <StatCard label="Latest aggregate day" value={freshness?.latest_admin_metrics_day || freshness?.latest_overview_day || "—"} loading={health.loading} />
+              <StatCard label={metricLabel("events_last_5m")} value={formatNumber(health.data?.events_last_5m)} loading={health.loading} />
+              <StatCard label={metricLabel("events_last_1h")} value={formatNumber(health.data?.events_last_1h)} loading={health.loading} />
+              <StatCard label={metricLabel("events_last_24h")} value={formatNumber(health.data?.events_last_24h)} loading={health.loading} />
+              <StatCard label={metricLabel("dead_letters_last_1h")} value={formatNumber(health.data?.dead_letters_last_1h)} loading={health.loading} tone="amber" />
+              <StatCard label={metricLabel("dead_letters_last_24h")} value={formatNumber(health.data?.dead_letters_last_24h)} loading={health.loading} tone="amber" />
+              <StatCard label={metricLabel("dead_letter_rate_24h")} value={health.data?.dead_letter_rate_24h != null ? `${health.data.dead_letter_rate_24h}%` : "Not available"} loading={health.loading} tone="amber" />
+              <StatCard label={metricLabel("last_successful_received_at")} value={formatDate(health.data?.last_successful_received_at)} loading={health.loading} />
+              <StatCard label={metricLabel("is_today_aggregated")} value={freshness?.is_today_aggregated ? "Yes" : "No"} loading={health.loading} />
+              <StatCard label={metricLabel("is_yesterday_aggregated")} value={freshness?.is_yesterday_aggregated ? "Yes" : "No"} loading={health.loading} />
+              <StatCard label={metricLabel("latest_aggregation_day")} value={freshness?.latest_admin_metrics_day || freshness?.latest_overview_day || "Not available"} loading={health.loading} />
             </div>
             {qualityWarnings.length > 0 && (
               <div className="admin-panel admin-panel--nested">
                 <SectionHeader kicker="Quality" title="Data quality warnings" />
                 <ul className="admin-muted">
-                  {qualityWarnings.map((warning) => (
-                    <li key={`${warning.code}-${warning.message}`}>
-                      <StatusBadge label={warning.severity} tone={warning.severity === "critical" ? "red" : warning.severity === "warning" ? "amber" : "slate"} />{" "}
-                      {warning.message}
-                      {warning.count != null ? ` (${warning.count})` : ""}
-                    </li>
-                  ))}
+                  {qualityWarnings.map((warning) => {
+                    const copy = warningCopy(warning.code, warning.message);
+                    return (
+                      <li key={`${warning.code}-${warning.message}`}>
+                        <StatusBadge label={warning.severity} tone={warning.severity === "critical" ? "red" : warning.severity === "warning" ? "amber" : "slate"} />{" "}
+                        <strong>{warningCodeLabel(warning.code)}</strong>: {warning.message || copy.body}
+                        {warning.count != null ? ` (${warning.count})` : ""}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             )}
@@ -605,7 +659,7 @@ function AdminAnalyticsContent() {
               <StatCard label="Last 24h" value={formatNumber(deadLetters.data?.summary?.last_24h)} loading={false} />
               <StatCard label="Last 7d" value={formatNumber(deadLetters.data?.summary?.last_7d)} loading={false} />
             </div>
-            <DistributionList entries={deadLetters.data?.summary?.by_reason || []} loading={false} />
+            <DistributionList entries={deadLetters.data?.summary?.by_reason || []} loading={false} labelForValue={deadLetterReasonLabel} />
             <AdminDataTable label="Dead letters">
               <thead>
                 <tr>
@@ -620,10 +674,10 @@ function AdminAnalyticsContent() {
                 {(deadLetters.data?.rows || []).map((row, index) => (
                   <tr key={`${row.event_id || "none"}-${index}`}>
                     <td>{formatDate(row.received_at)}</td>
-                    <td>{row.event_id || "—"}</td>
-                    <td>{row.reason || "—"}</td>
-                    <td>{row.source}</td>
-                    <td>{row.payload_summary ? `${row.payload_summary.key_count} keys` : "hidden"}</td>
+                    <td>{row.event_id || "Not available"}</td>
+                    <td>{row.reason ? deadLetterReasonLabel(row.reason) : "Not available"}</td>
+                    <td>{sourceLabel(row.source)}</td>
+                    <td>{row.payload_summary ? `${row.payload_summary.key_count} keys` : "Hidden"}</td>
                   </tr>
                 ))}
               </tbody>

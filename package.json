@@ -11,7 +11,7 @@
     "build:api": "tsc -p tsconfig.server.json",
     "preview": "vite preview",
     "lint": "tsc -b --noEmit",
-    "test": "node server/api-lib/analytics/analyticsRouter.source.test.mjs && node server/api-lib/analytics/analyticsAdminApi.test.mjs && node server/api-lib/analytics/analyticsOperationsService.test.mjs && node server/api-lib/analytics/businessInsightsService.test.mjs",
+    "test": "tsx src/lib/analyticsDisplay.test.ts && node server/api-lib/analytics/analyticsRouter.source.test.mjs && node server/api-lib/analytics/analyticsAdminApi.test.mjs && node server/api-lib/analytics/analyticsOperationsService.test.mjs && node server/api-lib/analytics/businessInsightsService.test.mjs",
     "obs:up": "docker compose -f docker-compose.yml -f observability/docker-compose.observability.yml up -d",
     "obs:down": "docker compose -f docker-compose.yml -f observability/docker-compose.observability.yml down",
     "obs:logs": "docker compose -f observability/docker-compose.observability.yml logs -f grafana prometheus loki",
