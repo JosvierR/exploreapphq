@@ -109,15 +109,29 @@ export function AdminSystemPage({ adminEmail }: { adminEmail: string }) {
       },
       {
         label: "Observability",
-        value: config?.loki_ready ? "Loki ready" : "Stdout logs",
-        tone: config?.loki_ready ? "green" : "amber",
-        hint: config?.grafana_logs_enabled ? "Grafana logs enabled" : "Optional integration",
+        value:
+          checks?.loki_connectivity === "ok"
+            ? "Loki connected"
+            : config?.loki_ready
+              ? "Loki configured"
+              : "Stdout logs",
+        tone:
+          checks?.loki_connectivity === "ok"
+            ? "green"
+            : checks?.loki_connectivity === "warning"
+              ? "amber"
+              : config?.loki_ready
+                ? "green"
+                : "amber",
+        hint: config?.grafana_logs_enabled
+          ? `Grafana logs · level ${config?.grafana_logs_level || "default"}`
+          : "Set GRAFANA_LOGS_ENABLED=true in Vercel",
       },
       {
         label: "Metrics",
         value: "In memory",
         tone: "purple",
-        hint: config?.metrics_token_configured ? "Token configured" : "Admin-only endpoint",
+        hint: config?.metrics_token_configured ? "Token configured · /api/metrics" : "Admin-only · /api/admin/system/metrics",
       },
       {
         label: "Last refreshed",
@@ -176,6 +190,7 @@ export function AdminSystemPage({ adminEmail }: { adminEmail: string }) {
               <HealthRow label="Videos table" value={checks?.videos_table} />
               <HealthRow label="Places table" value={checks?.places_table} />
               <HealthRow label="Moderation actions table" value={checks?.moderation_actions_table} />
+              <HealthRow label="Loki connectivity" value={checks?.loki_connectivity || (config?.loki_ready ? "configured" : "skipped")} />
               <div>
                 <dt>Request ID</dt>
                 <dd>{requestId || "Not available"}</dd>
