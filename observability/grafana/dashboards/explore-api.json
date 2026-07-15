@@ -10,6 +10,13 @@
       "type": "timeseries",
       "title": "API requests / min",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -23,6 +30,7 @@
       "type": "timeseries",
       "title": "API errors / min",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -36,6 +44,13 @@
       "type": "timeseries",
       "title": "Request duration p95 (ms)",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -46,16 +61,42 @@
       ]
     },
     {
+      "type": "stat",
+      "title": "Process uptime",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "explore_process_uptime_seconds",
+          "legendFormat": "uptime",
+          "refId": "A"
+        }
+      ]
+    },
+    {
       "type": "logs",
       "title": "Recent API logs",
       "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "loki", "uid": "loki" },
       "targets": [
         {
+          "datasource": { "type": "loki", "uid": "loki" },
           "expr": "{service=\"explore-web-admin\"}",
           "refId": "A"
         }
-      ],
-      "datasource": { "type": "loki", "uid": "loki" }
+      ]
     }
   ],
   "schemaVersion": 39,
@@ -65,5 +106,5 @@
   "timezone": "browser",
   "title": "Explore API Overview",
   "uid": "explore-api-overview",
-  "version": 1
+  "version": 2
 }

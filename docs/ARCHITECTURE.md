@@ -50,7 +50,7 @@ Learn a domain by reading its folder top-down. Prefer importing from domain fold
 | Tool | Role | Local URL |
 |------|------|-----------|
 | Prometheus | Scrapes `/api/metrics` | http://localhost:9090 |
-| Grafana | Dashboards + explore | http://localhost:3000 (`admin` / `admin`) |
+| Grafana | Dashboards + explore | http://localhost:3002 (`admin` / `admin`) |
 | Loki | Log aggregation | http://localhost:3100 |
 
 Start:
@@ -61,7 +61,7 @@ METRICS_TOKEN=local-dev-metrics-token
 GRAFANA_LOGS_ENABLED=true
 GRAFANA_LOKI_URL=http://localhost:3100/loki/api/v1/push
 
-npm run obs:up
+npm run obs:ready
 npm run dev:api
 ```
 
@@ -70,6 +70,8 @@ Production:
 - Logs: JSON to stdout (Vercel) + optional Grafana Cloud Loki (`GRAFANA_*` env)
 - Metrics: `GET /api/metrics` with `Authorization: Bearer $METRICS_TOKEN`
 - Admin UI: `/admin?section=system` (operators can also open `/team` — not linked in public header)
+
+Local Grafana: http://localhost:3002 (`admin` / `admin`).
 
 ## Auth model
 

@@ -2,7 +2,7 @@ import { jsonResponse, optionsResponse } from "../http/responses.mjs";
 import { requestIdFromRequest } from "../http/requestContext.mjs";
 import { requireAdmin } from "../moderation/supabaseModeration.mjs";
 import { appEnvironment, appVersion, errorSummary, logger, requestLogMeta } from "../observability/logger.mjs";
-import { observabilityConfigStatus } from "../observability/lokiLogger.mjs";
+import { observabilityConfigStatus, probeLokiConnectivity } from "../observability/lokiLogger.mjs";
 import { metricsPrometheus, metricsSnapshot } from "../observability/metrics.mjs";
 
 function configured(value) {
@@ -71,6 +71,10 @@ export async function handleAdminSystemHealth(request) {
     const obs = observabilityConfigStatus();
     const config = supabaseConfig();
     const supabaseReady = config.supabase_url_configured && config.supabase_service_configured;
+    const lokiProbe = await probeLokiConnectivity();
+    if (lokiProbe.status === "warning") {
+      warnings.push(`Loki connectivity: ${lokiProbe.reason || "warning"}`);
+    }
 
     return jsonResponse(200, {
       ok: true,
@@ -96,12 +100,14 @@ export async function handleAdminSystemHealth(request) {
         moderation_actions_table: actionsTable,
         metrics: "in_memory",
         loki_configured: obs.loki_ready,
+        loki_connectivity: lokiProbe.status,
         grafana_logs_enabled: obs.grafana_logs_enabled,
       },
       config: {
         ...config,
         metrics_token_configured: configured(process.env.METRICS_TOKEN),
         ...obs,
+        loki_probe: lokiProbe,
       },
       warnings,
     });

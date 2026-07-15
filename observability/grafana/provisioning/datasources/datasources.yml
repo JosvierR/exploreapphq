@@ -13,7 +13,9 @@ datasources:
     uid: loki
     type: loki
     access: proxy
-    url: http://loki:3100
+    # path_prefix=/loki in loki-config.yml — Grafana must target the prefixed base URL.
+    url: http://loki:3100/loki
     editable: false
     jsonData:
       maxLines: 1000
+      derivedFields: []
