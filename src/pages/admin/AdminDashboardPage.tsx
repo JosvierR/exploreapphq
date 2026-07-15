@@ -9,9 +9,7 @@ import {
   fetchOpsSummary,
   fetchReports,
   type AdminContentSummaryItem,
-  type AdminModerationAction,
   type AdminOpsSummary,
-  type AdminRecentReport,
   type AdminReport,
   type AdminUserSummary,
   type NullableMetric,
@@ -166,17 +164,36 @@ function OverviewSection({
 }) {
   const hiddenContent = sumNullable(summary?.content.videos.hidden, summary?.content.places.hidden);
   const removedContent = sumNullable(summary?.content.videos.removed, summary?.content.places.removed);
+  const totalContent = sumNullable(summary?.content.videos.total, summary?.content.places.total, summary?.content.routes.total);
+  const servicesHealthy = Boolean(
+    summary?.health.api_connected && summary?.health.supabase_configured && summary?.health.admin_authorized,
+  );
+  const pendingCount = summary?.moderation.pending;
+  const isHealthy = servicesHealthy && pendingCount === 0;
+  const statusTitle = loading ? "Reading Explore's current health" : isHealthy ? "Explore is healthy" : "Explore needs attention";
+  const statusCopy = loading
+    ? "Checking product services and the moderation queue."
+    : !servicesHealthy
+      ? "At least one core admin service is unavailable. Confirm connectivity before relying on operating metrics."
+      : pendingCount
+        ? `${formatNumber(pendingCount)} pending report${pendingCount === 1 ? "" : "s"} need review; core services are online.`
+        : "Core services are online and the moderation queue is clear.";
 
   return (
     <>
-      <section className="admin-console-hero">
-        <div>
-          <p className="admin-eyebrow">Product snapshot</p>
-          <h3>Users, content, moderation, and system readiness in one view.</h3>
-          <p>
-            Reports are workflow records. They do not automatically hide content. Global visibility is controlled by
-            moderation_status, while user-hidden content only affects one viewer.
-          </p>
+      <section className={`admin-console-hero admin-overview-hero admin-overview-hero--${isHealthy ? "healthy" : "attention"}`}>
+        <div className="admin-overview-hero__content">
+          <p className="admin-eyebrow">Executive overview</p>
+          <h3>{statusTitle}</h3>
+          <p>{statusCopy}</p>
+          <div className="admin-overview-hero__actions">
+            <Link className="admin-btn admin-btn--primary" to="/admin/analytics/business">
+              Open Business Insights
+            </Link>
+            <Link className="admin-btn admin-btn--ghost" to="/admin/reports?status=pending&sort=priority">
+              Review moderation queue
+            </Link>
+          </div>
         </div>
         <div className="admin-console-hero__rail">
           <MiniStatus label="API" active={summary?.health.api_connected} />
@@ -185,19 +202,15 @@ function OverviewSection({
         </div>
       </section>
 
-      <MetricGroup title="Product Health" description="The broadest current operating snapshot from Supabase data.">
-        <StatCard label="Users" value={summary?.users.total} loading={loading} tone="blue" hint="Profiles/users table" />
-        <StatCard label="Videos" value={summary?.content.videos.total} loading={loading} tone="violet" />
-        <StatCard label="Places" value={summary?.content.places.total} loading={loading} tone="green" />
-        <StatCard label="Routes" value={summary?.content.routes.total} loading={loading} tone="neutral" hint="Optional table" />
-        <StatCard label="Total reports" value={summary?.moderation.reports_total} loading={loading} tone="warning" />
-        <StatCard label="Pending reports" value={summary?.moderation.pending} loading={loading} tone="danger" />
-        <StatCard label="Admin actions" value={summary?.moderation.actions_total} loading={loading} tone="green" />
-      </MetricGroup>
+      <div className="admin-overview-kpis" aria-label="Key operating metrics">
+        <StatCard label="Users" value={summary?.users.total} loading={loading} tone="blue" hint="Total product accounts" />
+        <StatCard label="Content" value={totalContent} loading={loading} tone="green" hint="Videos, places, and routes" />
+        <StatCard label="Pending reports" value={pendingCount} loading={loading} tone={pendingCount ? "danger" : "green"} hint={pendingCount ? "Requires review" : "Queue is clear"} />
+      </div>
 
-      <div className="admin-dashboard-layout">
+      <div className="admin-overview-grid">
         <section className="admin-panel admin-panel--span-2">
-          <PanelHeader kicker="Queue" title="Oldest pending reports" meta={`${formatMetric(summary?.moderation.pending)} pending`} />
+          <PanelHeader kicker="Moderation preview" title="Oldest pending reports" meta={`${formatMetric(pendingCount)} pending`} />
           {loading ? (
             <SkeletonList rows={5} />
           ) : pending.length === 0 ? (
@@ -212,33 +225,12 @@ function OverviewSection({
         </section>
 
         <section className="admin-panel">
-          <PanelHeader kicker="Visibility" title="Global content state" />
+          <PanelHeader kicker="Operating context" title="Content requiring action" />
           <div className="admin-mini-metrics">
             <MiniMetric label="Hidden content" value={hiddenContent} />
             <MiniMetric label="Removed content" value={removedContent} />
             <MiniMetric label="User-hidden rows" value={summary?.engagement.user_hidden_content} />
           </div>
-        </section>
-
-        <DistributionPanel
-          title="Reports by reason"
-          kicker="Moderation"
-          loading={loading}
-          entries={(summary?.breakdowns.reports_by_reason ?? []).map((entry) => ({
-            key: entry.reason,
-            label: formatReasonLabel(entry.reason),
-            count: entry.count,
-          }))}
-        />
-
-        <section className="admin-panel">
-          <PanelHeader kicker="Audit trail" title="Recent admin actions" meta={`${formatMetric(summary?.moderation.actions_24h)} in 24h`} />
-          <ActionList actions={summary?.recent.admin_actions ?? []} loading={loading} />
-        </section>
-
-        <section className="admin-panel admin-panel--span-2">
-          <PanelHeader kicker="Recent" title="Latest reports" meta={`${formatMetric(summary?.moderation.reports_total)} total`} />
-          <RecentReportList reports={summary?.recent.reports ?? []} loading={loading} />
         </section>
       </div>
     </>
@@ -773,54 +765,6 @@ function ReportPreview({ report, compact = false }: { report: AdminReport; compa
       </span>
       <span className="admin-report-preview__date" title={formatDateTime(report.created_at)}>{formatDateTime(report.created_at)}</span>
     </Link>
-  );
-}
-
-function RecentReportList({ reports, loading }: { reports: AdminRecentReport[]; loading: boolean }) {
-  if (loading) return <SkeletonList rows={5} />;
-  if (reports.length === 0) return <QuietState title="No reports yet" message="New user reports will appear here." />;
-
-  return (
-    <div className="admin-entity-list">
-      {reports.map((report) => (
-        <article className="admin-entity-row" key={report.id}>
-          <span className="admin-entity-row__avatar" aria-hidden="true">{report.content_type.slice(0, 2).toUpperCase()}</span>
-          <span className="admin-entity-row__main">
-            <strong>{formatReasonLabel(report.reason)}</strong>
-            <small>{formatContentTypeLabel(report.content_type)} / target {shortId(report.content_id)}</small>
-          </span>
-          <span className="admin-entity-row__meta">
-            <StatusPill label={formatStatusLabel(report.status)} tone={report.status === "pending" ? "warning" : report.status === "removed" ? "danger" : "neutral"} />
-          </span>
-          <span className="admin-entity-row__date" title={formatDateTime(report.created_at)}>{formatRelativeTime(report.created_at)}</span>
-          <CopyButton value={report.id} label="Copy report id" />
-        </article>
-      ))}
-    </div>
-  );
-}
-
-function ActionList({ actions, loading }: { actions: AdminModerationAction[]; loading: boolean }) {
-  if (loading) return <SkeletonList rows={5} />;
-  if (actions.length === 0) return <QuietState title="No admin actions yet" message="Report decisions and visibility actions will appear here." />;
-
-  return (
-    <div className="admin-action-list">
-      {actions.map((action) => (
-        <div className="admin-action-preview" key={action.id}>
-          <span className="admin-action-preview__mark" aria-hidden="true">
-            {action.action_type.slice(0, 1).toUpperCase()}
-          </span>
-          <span>
-            <strong>{humanizeKey(action.action_type)}</strong>
-            <small>
-              {formatContentTypeLabel(action.target_type)} {shortId(action.target_id)} by {shortId(action.admin_id)}
-            </small>
-          </span>
-          <time title={formatDateTime(action.created_at)}>{formatRelativeTime(action.created_at)}</time>
-        </div>
-      ))}
-    </div>
   );
 }
 

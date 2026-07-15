@@ -95,3 +95,4 @@ Empty states explain what to do next instead of showing only "No data".
 ## Related
 
 - `docs/DATA-006_BUSINESS_ANALYTICS_INSIGHTS.md`
+- `docs/DATA-008_ADMIN_EXECUTIVE_VISUALS.md`

@@ -49,6 +49,7 @@
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.1",
     "react-use-measure": "^2.1.7",
+    "recharts": "^3.9.2",
     "tailwind-merge": "^3.6.0",
     "ws": "^8.21.0"
   },

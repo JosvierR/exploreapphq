@@ -50,7 +50,7 @@ export const ANALYTICS_EVENT_ALLOWLIST = [
 ] as const;
 
 export const METRIC_LABELS: Record<string, string> = {
-  active_users_estimate: "Active users (estimate)",
+  active_users_estimate: "Active users",
   active_sessions: "Sessions",
   sessions: "Sessions",
   sessions_in_range: "Sessions",
@@ -113,8 +113,8 @@ export const METRIC_LABELS: Record<string, string> = {
   rank: "Rank",
   count: "Count",
   unique_sessions: "Sessions",
-  dropoff_pct: "Dropoff",
-  dropoff_percent: "Dropoff",
+  dropoff_pct: "Drop-off",
+  dropoff_percent: "Drop-off",
   users: "Users",
   top_of_funnel: "Top of funnel",
   bottom_of_funnel: "Bottom of funnel",
