@@ -17,7 +17,8 @@ for (const eventName of ANALYTICS_EVENT_ALLOWLIST) {
 
 assert.equal(eventLabel("screen_view"), "Screen viewed");
 assert.equal(eventLabel("route_step_view"), "Route step viewed");
-assert.equal(metricLabel("active_users_estimate"), "Active users (estimate)");
+assert.equal(metricLabel("active_users_estimate"), "Active users");
+assert.equal(metricLabel("dropoff_pct"), "Drop-off");
 assert.equal(metricLabel("no_result_rate"), "No-result rate");
 assert.equal(propertyLabel("screen_time"), "Screen time");
 assert.equal(platformLabel("ios"), "iOS");
