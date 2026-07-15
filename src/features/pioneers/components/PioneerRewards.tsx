@@ -59,6 +59,13 @@ export function PioneerRewards({ rewards }: PioneerRewardsProps) {
                       <span className="pioneer-reward-card__index pixel-reward-index">
                     {String(index + 1).padStart(2, "0")}
                   </span>
+                      {reward.id === "badge" && (
+                          <div
+                              className="pixel-sprite pixel-sprite--sparkle pioneer-reward-card__sprite"
+                              role="img"
+                              aria-label="Efecto de logro desbloqueado"
+                          />
+                      )}
                     </div>
                     <div className="pioneer-reward-card__body pixel-reward-body">
                       <h3>

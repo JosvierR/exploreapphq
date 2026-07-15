@@ -129,6 +129,16 @@ export function PioneerHero({ stats, loading = false, source = "mock" }: Pioneer
                   <span className="pioneer-map-pin pioneer-map-pin--2" />
                   <span className="pioneer-map-pin pioneer-map-pin--3" />
                   <span className="pioneer-map-route" />
+                  <div
+                    className="pixel-sprite pixel-sprite--hero pioneer-map-card__sprite--hero"
+                    role="img"
+                    aria-label="Explorador caminando"
+                  />
+                  <div
+                    className="pixel-sprite pixel-sprite--crystal pioneer-map-card__sprite--crystal"
+                    role="img"
+                    aria-label="Cristal brillante"
+                  />
                 </div>
               </div>
               <div className="pioneer-phone-stack pixel-phone-stack">

@@ -1977,3 +1977,136 @@
   font-size: 0.9rem;
   color: var(--text-muted);
 }
+
+/* ============================================================
+   PIXEL SPRITES ANIMADOS
+   ============================================================ */
+.pixel-sprite {
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  display: inline-block;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.pixel-sprite--hero {
+  width: 48px;
+  height: 48px;
+  background-image: url("/assets/sprites/hero-sheet.png");
+  background-size: 192px 48px;
+  animation: sprite-walk 0.8s steps(4) infinite;
+  filter: drop-shadow(0 0 6px var(--pixel-glow));
+}
+
+@keyframes sprite-walk {
+  from { background-position: 0 0; }
+  to { background-position: -192px 0; }
+}
+
+.pixel-sprite--crystal {
+  width: 24px;
+  height: 24px;
+  background-image: url("/assets/sprites/crystal-sheet.png");
+  background-size: 72px 24px;
+  animation: sprite-blink 1.2s steps(3) infinite;
+  filter: drop-shadow(0 0 6px rgba(255, 0, 255, 0.55));
+}
+
+@keyframes sprite-blink {
+  from { background-position: 0 0; }
+  to { background-position: -72px 0; }
+}
+
+.pixel-sprite--quest {
+  width: 32px;
+  height: 32px;
+  background-image: url("/assets/sprites/quest-sheet.png");
+  background-size: 128px 32px;
+  animation: sprite-quest 1s steps(4) infinite;
+  filter: drop-shadow(0 0 5px var(--pixel-glow));
+}
+
+@keyframes sprite-quest {
+  from { background-position: 0 0; }
+  to { background-position: -128px 0; }
+}
+
+.pixel-sprite--trophy {
+  width: 32px;
+  height: 32px;
+  background-image: url("/assets/sprites/trophy-sheet.png");
+  background-size: 128px 32px;
+  animation: sprite-jump 0.9s steps(4) infinite;
+  filter: drop-shadow(0 0 6px rgba(255, 214, 0, 0.6));
+}
+
+@keyframes sprite-jump {
+  from { background-position: 0 0; }
+  to { background-position: -128px 0; }
+}
+
+.pixel-sprite--sparkle {
+  width: 24px;
+  height: 24px;
+  background-image: url("/assets/sprites/sparkle-sheet.png");
+  background-size: 72px 24px;
+  animation: sprite-blink 0.9s steps(3) infinite;
+  filter: drop-shadow(0 0 6px var(--pixel-glow));
+}
+
+/* Ubicación: hero (sobre el mapa) — franja izquierda no tapada por el stack de teléfonos */
+.pioneer-map-card__sprite--hero {
+  position: absolute;
+  left: 4%;
+  top: 42%;
+  z-index: 3;
+}
+
+.pioneer-map-card__sprite--crystal {
+  position: absolute;
+  top: 8%;
+  left: 40%;
+  z-index: 3;
+}
+
+/* Ubicación: tarjetas de misión */
+.pioneer-challenge-card {
+  position: relative;
+  overflow: visible;
+}
+
+.pioneer-challenge-card__sprite {
+  position: absolute;
+  top: -14px;
+  right: -10px;
+  z-index: 3;
+}
+
+/* Ubicación: podio del leaderboard (primer lugar) */
+.pioneer-rank-medal {
+  position: relative;
+  overflow: visible;
+}
+
+.pioneer-rank-medal__sprite {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+}
+
+/* Ubicación: insignia desbloqueada (rewards) */
+.pioneer-reward-card__sprite {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pixel-sprite {
+    animation-play-state: paused;
+  }
+}

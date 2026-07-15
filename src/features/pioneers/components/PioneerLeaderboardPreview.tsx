@@ -253,6 +253,13 @@ export function PioneerLeaderboardPreview({
                     >
                       <td>
                         <span className={`pioneer-rank-medal pioneer-rank-medal--${entry.rank <= 3 ? entry.rank : "default"}`}>
+                          {entry.rank === 1 && (
+                            <div
+                              className="pixel-sprite pixel-sprite--trophy pioneer-rank-medal__sprite"
+                              role="img"
+                              aria-label="Celebración primer lugar"
+                            />
+                          )}
                           {String(entry.rank).padStart(2, "0")}
                         </span>
                       </td>

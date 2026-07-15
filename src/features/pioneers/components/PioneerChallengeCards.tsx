@@ -50,6 +50,11 @@ export function PioneerChallengeCards({ challenges, source = "mock" }: PioneerCh
                 whileHover={reduceMotion ? undefined : { y: -6 }}
               >
                 <div className="pioneer-challenge-card__header">
+                  <div
+                    className="pixel-sprite pixel-sprite--quest pioneer-challenge-card__sprite"
+                    role="img"
+                    aria-label="Icono de misión animado"
+                  />
                   <span className="pioneer-challenge-card__icon" aria-hidden="true">
                     {challenge.iconLabel}
                   </span>
