@@ -1,23 +1,15 @@
 import { motion, useReducedMotion } from "motion/react";
 import { T } from "@/components/ui/T";
-import { APP_SCREENS } from "@/lib/constants";
 import type { PioneerReward } from "@/features/pioneers/types";
 
 type PioneerRewardsProps = {
   rewards: PioneerReward[];
 };
 
-const REWARD_FALLBACK_IMAGES: Record<string, string> = {
-  badge: APP_SCREENS.rewards.badge,
-  profile: APP_SCREENS.rewards.profile,
-  repost: APP_SCREENS.rewards.repost,
-  ranking: APP_SCREENS.rewards.ranking,
-  early: APP_SCREENS.rewards.early,
-  creator: APP_SCREENS.rewards.creator,
-};
-
 export function PioneerRewards({ rewards }: PioneerRewardsProps) {
   const reduceMotion = useReducedMotion();
+  const featured = rewards.filter((reward) => reward.featured);
+  const secondary = rewards.filter((reward) => !reward.featured);
 
   return (
       <section
@@ -38,69 +30,75 @@ export function PioneerRewards({ rewards }: PioneerRewardsProps) {
             </p>
           </div>
 
-          <div className="pioneer-rewards-bento">
-            {rewards.map((reward, index) => {
-              const image =
-                  reward.image || REWARD_FALLBACK_IMAGES[reward.id] || APP_SCREENS.hero;
-
-              return (
-                  <motion.article
-                      key={reward.id}
-                      className={`pioneer-reward-card pixel-reward-card ${
-                          reward.featured ? "pioneer-reward-card--featured pixel-reward-card--featured" : ""
-                      }`}
-                      initial={reduceMotion ? false : { opacity: 0, y: 18 }}
-                      whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                      viewport={{ once: true, margin: "-60px" }}
-                      transition={{ delay: index * 0.05, duration: 0.42 }}
-                  >
-                    <div className="pioneer-reward-card__media pixel-reward-media" aria-hidden="true">
-                      <img src={image} alt="" loading="lazy" />
-                      <span className="pioneer-reward-card__index pixel-reward-index">
+          {/* Beneficios destacados: insignia, visibilidad, acceso anticipado */}
+          <div className="pioneer-rewards-featured">
+            {featured.map((reward, index) => (
+                <motion.article
+                    key={reward.id}
+                    className="pioneer-reward-card pixel-reward-card pioneer-reward-card--featured pixel-reward-card--featured"
+                    initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+                    whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-60px" }}
+                    transition={{ delay: index * 0.05, duration: 0.42 }}
+                >
+                  <span className="pioneer-reward-card__rank" aria-hidden="true">
                     {String(index + 1).padStart(2, "0")}
                   </span>
-                      {reward.id === "badge" && (
-                          <div
-                              className="pixel-sprite pixel-sprite--sparkle pioneer-reward-card__sprite"
-                              role="img"
-                              aria-label="Efecto de logro desbloqueado"
-                          />
-                      )}
-                    </div>
-                    <div className="pioneer-reward-card__body pixel-reward-body">
-                      <h3>
-                        <T k={reward.titleKey} />
-                      </h3>
-                      <p>
-                        <T k={reward.descriptionKey} />
-                      </p>
-                    </div>
-                  </motion.article>
-              );
-            })}
+                  <div className="pioneer-reward-card__icon-wrap" aria-hidden="true">
+                    <img src={reward.icon} alt="" loading="lazy" className="pioneer-reward-card__icon-img" />
+                    {reward.id === "founding-badge" && (
+                        <div
+                            className="pixel-sprite pixel-sprite--sparkle pioneer-reward-card__sprite"
+                            role="img"
+                            aria-label="Efecto de logro desbloqueado"
+                        />
+                    )}
+                  </div>
+                  <div className="pioneer-reward-card__body pixel-reward-body">
+                    <h3>
+                      <T k={reward.titleKey} />
+                    </h3>
+                    <p>
+                      <T k={reward.descriptionKey} />
+                    </p>
+                  </div>
+                </motion.article>
+            ))}
+          </div>
+
+          {/* Beneficios adicionales: agrupados en tarjetas compactas */}
+          <div className="pioneer-rewards-secondary">
+            {secondary.map((reward, index) => (
+                <motion.article
+                    key={reward.id}
+                    className="pioneer-reward-compact pixel-reward-compact"
+                    initial={reduceMotion ? false : { opacity: 0, y: 14 }}
+                    whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-60px" }}
+                    transition={{ delay: 0.15 + index * 0.05, duration: 0.4 }}
+                >
+                  <span className="pioneer-reward-compact__icon" aria-hidden="true">
+                    <img src={reward.icon} alt="" loading="lazy" />
+                  </span>
+                  <div className="pioneer-reward-compact__body">
+                    <h3>
+                      <T k={reward.titleKey} />
+                    </h3>
+                    <p>
+                      <T k={reward.descriptionKey} />
+                    </p>
+                    {reward.tagKey && (
+                        <span className="pioneer-reward-compact__tag">
+                          <T k={reward.tagKey} />
+                        </span>
+                    )}
+                  </div>
+                </motion.article>
+            ))}
           </div>
 
           <div className="pioneer-rewards-note pixel-rewards-note">
-            <div className="pioneer-rewards-note__visual" aria-hidden="true">
-              <img
-                  src={APP_SCREENS.gallery[0]}
-                  alt=""
-                  loading="lazy"
-                  className="pixel-note-img"
-              />
-              <img
-                  src={APP_SCREENS.gallery[4]}
-                  alt=""
-                  loading="lazy"
-                  className="pixel-note-img"
-              />
-              <img
-                  src={APP_SCREENS.gallery[5]}
-                  alt=""
-                  loading="lazy"
-                  className="pixel-note-img"
-              />
-            </div>
+            <span className="pixel-note-icon" aria-hidden="true">★</span>
             <p className="pixel-note-text">
               <T k="pioneer.rewards.note" />
             </p>

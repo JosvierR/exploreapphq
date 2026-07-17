@@ -41,3 +41,14 @@ export const APP_SCREENS = {
   videoShowcase: ["/V1.png", "/V2.png", "/V3.png", "/V4.png", "/V5.png"] as const,
   whatIsMosaic: ["/P5.png", "/P6.png", "/P7.png", "/P8.png"] as const,
 } as const;
+
+/** Pixel-art icon sprites (retro style, matches Synthwave Blue theme) */
+export const PIXEL_ICONS = {
+  badge: "/assets/sprites/icon-badge.png",
+  star: "/assets/sprites/icon-star.png",
+  bolt: "/assets/sprites/icon-bolt.png",
+  trophy: "/assets/sprites/icon-trophy.png",
+  chart: "/assets/sprites/icon-chart.png",
+  chest: "/assets/sprites/icon-chest.png",
+  ticket: "/assets/sprites/icon-ticket.png",
+} as const;
