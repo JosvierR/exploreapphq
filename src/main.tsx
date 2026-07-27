@@ -4,8 +4,9 @@ import App from "./App";
 import "@/styles/global.css";
 import "@/styles/animations.css";
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+const root = createRoot(document.getElementById("root")!);
+const app = <App />;
+
+// StrictMode double-mounts effects in production too; that raced pioneers landing
+// fetches and could overwrite a good ranking snapshot with an empty ok:true response.
+root.render(import.meta.env.DEV ? <StrictMode>{app}</StrictMode> : app);

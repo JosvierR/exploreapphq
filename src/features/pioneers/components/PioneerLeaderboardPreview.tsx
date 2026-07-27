@@ -1,8 +1,5 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { useReducedMotion } from "motion/react";
-import { AvatarGroup, AvatarGroupTooltip } from "@/components/animate-ui/components/animate/avatar-group";
-import { SlidingNumber } from "@/components/animate-ui/primitives/texts/sliding-number";
 import { T } from "@/components/ui/T";
 import { useI18n } from "@/features/i18n/I18nProvider";
 import type { LeaderboardTab, PioneerContentEntry, PioneerLeaderboardEntry } from "@/features/pioneers/types";
@@ -47,13 +44,14 @@ const sortUsersForTab = (users: PioneerLeaderboardEntry[], tab: LeaderboardTab) 
     .map((entry, index) => ({ ...entry, rank: index + 1 }));
 
 const initials = (name: string) =>
-  name
+  (name || "?")
     .split(" ")
     .map((part) => part[0])
+    .filter(Boolean)
     .join("")
     .replace(".", "")
     .slice(0, 2)
-    .toUpperCase();
+    .toUpperCase() || "?";
 
 const CONTENT_ICONS: Record<"video" | "place" | "route", string> = {
   video: "▶",
@@ -148,7 +146,6 @@ export function PioneerLeaderboardPreview({
   source = "mock",
 }: PioneerLeaderboardPreviewProps) {
   const { t } = useI18n();
-  const reduceMotion = useReducedMotion();
 
   const entries = useMemo(() => sortUsersForTab(users, activeTab), [users, activeTab]);
   const topFive = useMemo(() => entries.slice(0, 5), [entries]);
@@ -193,14 +190,17 @@ export function PioneerLeaderboardPreview({
                 <span className="pioneer-ranking__label">
                   <T k="pioneer.leaderboard.topFive" />
                 </span>
-                <AvatarGroup className="pioneer-avatar-group">
+                <div className="pioneer-avatar-group" role="list">
                   {topFive.map((user) => (
-                    <div className="pioneer-avatar" key={user.id}>
-                      {user.avatarUrl ? <img src={user.avatarUrl} alt="" loading="lazy" /> : <span>{initials(user.displayName)}</span>}
-                      <AvatarGroupTooltip>{user.displayName}</AvatarGroupTooltip>
+                    <div className="pioneer-avatar" key={user.id} title={user.displayName} role="listitem">
+                      {user.avatarUrl ? (
+                        <img src={user.avatarUrl} alt="" loading="lazy" />
+                      ) : (
+                        <span>{initials(user.displayName)}</span>
+                      )}
                     </div>
                   ))}
-                </AvatarGroup>
+                </div>
               </div>
               <div className="pioneer-ranking__tabs" role="tablist" aria-label={t("pioneer.leaderboard.aria")}>
                 {tabs.map((tab) => (
@@ -294,13 +294,7 @@ export function PioneerLeaderboardPreview({
                         </td>
                         <td className="pioneer-ranking-table__score-col">
                           <div className="pioneer-rank-row__score">
-                            <strong>
-                              {reduceMotion ? (
-                                metricForTab(entry, activeTab)
-                              ) : (
-                                <SlidingNumber number={metricForTab(entry, activeTab)} initiallyStable />
-                              )}
-                            </strong>
+                            <strong>{metricForTab(entry, activeTab)}</strong>
                             <small>
                               <T k="pioneer.leaderboard.pointsShort" />
                             </small>
