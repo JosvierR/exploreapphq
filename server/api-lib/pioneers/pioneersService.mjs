@@ -103,7 +103,7 @@ async function fetchSince(supabase, table, since, limit = 800) {
       .limit(limit);
     if (error) throw error;
     return (data || []).filter(isVisibleContent);
-  } catch {
+  } catch (primaryError) {
     try {
       const { data, error } = await supabase.from(table).select("*").limit(limit);
       if (error) throw error;
@@ -113,7 +113,11 @@ async function fetchSince(supabase, table, since, limit = 800) {
           const createdAt = createdAtFromRow(row);
           return createdAt ? createdAt >= since : false;
         });
-    } catch {
+    } catch (fallbackError) {
+      console.warn(`[pioneers] fetchSince(${table}) failed`, {
+        primary: primaryError?.message || primaryError,
+        fallback: fallbackError?.message || fallbackError,
+      });
       return [];
     }
   }
@@ -309,11 +313,23 @@ export async function getPioneersLandingData({ range = "7d", category = "total" 
     return { ok: false, reason: "supabase_not_configured", warnings };
   }
 
-  const [videos, places, routes] = await Promise.all([
+  let [videos, places, routes] = await Promise.all([
     fetchSince(supabase, "videos", since),
     fetchSince(supabase, "places", since),
     fetchSince(supabase, "routes", since),
   ]);
+
+  // Cold starts / transient Supabase errors can yield empty [] with ok:true.
+  // Widen the window once before returning an empty ranking.
+  if (videos.length === 0 && places.length === 0 && routes.length === 0 && range !== "30d") {
+    const widerSince = rangeSince("30d");
+    warnings.push("Primary range returned no rows; retrying with 30d.");
+    [videos, places, routes] = await Promise.all([
+      fetchSince(supabase, "videos", widerSince),
+      fetchSince(supabase, "places", widerSince),
+      fetchSince(supabase, "routes", widerSince),
+    ]);
+  }
 
   if (videos.length === 0 && places.length === 0 && routes.length === 0) {
     warnings.push("No recent content rows found in Supabase for the selected range.");
