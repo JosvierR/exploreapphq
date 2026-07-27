@@ -1015,6 +1015,11 @@
   margin-bottom: 1.5rem;
 }
 
+.pioneer-leaderboard-frame.is-refreshing {
+  opacity: 0.92;
+  transition: opacity 0.2s ease;
+}
+
 .pioneer-content-board {
   border: 2px solid rgba(255, 255, 255, 0.14);
   background: rgba(16, 16, 48, 0.8);
