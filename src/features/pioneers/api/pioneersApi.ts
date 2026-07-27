@@ -53,43 +53,58 @@ type PioneersLandingApiResponse = PioneerLandingSnapshot & {
   request_id?: string;
 };
 
-async function fetchLandingFromApi(params: LeaderboardQuery = {}): Promise<PioneersLandingApiResponse | null> {
+async function fetchLandingFromApi(
+  params: LeaderboardQuery = {},
+  signal?: AbortSignal,
+): Promise<PioneersLandingApiResponse | null> {
   const search = new URLSearchParams();
   if (params.range) search.set("range", params.range);
   if (params.category) search.set("category", params.category);
 
   try {
-    const res = await fetch(apiUrl(`/api/pioneers/landing?${search.toString()}`));
+    const res = await fetch(apiUrl(`/api/pioneers/landing?${search.toString()}`), { signal });
     const data = (await res.json().catch(() => null)) as PioneersLandingApiResponse | null;
     if (!res.ok || !data?.ok) return null;
     return data;
-  } catch {
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     return null;
   }
 }
 
-export async function fetchPioneerLanding(params: LeaderboardQuery = {}): Promise<PioneerLandingSnapshot> {
-  const apiData = await fetchLandingFromApi(params);
+export async function fetchPioneerLanding(
+  params: LeaderboardQuery = {},
+  signal?: AbortSignal,
+): Promise<PioneerLandingSnapshot> {
+  const apiData = await fetchLandingFromApi(params, signal);
   if (!apiData) return mockSnapshot(params.category);
 
   return {
-    challenges: apiData.challenges,
-    leaderboardUsers: apiData.leaderboardUsers,
-    topVideos: apiData.topVideos || [],
-    topPlaces: apiData.topPlaces || [],
-    topRoutes: apiData.topRoutes || [],
+    challenges: Array.isArray(apiData.challenges) ? apiData.challenges : PIONEER_CHALLENGES,
+    leaderboardUsers: Array.isArray(apiData.leaderboardUsers) ? apiData.leaderboardUsers : [],
+    topVideos: Array.isArray(apiData.topVideos) ? apiData.topVideos : [],
+    topPlaces: Array.isArray(apiData.topPlaces) ? apiData.topPlaces : [],
+    topRoutes: Array.isArray(apiData.topRoutes) ? apiData.topRoutes : [],
     rewards: apiData.rewards?.length ? apiData.rewards : PIONEER_REWARDS,
-    stats: apiData.stats,
+    stats: apiData.stats || {
+      placesThisWeek: 0,
+      routesThisWeek: 0,
+      videosThisWeek: 0,
+      activePioneers: 0,
+    },
     videoCards: apiData.videoCards?.length ? apiData.videoCards : PIONEER_VIDEO_CARDS,
-    leaderboardTabs: apiData.leaderboardTabs || LEADERBOARD_TABS,
+    leaderboardTabs: apiData.leaderboardTabs?.length ? apiData.leaderboardTabs : LEADERBOARD_TABS,
     source: apiData.source === "api" ? "api" : "mock",
-    updatedAt: apiData.updatedAt,
+    updatedAt: apiData.updatedAt || new Date().toISOString(),
     warnings: apiData.warnings,
   };
 }
 
-export async function fetchLeaderboard(params: LeaderboardQuery): Promise<LeaderboardResponse> {
-  const snapshot = await fetchPioneerLanding(params);
+export async function fetchLeaderboard(
+  params: LeaderboardQuery,
+  signal?: AbortSignal,
+): Promise<LeaderboardResponse> {
+  const snapshot = await fetchPioneerLanding(params, signal);
   return {
     entries: snapshot.leaderboardUsers,
     topVideos: snapshot.topVideos,
