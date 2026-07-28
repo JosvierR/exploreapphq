@@ -33,6 +33,7 @@ export async function handlePioneersLanding(request) {
         error: "Pioneers data is not available.",
         code: payload.reason || "pioneers_unavailable",
         request_id: requestId,
+        warnings: payload.warnings || [],
       });
     }
 
