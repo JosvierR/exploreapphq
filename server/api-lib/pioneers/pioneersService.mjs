@@ -93,7 +93,7 @@ function metricForRoute(row) {
   return Number(firstField(row, ["stops_count", "places_count", "likes_count", "like_count"]) || 0);
 }
 
-async function fetchSince(supabase, table, since, limit = 800) {
+export async function fetchSince(supabase, table, since, limit = 800) {
   try {
     const { data, error } = await supabase
       .from(table)
@@ -102,25 +102,63 @@ async function fetchSince(supabase, table, since, limit = 800) {
       .order("created_at", { ascending: false })
       .limit(limit);
     if (error) throw error;
-    return (data || []).filter(isVisibleContent);
+    return {
+      rows: (data || []).filter(isVisibleContent),
+      failed: false,
+      warnings: [],
+    };
   } catch (primaryError) {
     try {
       const { data, error } = await supabase.from(table).select("*").limit(limit);
       if (error) throw error;
-      return (data || [])
-        .filter(isVisibleContent)
-        .filter((row) => {
-          const createdAt = createdAtFromRow(row);
-          return createdAt ? createdAt >= since : false;
-        });
+      console.warn(`[pioneers] fetchSince(${table}) primary query failed; used fallback`, {
+        primary: primaryError?.message || primaryError,
+      });
+      return {
+        rows: (data || [])
+          .filter(isVisibleContent)
+          .filter((row) => {
+            const createdAt = createdAtFromRow(row);
+            return createdAt ? createdAt >= since : false;
+          }),
+        failed: false,
+        warnings: [`${table} used a fallback query after the primary query failed.`],
+      };
     } catch (fallbackError) {
       console.warn(`[pioneers] fetchSince(${table}) failed`, {
         primary: primaryError?.message || primaryError,
         fallback: fallbackError?.message || fallbackError,
       });
-      return [];
+      return {
+        rows: [],
+        failed: true,
+        warnings: [`${table} could not be loaded from Supabase.`],
+      };
     }
   }
+}
+
+async function fetchContentSince(supabase, since) {
+  const [videosResult, placesResult, routesResult] = await Promise.all([
+    fetchSince(supabase, "videos", since),
+    fetchSince(supabase, "places", since),
+    fetchSince(supabase, "routes", since),
+  ]);
+  const results = {
+    videos: videosResult,
+    places: placesResult,
+    routes: routesResult,
+  };
+
+  return {
+    videos: videosResult.rows,
+    places: placesResult.rows,
+    routes: routesResult.rows,
+    failedTables: Object.entries(results)
+      .filter(([, result]) => result.failed)
+      .map(([table]) => table),
+    warnings: Object.values(results).flatMap((result) => result.warnings),
+  };
 }
 
 async function fetchProfilesMap(supabase, ids) {
@@ -304,31 +342,45 @@ function buildChallenges(stats) {
   ];
 }
 
-export async function getPioneersLandingData({ range = "7d", category = "total" } = {}) {
+export async function getPioneersLandingData({
+  range = "7d",
+  category = "total",
+  supabaseClient,
+} = {}) {
   const warnings = [];
   const since = rangeSince(range);
-  const supabase = createServiceClient();
+  const supabase = supabaseClient || createServiceClient();
 
   if (!supabase) {
     return { ok: false, reason: "supabase_not_configured", warnings };
   }
 
-  let [videos, places, routes] = await Promise.all([
-    fetchSince(supabase, "videos", since),
-    fetchSince(supabase, "places", since),
-    fetchSince(supabase, "routes", since),
-  ]);
+  let content = await fetchContentSince(supabase, since);
+  let { videos, places, routes } = content;
+  warnings.push(...content.warnings);
 
-  // Cold starts / transient Supabase errors can yield empty [] with ok:true.
-  // Widen the window once before returning an empty ranking.
+  // A genuinely quiet week and a transient query failure can both produce no
+  // rows. Widen once, while retaining query-health warnings for the response.
   if (videos.length === 0 && places.length === 0 && routes.length === 0 && range !== "30d") {
     const widerSince = rangeSince("30d");
     warnings.push("Primary range returned no rows; retrying with 30d.");
-    [videos, places, routes] = await Promise.all([
-      fetchSince(supabase, "videos", widerSince),
-      fetchSince(supabase, "places", widerSince),
-      fetchSince(supabase, "routes", widerSince),
-    ]);
+    content = await fetchContentSince(supabase, widerSince);
+    ({ videos, places, routes } = content);
+    warnings.push(...content.warnings);
+  }
+
+  if (
+    videos.length === 0 &&
+    places.length === 0 &&
+    routes.length === 0 &&
+    content.failedTables.length > 0
+  ) {
+    warnings.push(`Unable to verify an empty ranking; failed tables: ${content.failedTables.join(", ")}.`);
+    return {
+      ok: false,
+      reason: "supabase_query_failed",
+      warnings: [...new Set(warnings)],
+    };
   }
 
   if (videos.length === 0 && places.length === 0 && routes.length === 0) {
@@ -388,6 +440,6 @@ export async function getPioneersLandingData({ range = "7d", category = "total" 
     topPlaces,
     topRoutes,
     leaderboardTabs: ["total", "videos", "routes", "places"],
-    warnings,
+    warnings: [...new Set(warnings)],
   };
 }
