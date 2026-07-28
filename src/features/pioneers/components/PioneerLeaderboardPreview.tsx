@@ -2,7 +2,12 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { T } from "@/components/ui/T";
 import { useI18n } from "@/features/i18n/I18nProvider";
-import type { LeaderboardTab, PioneerContentEntry, PioneerLeaderboardEntry } from "@/features/pioneers/types";
+import type {
+  LeaderboardTab,
+  PioneerContentEntry,
+  PioneerDataSource,
+  PioneerLeaderboardEntry,
+} from "@/features/pioneers/types";
 import type { TranslationKey } from "@/locales/messages";
 
 type PioneerLeaderboardPreviewProps = {
@@ -15,7 +20,7 @@ type PioneerLeaderboardPreviewProps = {
   onTabChange: (tab: LeaderboardTab) => void;
   loading?: boolean;
   refreshing?: boolean;
-  source?: "mock" | "api";
+  source?: PioneerDataSource;
 };
 
 const TAB_LABELS: Record<LeaderboardTab, TranslationKey> = {
@@ -143,7 +148,7 @@ export function PioneerLeaderboardPreview({
   onTabChange,
   loading = false,
   refreshing = false,
-  source = "mock",
+  source = "unavailable",
 }: PioneerLeaderboardPreviewProps) {
   const { t } = useI18n();
 

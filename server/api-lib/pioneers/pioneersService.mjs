@@ -177,7 +177,7 @@ async function fetchProfilesMap(supabase, ids) {
           id,
           displayName:
             nullableString(firstField(row, ["display_name", "full_name", "name", "username", "handle"])) ||
-            `Pioneer ${id.slice(0, 6)}`,
+            id,
           handle: nullableString(firstField(row, ["username", "handle"])) || null,
           avatarUrl: publicMediaUrl(firstField(row, ["avatar_url", "avatarUrl", "photo_url", "image_url"])),
         });
@@ -196,7 +196,7 @@ function serializeVideoItem(row, rank, profile) {
   return {
     id,
     type: "video",
-    title: nullableString(firstField(row, ["title", "caption", "description", "name"])) || `Video ${id.slice(0, 6)}`,
+    title: nullableString(firstField(row, ["title", "caption", "description", "name"])) || id,
     subtitle: profile?.displayName || null,
     thumbnailUrl: publicMediaUrl(
       firstField(row, ["thumbnail_url", "thumbnailUrl", "thumbnail", "cover_url", "coverUrl", "poster_url"]),
@@ -214,7 +214,7 @@ function serializePlaceItem(row, rank, profile) {
   return {
     id,
     type: "place",
-    title: nullableString(firstField(row, ["place_name", "name", "title"])) || `Place ${id.slice(0, 6)}`,
+    title: nullableString(firstField(row, ["place_name", "name", "title"])) || id,
     subtitle: nullableString(firstField(row, ["category", "category_name", "type"])) || profile?.displayName || null,
     thumbnailUrl: publicMediaUrl(
       firstField(row, ["cover_url", "coverUrl", "image_url", "imageUrl", "photo_url", "thumbnail_url"]),
@@ -232,7 +232,7 @@ function serializeRouteItem(row, rank, profile) {
   return {
     id,
     type: "route",
-    title: nullableString(firstField(row, ["name", "title"])) || `Route ${id.slice(0, 6)}`,
+    title: nullableString(firstField(row, ["name", "title"])) || id,
     subtitle: nullableString(firstField(row, ["category", "category_name", "type"])) || profile?.displayName || null,
     thumbnailUrl: publicMediaUrl(firstField(row, ["cover_url", "coverUrl", "image_url", "imageUrl", "thumbnail_url"])),
     creatorId: creatorIdFromRow(row),
@@ -271,8 +271,8 @@ function buildUserLeaderboard(videos, places, routes, profiles) {
 
       return {
         id,
-        displayName: profile?.displayName || `Pioneer ${id.slice(0, 6)}`,
-        handle: profile?.handle ? `@${profile.handle.replace(/^@/, "")}` : `@pioneer-${id.slice(0, 6)}`,
+        displayName: profile?.displayName || id,
+        handle: profile?.handle ? `@${profile.handle.replace(/^@/, "")}` : "",
         avatarUrl: profile?.avatarUrl || null,
         rank: 0,
         totalPoints,

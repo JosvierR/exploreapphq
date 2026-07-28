@@ -14,14 +14,45 @@ try {
     preferRicherSnapshot,
   } = await vite.ssrLoadModule("/src/features/pioneers/api/pioneersApi.ts");
 
-  const mock = getPioneerLandingSnapshot();
-  const sampleUser = mock.leaderboardUsers[0];
-  const secondUser = mock.leaderboardUsers[1];
-  const samplePlace = mock.topPlaces[0];
+  const unavailable = getPioneerLandingSnapshot();
+  const sampleUser = {
+    id: "user-1",
+    displayName: "Database User One",
+    handle: "@db-user-one",
+    rank: 1,
+    totalPoints: 16,
+    videosCount: 0,
+    routesCount: 0,
+    placesCount: 2,
+    badges: ["badge-places"],
+  };
+  const secondUser = {
+    ...sampleUser,
+    id: "user-2",
+    displayName: "Database User Two",
+    handle: "@db-user-two",
+    rank: 2,
+    totalPoints: 12,
+    routesCount: 1,
+    placesCount: 0,
+    badges: ["badge-routes"],
+  };
+  const samplePlace = {
+    id: "place-1",
+    type: "place",
+    title: "Database Place",
+    subtitle: "other",
+    thumbnailUrl: null,
+    creatorId: sampleUser.id,
+    creatorName: sampleUser.displayName,
+    metric: 0,
+    rank: 1,
+    href: "/p/place-1",
+  };
 
   function apiSnapshot(overrides = {}) {
     return {
-      ...mock,
+      ...unavailable,
       leaderboardUsers: [],
       topVideos: [],
       topPlaces: [],
@@ -89,7 +120,7 @@ try {
 
   {
     const recoveredApi = apiSnapshot({ leaderboardUsers: [sampleUser] });
-    const merged = preferRicherSnapshot(mock, recoveredApi);
+    const merged = preferRicherSnapshot(unavailable, recoveredApi);
 
     assert.equal(merged, recoveredApi);
     assert.deepEqual(merged.topVideos, []);
@@ -100,7 +131,7 @@ try {
       leaderboardUsers: [sampleUser],
       topPlaces: [samplePlace],
     });
-    const merged = preferRicherSnapshot(previous, mock);
+    const merged = preferRicherSnapshot(previous, unavailable);
 
     assert.equal(merged.source, "api");
     assert.deepEqual(merged.leaderboardUsers, previous.leaderboardUsers);
@@ -135,8 +166,20 @@ try {
       range: "7d",
       category: "total",
     });
-    assert.equal(fallback.source, "mock");
-    assert.ok(fallback.warnings.includes("Using fallback mock data."));
+    assert.equal(fallback.source, "unavailable");
+    assert.deepEqual(fallback.leaderboardUsers, []);
+    assert.deepEqual(fallback.topVideos, []);
+    assert.deepEqual(fallback.topPlaces, []);
+    assert.deepEqual(fallback.topRoutes, []);
+    assert.deepEqual(fallback.stats, {
+      placesThisWeek: 0,
+      routesThisWeek: 0,
+      videosThisWeek: 0,
+      activePioneers: 0,
+    });
+    assert.ok(fallback.challenges.every((challenge) => challenge.progressCurrent === 0));
+    assert.ok(fallback.challenges.every((challenge) => challenge.communityCount === 0));
+    assert.ok(fallback.warnings.some((warning) => warning.includes("no fallback ranking data")));
   } finally {
     globalThis.fetch = originalFetch;
   }

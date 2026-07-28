@@ -31,10 +31,94 @@ function mockSupabase(handler) {
             limit,
           }));
         },
+        in(column, values) {
+          return Promise.resolve(handler({
+            table,
+            filtered: state.filtered,
+            since: state.since,
+            inColumn: column,
+            inValues: values,
+          }));
+        },
       };
       return builder;
     },
   };
+}
+
+{
+  const createdAt = new Date().toISOString();
+  const supabase = mockSupabase((call) => {
+    if (call.table === "videos") return { data: [], error: null };
+    if (call.table === "places") {
+      return {
+        data: [
+          {
+            id: "place-db-1",
+            place_name: "Exact Database Place",
+            created_by: "user-db-1",
+            created_at: createdAt,
+            rating: 4.75,
+          },
+        ],
+        error: null,
+      };
+    }
+    if (call.table === "routes") {
+      return {
+        data: [
+          {
+            id: "route-db-1",
+            name: "Exact Database Route",
+            created_by: "user-db-2",
+            created_at: createdAt,
+            stops_count: 4,
+          },
+        ],
+        error: null,
+      };
+    }
+    if (call.table === "profiles") {
+      return {
+        data: [
+          {
+            id: "user-db-1",
+            display_name: "Exact Database User",
+            username: "exact-db-user",
+          },
+        ],
+        error: null,
+      };
+    }
+    throw new Error(`Unexpected table: ${call.table}`);
+  });
+
+  const result = await getPioneersLandingData({
+    range: "7d",
+    category: "total",
+    supabaseClient: supabase,
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.source, "api");
+  assert.deepEqual(result.stats, {
+    placesThisWeek: 1,
+    routesThisWeek: 1,
+    videosThisWeek: 0,
+    activePioneers: 2,
+  });
+  assert.equal(result.topPlaces[0].title, "Exact Database Place");
+  assert.equal(result.topPlaces[0].metric, 4.75);
+  assert.equal(result.topRoutes[0].title, "Exact Database Route");
+  assert.equal(result.topRoutes[0].metric, 4);
+
+  const profiledUser = result.leaderboardUsers.find((entry) => entry.id === "user-db-1");
+  assert.equal(profiledUser.displayName, "Exact Database User");
+  assert.equal(profiledUser.handle, "@exact-db-user");
+
+  const idOnlyUser = result.leaderboardUsers.find((entry) => entry.id === "user-db-2");
+  assert.equal(idOnlyUser.displayName, "user-db-2");
+  assert.equal(idOnlyUser.handle, "");
 }
 
 {

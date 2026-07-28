@@ -9,8 +9,9 @@ import { PioneersPageShell } from "@/features/pioneers/components/PioneersPageSh
 import { PioneerVideoShowcase } from "@/features/pioneers/components/PioneerVideoShowcase";
 import { PioneerWhatIs } from "@/features/pioneers/components/PioneerWhatIs";
 import { WebMobileSystem } from "@/features/pioneers/components/WebMobileSystem";
+import { EMPTY_PIONEER_STATS } from "@/features/pioneers/api/pioneersApi";
 import { usePioneerLanding } from "@/features/pioneers/hooks/usePioneerLanding";
-import { LEADERBOARD_TABS, PIONEER_CHALLENGES, PIONEER_REWARDS, PIONEER_STATS, PIONEER_VIDEO_CARDS } from "@/features/pioneers/mocks/pioneerMock";
+import { LEADERBOARD_TABS, PIONEER_CHALLENGES, PIONEER_REWARDS, PIONEER_VIDEO_CARDS } from "@/features/pioneers/mocks/pioneerMock";
 import type { LeaderboardTab } from "@/features/pioneers/types";
 import { usePageMeta } from "@/hooks/usePageMeta";
 
@@ -27,9 +28,9 @@ export function PioneersPage() {
 
   const challenges = snapshot?.challenges ?? PIONEER_CHALLENGES;
   const rewards = snapshot?.rewards ?? PIONEER_REWARDS;
-  const stats = snapshot?.stats ?? PIONEER_STATS;
+  const stats = snapshot?.stats ?? EMPTY_PIONEER_STATS;
   const videoCards = snapshot?.videoCards ?? PIONEER_VIDEO_CARDS;
-  const source = snapshot?.source ?? "mock";
+  const source = snapshot?.source ?? "unavailable";
 
   return (
     <main>
