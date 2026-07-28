@@ -5,14 +5,14 @@ import type { ChallengeType } from "@/features/pioneers/lib/exploreAppLink";
 import { SlidingNumber } from "@/components/animate-ui/primitives/texts/sliding-number";
 import { T } from "@/components/ui/T";
 import { STORE_URLS } from "@/lib/constants";
-import type { PioneerChallenge } from "@/features/pioneers/types";
+import type { PioneerChallenge, PioneerDataSource } from "@/features/pioneers/types";
 
 type PioneerChallengeCardsProps = {
   challenges: PioneerChallenge[];
-  source?: "mock" | "api";
+  source?: PioneerDataSource;
 };
 
-export function PioneerChallengeCards({ challenges, source = "mock" }: PioneerChallengeCardsProps) {
+export function PioneerChallengeCards({ challenges, source = "unavailable" }: PioneerChallengeCardsProps) {
   const reduceMotion = useReducedMotion();
 
   return (

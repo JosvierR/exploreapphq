@@ -17,7 +17,7 @@ let cachedLandingSnapshot: PioneerLandingSnapshot | null = null;
 
 /**
  * Single owner of pioneers landing data.
- * - Does not seed with mock (avoids mock→API flash)
+ * - Does not seed with ranking rows (avoids fallback→API flash)
  * - Keeps previous / cached snapshot across StrictMode remount and empty API responses
  * - Aborts in-flight requests on unmount / StrictMode remount
  */

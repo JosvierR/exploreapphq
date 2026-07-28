@@ -2,49 +2,37 @@ import type {
   LeaderboardQuery,
   LeaderboardResponse,
   PioneerLandingSnapshot,
+  PioneerStats,
 } from "@/features/pioneers/types";
 import {
   LEADERBOARD_TABS,
-  LEADERBOARD_USERS,
-  MOCK_TOP_PLACES,
-  MOCK_TOP_ROUTES,
-  MOCK_TOP_VIDEOS,
   PIONEER_CHALLENGES,
   PIONEER_REWARDS,
-  PIONEER_STATS,
   PIONEER_VIDEO_CARDS,
 } from "@/features/pioneers/mocks/pioneerMock";
 import { apiUrl } from "@/lib/api";
 
-const sortByCategory = (category: LeaderboardQuery["category"] = "total") => {
-  const field =
-    category === "videos"
-      ? "videosCount"
-      : category === "routes"
-        ? "routesCount"
-        : category === "places"
-          ? "placesCount"
-          : "totalPoints";
-
-  return [...LEADERBOARD_USERS]
-    .sort((a, b) => b[field] - a[field])
-    .map((entry, index) => ({ ...entry, rank: index + 1 }));
+export const EMPTY_PIONEER_STATS: PioneerStats = {
+  placesThisWeek: 0,
+  routesThisWeek: 0,
+  videosThisWeek: 0,
+  activePioneers: 0,
 };
 
-function mockSnapshot(category: LeaderboardQuery["category"] = "total"): PioneerLandingSnapshot {
+function unavailableSnapshot(): PioneerLandingSnapshot {
   return {
     challenges: PIONEER_CHALLENGES,
-    leaderboardUsers: sortByCategory(category),
-    topVideos: MOCK_TOP_VIDEOS,
-    topPlaces: MOCK_TOP_PLACES,
-    topRoutes: MOCK_TOP_ROUTES,
+    leaderboardUsers: [],
+    topVideos: [],
+    topPlaces: [],
+    topRoutes: [],
     rewards: PIONEER_REWARDS,
-    stats: PIONEER_STATS,
+    stats: EMPTY_PIONEER_STATS,
     videoCards: PIONEER_VIDEO_CARDS,
     leaderboardTabs: LEADERBOARD_TABS,
-    source: "mock",
+    source: "unavailable",
     updatedAt: new Date().toISOString(),
-    warnings: ["Using fallback mock data."],
+    warnings: ["Live database ranking is unavailable; no fallback ranking data is shown."],
   };
 }
 
@@ -57,8 +45,8 @@ const uniqueWarnings = (...warnings: Array<readonly string[] | undefined>) =>
   [...new Set(warnings.flatMap((entries) => entries ?? []))];
 
 /**
- * Keeps a trustworthy ranking stable across refreshes without allowing mock
- * fallback data to contaminate a real API snapshot.
+ * Keeps a trustworthy ranking stable across refreshes without allowing an
+ * unavailable response to replace a real API snapshot.
  */
 export function preferRicherSnapshot(
   previous: PioneerLandingSnapshot | null,
@@ -68,11 +56,11 @@ export function preferRicherSnapshot(
 
   // A recovered API response always replaces fallback data, including
   // legitimately empty boards such as topVideos.
-  if (previous.source === "mock" && next.source === "api") return next;
+  if (previous.source === "unavailable" && next.source === "api") return next;
 
   // A transient request failure must not replace already-rendered API rows
   // with fabricated fallback rankings.
-  if (previous.source === "api" && next.source === "mock") {
+  if (previous.source === "api" && next.source === "unavailable") {
     return {
       ...previous,
       warnings: uniqueWarnings(
@@ -143,7 +131,7 @@ export async function fetchPioneerLanding(
   signal?: AbortSignal,
 ): Promise<PioneerLandingSnapshot> {
   const apiData = await fetchLandingFromApi(params, signal);
-  if (!apiData) return mockSnapshot(params.category);
+  if (!apiData) return unavailableSnapshot();
 
   return {
     challenges: Array.isArray(apiData.challenges) ? apiData.challenges : PIONEER_CHALLENGES,
@@ -160,7 +148,7 @@ export async function fetchPioneerLanding(
     },
     videoCards: apiData.videoCards?.length ? apiData.videoCards : PIONEER_VIDEO_CARDS,
     leaderboardTabs: apiData.leaderboardTabs?.length ? apiData.leaderboardTabs : LEADERBOARD_TABS,
-    source: apiData.source === "api" ? "api" : "mock",
+    source: apiData.source === "api" ? "api" : "unavailable",
     updatedAt: apiData.updatedAt || new Date().toISOString(),
     warnings: apiData.warnings,
   };
@@ -176,12 +164,12 @@ export async function fetchLeaderboard(
     topVideos: snapshot.topVideos,
     topPlaces: snapshot.topPlaces,
     topRoutes: snapshot.topRoutes,
-    source: snapshot.source === "api" ? "api" : "mock",
+    source: snapshot.source,
     updatedAt: snapshot.updatedAt,
     warnings: snapshot.warnings,
   };
 }
 
 export function getPioneerLandingSnapshot(): PioneerLandingSnapshot {
-  return mockSnapshot("total");
+  return unavailableSnapshot();
 }

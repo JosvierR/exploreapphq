@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { motion, useReducedMotion } from "motion/react";
 import { T } from "@/components/ui/T";
 import { APP_SCREENS } from "@/lib/constants";
-import type { PioneerContentEntry, PioneerVideoCard } from "@/features/pioneers/types";
+import type { PioneerContentEntry, PioneerDataSource, PioneerVideoCard } from "@/features/pioneers/types";
 import type { TranslationKey } from "@/locales/messages";
 
 type PioneerVideoShowcaseProps = {
@@ -11,7 +11,7 @@ type PioneerVideoShowcaseProps = {
   topVideos?: PioneerContentEntry[];
   topPlaces?: PioneerContentEntry[];
   topRoutes?: PioneerContentEntry[];
-  source?: "mock" | "api";
+  source?: PioneerDataSource;
 };
 
 type ShowcaseItem = {
@@ -70,7 +70,7 @@ export function PioneerVideoShowcase({
   topVideos = [],
   topPlaces = [],
   topRoutes = [],
-  source = "mock",
+  source = "unavailable",
 }: PioneerVideoShowcaseProps) {
   const reduceMotion = useReducedMotion();
   const stripRef = useRef<HTMLDivElement>(null);

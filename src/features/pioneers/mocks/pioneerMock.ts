@@ -1,15 +1,16 @@
-import { APP_SCREENS } from "@/lib/constants";
 import { CHALLENGE_WEB_PATHS } from "@/features/pioneers/lib/challengeConfig";
 import type {
   LeaderboardTab,
   PioneerChallenge,
-  PioneerContentEntry,
-  PioneerLeaderboardEntry,
   PioneerReward,
-  PioneerStats,
   PioneerVideoCard,
 } from "@/features/pioneers/types";
+import { APP_SCREENS } from "@/lib/constants";
 
+/**
+ * Static campaign content only. Live progress and every ranking row come from
+ * /api/pioneers/landing; fallback progress is intentionally zero.
+ */
 export const PIONEER_CHALLENGES: PioneerChallenge[] = [
   {
     id: "places",
@@ -20,10 +21,10 @@ export const PIONEER_CHALLENGES: PioneerChallenge[] = [
     iconLabel: "PIN",
     points: 150,
     badgeId: "badge-places",
-    progressCurrent: 2,
+    progressCurrent: 0,
     progressTarget: 5,
     appDeepLink: CHALLENGE_WEB_PATHS.places,
-    communityCount: 2,
+    communityCount: 0,
   },
   {
     id: "routes",
@@ -34,10 +35,10 @@ export const PIONEER_CHALLENGES: PioneerChallenge[] = [
     iconLabel: "RTE",
     points: 200,
     badgeId: "badge-routes",
-    progressCurrent: 1,
+    progressCurrent: 0,
     progressTarget: 3,
     appDeepLink: CHALLENGE_WEB_PATHS.routes,
-    communityCount: 1,
+    communityCount: 0,
   },
   {
     id: "videos",
@@ -48,220 +49,10 @@ export const PIONEER_CHALLENGES: PioneerChallenge[] = [
     iconLabel: "VID",
     points: 250,
     badgeId: "badge-videos",
-    progressCurrent: 3,
+    progressCurrent: 0,
     progressTarget: 6,
     appDeepLink: CHALLENGE_WEB_PATHS.videos,
-    communityCount: 3,
-  },
-];
-
-export const LEADERBOARD_USERS: PioneerLeaderboardEntry[] = [
-  {
-    id: "paola-m",
-    displayName: "Paola M.",
-    handle: "@paolaexplora",
-    rank: 1,
-    totalPoints: 1480,
-    videosCount: 18,
-    routesCount: 7,
-    placesCount: 31,
-    badges: ["badge-videos", "badge-routes", "badge-places"],
-  },
-  {
-    id: "david-r",
-    displayName: "David R.",
-    handle: "@rutasdavid",
-    rank: 2,
-    totalPoints: 1325,
-    videosCount: 14,
-    routesCount: 9,
-    placesCount: 24,
-    badges: ["badge-routes", "badge-places"],
-  },
-  {
-    id: "nina-l",
-    displayName: "Nina L.",
-    handle: "@ninalocal",
-    rank: 3,
-    totalPoints: 1190,
-    videosCount: 21,
-    routesCount: 4,
-    placesCount: 18,
-    badges: ["badge-videos", "badge-places"],
-  },
-  {
-    id: "marco-a",
-    displayName: "Marco A.",
-    handle: "@marcoandando",
-    rank: 4,
-    totalPoints: 1040,
-    videosCount: 12,
-    routesCount: 5,
-    placesCount: 22,
-    badges: ["badge-places"],
-  },
-  {
-    id: "elena-v",
-    displayName: "Elena V.",
-    handle: "@elenavive",
-    rank: 5,
-    totalPoints: 980,
-    videosCount: 10,
-    routesCount: 6,
-    placesCount: 17,
-    badges: ["badge-routes"],
-  },
-  {
-    id: "jorge-c",
-    displayName: "Jorge C.",
-    handle: "@jorgecalle",
-    rank: 6,
-    totalPoints: 870,
-    videosCount: 11,
-    routesCount: 3,
-    placesCount: 16,
-    badges: ["badge-videos"],
-  },
-  {
-    id: "lara-s",
-    displayName: "Lara S.",
-    handle: "@laraspots",
-    rank: 7,
-    totalPoints: 820,
-    videosCount: 8,
-    routesCount: 4,
-    placesCount: 20,
-    badges: ["badge-places"],
-  },
-  {
-    id: "samuel-p",
-    displayName: "Samuel P.",
-    handle: "@samuelpasea",
-    rank: 8,
-    totalPoints: 760,
-    videosCount: 9,
-    routesCount: 3,
-    placesCount: 14,
-    badges: ["badge-videos"],
-  },
-  {
-    id: "camila-t",
-    displayName: "Camila T.",
-    handle: "@camitracks",
-    rank: 9,
-    totalPoints: 710,
-    videosCount: 7,
-    routesCount: 5,
-    placesCount: 12,
-    badges: ["badge-routes"],
-  },
-];
-
-export const MOCK_TOP_VIDEOS: PioneerContentEntry[] = [
-  {
-    id: "mock-video-1",
-    type: "video",
-    title: "Atardecer en la costa",
-    subtitle: "Paola M.",
-    creatorName: "Paola M.",
-    thumbnailUrl: APP_SCREENS.videoShowcase[0],
-    metric: 128,
-    rank: 1,
-    href: "/explorar",
-  },
-  {
-    id: "mock-video-2",
-    type: "video",
-    title: "Mercado local en 30s",
-    subtitle: "David R.",
-    creatorName: "David R.",
-    thumbnailUrl: APP_SCREENS.videoShowcase[1],
-    metric: 96,
-    rank: 2,
-    href: "/explorar",
-  },
-  {
-    id: "mock-video-3",
-    type: "video",
-    title: "Ruta corta con vista",
-    subtitle: "Nina L.",
-    creatorName: "Nina L.",
-    thumbnailUrl: APP_SCREENS.videoShowcase[2],
-    metric: 84,
-    rank: 3,
-    href: "/explorar",
-  },
-];
-
-export const MOCK_TOP_PLACES: PioneerContentEntry[] = [
-  {
-    id: "mock-place-1",
-    type: "place",
-    title: "Café Mirador Norte",
-    subtitle: "Marco A.",
-    creatorName: "Marco A.",
-    thumbnailUrl: APP_SCREENS.videoShowcase[3],
-    metric: 4.9,
-    rank: 1,
-    href: "/explorar",
-  },
-  {
-    id: "mock-place-2",
-    type: "place",
-    title: "Plaza del Reloj",
-    subtitle: "Elena V.",
-    creatorName: "Elena V.",
-    thumbnailUrl: APP_SCREENS.videoShowcase[4],
-    metric: 4.8,
-    rank: 2,
-    href: "/explorar",
-  },
-  {
-    id: "mock-place-3",
-    type: "place",
-    title: "Mirador del Río",
-    subtitle: "Jorge C.",
-    creatorName: "Jorge C.",
-    thumbnailUrl: APP_SCREENS.videoShowcase[2],
-    metric: 4.7,
-    rank: 3,
-    href: "/explorar",
-  },
-];
-
-export const MOCK_TOP_ROUTES: PioneerContentEntry[] = [
-  {
-    id: "mock-route-1",
-    type: "route",
-    title: "Loop histórico del centro",
-    subtitle: "David R.",
-    creatorName: "David R.",
-    thumbnailUrl: APP_SCREENS.videoShowcase[1],
-    metric: 8,
-    rank: 1,
-    href: "/explorar",
-  },
-  {
-    id: "mock-route-2",
-    type: "route",
-    title: "Caminata costera corta",
-    subtitle: "Paola M.",
-    creatorName: "Paola M.",
-    thumbnailUrl: APP_SCREENS.videoShowcase[0],
-    metric: 6,
-    rank: 2,
-    href: "/explorar",
-  },
-  {
-    id: "mock-route-3",
-    type: "route",
-    title: "Ruta cafeteras",
-    subtitle: "Lara S.",
-    thumbnailUrl: APP_SCREENS.videoShowcase[3],
-    creatorName: "Lara S.",
-    metric: 5,
-    rank: 3,
-    href: "/explorar",
+    communityCount: 0,
   },
 ];
 
@@ -304,13 +95,6 @@ export const PIONEER_REWARDS: PioneerReward[] = [
     featured: true,
   },
 ];
-
-export const PIONEER_STATS: PioneerStats = {
-  placesThisWeek: 120,
-  routesThisWeek: 45,
-  videosThisWeek: 89,
-  activePioneers: 34,
-};
 
 export const PIONEER_VIDEO_CARDS: PioneerVideoCard[] = [
   {
@@ -357,4 +141,9 @@ export const PIONEER_VIDEO_CARDS: PioneerVideoCard[] = [
   },
 ];
 
-export const LEADERBOARD_TABS = ["total", "videos", "routes", "places"] as const satisfies readonly LeaderboardTab[];
+export const LEADERBOARD_TABS = [
+  "total",
+  "videos",
+  "routes",
+  "places",
+] as const satisfies readonly LeaderboardTab[];

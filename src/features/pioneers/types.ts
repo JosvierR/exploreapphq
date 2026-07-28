@@ -1,6 +1,7 @@
 import type { TranslationKey } from "@/locales/messages";
 
 export type LeaderboardTab = "total" | "videos" | "routes" | "places";
+export type PioneerDataSource = "unavailable" | "api";
 
 export type PioneerChallenge = {
   id: "places" | "routes" | "videos";
@@ -76,7 +77,7 @@ export type LeaderboardResponse = {
   topVideos: PioneerContentEntry[];
   topPlaces: PioneerContentEntry[];
   topRoutes: PioneerContentEntry[];
-  source: "mock" | "api";
+  source: PioneerDataSource;
   updatedAt: string;
   warnings?: string[];
 };
@@ -91,7 +92,7 @@ export type PioneerLandingSnapshot = {
   stats: PioneerStats;
   videoCards: PioneerVideoCard[];
   leaderboardTabs: readonly LeaderboardTab[];
-  source: "mock" | "api";
+  source: PioneerDataSource;
   updatedAt: string;
   warnings?: string[];
 };
