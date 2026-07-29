@@ -39,7 +39,7 @@ export function usePioneerLanding(): PioneerLandingState {
     if (hasSnapshotRef.current || cachedLandingSnapshot) setRefreshing(true);
     else setLoading(true);
 
-    void fetchPioneerLanding({ range: "7d", category: "total" }, controller.signal)
+    void fetchPioneerLanding({ range: "lifetime", category: "total" }, controller.signal)
       .then((data) => {
         if (controller.signal.aborted || requestId !== requestIdRef.current) return;
         const merged = preferRicherSnapshot(cachedLandingSnapshot, data);

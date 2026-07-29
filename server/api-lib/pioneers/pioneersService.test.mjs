@@ -129,6 +129,100 @@ function mockSupabase(handler) {
   });
 
   const result = await getPioneersLandingData({
+    range: "lifetime",
+    category: "total",
+    supabaseClient: supabase,
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.range, "lifetime");
+  // lifetime ranking (3) + weekly challenge window (3); no 30d widen retry
+  assert.equal(calls.length, 6);
+  for (const call of calls.slice(0, 3)) {
+    assert.equal(call.filtered, false);
+    assert.equal(call.since, null);
+  }
+  for (const call of calls.slice(3)) {
+    assert.equal(call.filtered, true);
+    assert.ok(call.since);
+  }
+  assert.ok(result.warnings.includes("No content rows found in Supabase for the lifetime ranking."));
+}
+
+{
+  const createdAt = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+  const supabase = mockSupabase((call) => {
+    if (call.table === "videos" && !call.filtered) {
+      return {
+        data: [
+          {
+            id: "video-old-1",
+            title: "Lifetime Video",
+            created_by: "user-db-1",
+            created_at: createdAt,
+            likes_count: 9,
+          },
+        ],
+        error: null,
+      };
+    }
+    if (call.table === "places" && !call.filtered) {
+      return {
+        data: [
+          {
+            id: "place-old-1",
+            place_name: "Lifetime Place",
+            created_by: "user-db-1",
+            created_at: createdAt,
+            rating: 5,
+          },
+        ],
+        error: null,
+      };
+    }
+    if (call.table === "routes") return { data: [], error: null };
+    if (call.table === "profiles") {
+      return {
+        data: [
+          {
+            id: "user-db-1",
+            display_name: "Lifetime User",
+            username: "lifetime-user",
+          },
+        ],
+        error: null,
+      };
+    }
+    return { data: [], error: null };
+  });
+
+  const result = await getPioneersLandingData({
+    range: "lifetime",
+    category: "total",
+    supabaseClient: supabase,
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.topVideos[0].title, "Lifetime Video");
+  assert.equal(result.topPlaces[0].title, "Lifetime Place");
+  assert.equal(result.leaderboardUsers[0].displayName, "Lifetime User");
+  // Challenge progress stays on the weekly window (empty in this fixture).
+  assert.deepEqual(result.stats, {
+    placesThisWeek: 0,
+    routesThisWeek: 0,
+    videosThisWeek: 0,
+    activePioneers: 1,
+  });
+}
+
+{
+  const calls = [];
+  const supabase = mockSupabase((call) => {
+    calls.push(call);
+    return { data: [], error: null };
+  });
+
+  const result = await getPioneersLandingData({
     range: "7d",
     category: "total",
     supabaseClient: supabase,

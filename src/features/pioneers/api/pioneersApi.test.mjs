@@ -163,7 +163,7 @@ try {
       });
 
     const fallback = await fetchPioneerLanding({
-      range: "7d",
+      range: "lifetime",
       category: "total",
     });
     assert.equal(fallback.source, "unavailable");

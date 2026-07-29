@@ -5,7 +5,9 @@ import { getPioneersLandingData } from "./pioneersService.mjs";
 
 function parseRange(url) {
   const value = url.searchParams.get("range");
-  return value === "30d" ? "30d" : "7d";
+  if (value === "lifetime" || value === "all") return "lifetime";
+  if (value === "30d") return "30d";
+  return "7d";
 }
 
 function parseCategory(url) {
