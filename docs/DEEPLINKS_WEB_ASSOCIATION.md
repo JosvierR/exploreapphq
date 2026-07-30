@@ -42,8 +42,10 @@ Legacy aliases are also included:
 /route/*
 /profile/*
 /users/*
+/challenges/*
 ```
 
+Web-only paths are excluded from Universal Links (`/admin/*`, `/api/*`, `/.well-known/*`, legal pages, `/feedback/*`, `/access`).
 ## Production Values
 
 Configured in `public/.well-known/`:
@@ -54,7 +56,7 @@ Configured in `public/.well-known/`:
 | iOS Bundle ID | `com.explore.miapp` |
 | Apple App ID | `8NXJFU5YB7.com.explore.miapp` |
 | Android package | `com.explore.miapp` |
-| Android SHA-256 (Play App Signing) | `71:CC:F5:20:95:36:03:23:75:0E:17:DA:92:9E:F6:DD:73:BB:B5:3C:DB:91:2E:51:88:29:17:E9:83:39:A9:0C` |
+| Android SHA-256 (Play App Signing) | `13:CB:65:35:3A:11:84:A6:9B:E9:BA:05:C9:5C:90:ED:98:9B:02:90:59:CE:59:23:03:FF:72:BB:AC:96:40:28` |
 
 ## Apple Values
 
