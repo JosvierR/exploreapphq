@@ -14,10 +14,100 @@
           "/place/*",
           "/route/*",
           "/profile/*",
-          "/challenges/places",
-          "/challenges/routes",
-          "/challenges/videos",
+          "/users/*",
           "/challenges/*",
+          "NOT /admin/*",
+          "NOT /api/*",
+          "NOT /.well-known/*",
+          "NOT /terms",
+          "NOT /privacy",
+          "NOT /safety",
+          "NOT /feedback/*",
+          "NOT /access"
+        ],
+        "appIDs": [
+          "8NXJFU5YB7.com.explore.miapp"
+        ],
+        "components": [
+          {
+            "/": "/v/*",
+            "comment": "Shared video deep links"
+          },
+          {
+            "/": "/p/*",
+            "comment": "Shared place deep links"
+          },
+          {
+            "/": "/r/*",
+            "comment": "Shared route deep links"
+          },
+          {
+            "/": "/u/*",
+            "comment": "Shared profile deep links"
+          },
+          {
+            "/": "/me",
+            "comment": "Signed-in profile deep link"
+          },
+          {
+            "/": "/video/*",
+            "comment": "Legacy video alias"
+          },
+          {
+            "/": "/place/*",
+            "comment": "Legacy place alias"
+          },
+          {
+            "/": "/route/*",
+            "comment": "Legacy route alias"
+          },
+          {
+            "/": "/profile/*",
+            "comment": "Legacy profile alias"
+          },
+          {
+            "/": "/users/*",
+            "comment": "Legacy users alias"
+          },
+          {
+            "/": "/challenges/*",
+            "comment": "Pioneer challenge mission pages"
+          },
+          {
+            "/": "/admin/*",
+            "exclude": true,
+            "comment": "Admin panel stays on web"
+          },
+          {
+            "/": "/api/*",
+            "exclude": true,
+            "comment": "API routes stay on web"
+          },
+          {
+            "/": "/.well-known/*",
+            "exclude": true,
+            "comment": "Association files stay on web"
+          },
+          {
+            "/": "/terms",
+            "exclude": true
+          },
+          {
+            "/": "/privacy",
+            "exclude": true
+          },
+          {
+            "/": "/safety",
+            "exclude": true
+          },
+          {
+            "/": "/feedback/*",
+            "exclude": true
+          },
+          {
+            "/": "/access",
+            "exclude": true
+          }
         ]
       }
     ]
