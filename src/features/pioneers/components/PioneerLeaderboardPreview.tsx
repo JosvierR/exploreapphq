@@ -240,17 +240,17 @@ export function PioneerLeaderboardPreview({
                       <T k="pioneer.leaderboard.col.score" />
                     </th>
                   </tr>
-                </thead>
-                <tbody>
-                  {showLoadingCopy ? (
-                    <tr>
-                      <td colSpan={4}>
-                        <p className="pioneer-empty-state">
-                          <T k="pioneer.leaderboard.loading" />
-                        </p>
-                      </td>
-                    </tr>
-                  ) : entries.length === 0 ? (
+                  </thead>
+                  <tbody>
+                    {showLoadingCopy ? (
+                      <tr>
+                        <td colSpan={4}>
+                          <p className="pioneer-empty-state">
+                            <T k="pioneer.leaderboard.loading" />
+                          </p>
+                        </td>
+                      </tr>
+                    ) : entries.length === 0 ? (
                     <tr>
                       <td colSpan={4}>
                         <p className="pioneer-empty-state">

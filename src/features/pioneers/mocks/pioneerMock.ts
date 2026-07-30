@@ -5,7 +5,7 @@ import type {
   PioneerReward,
   PioneerVideoCard,
 } from "@/features/pioneers/types";
-import { APP_SCREENS } from "@/lib/constants";
+import { APP_SCREENS, PIXEL_ICONS } from "@/lib/constants";
 
 /**
  * Static campaign content only. Live progress and every ranking row come from
@@ -57,42 +57,53 @@ export const PIONEER_CHALLENGES: PioneerChallenge[] = [
 ];
 
 export const PIONEER_REWARDS: PioneerReward[] = [
+  // Beneficios destacados
   {
-    id: "badge",
+    id: "founding-badge",
     titleKey: "pioneer.reward.badge.title",
     descriptionKey: "pioneer.reward.badge.desc",
-    image: APP_SCREENS.rewards.badge,
+    icon: PIXEL_ICONS.badge,
+    featured: true,
   },
   {
-    id: "profile",
+    id: "priority-visibility",
     titleKey: "pioneer.reward.profile.title",
     descriptionKey: "pioneer.reward.profile.desc",
-    image: APP_SCREENS.rewards.profile,
+    icon: PIXEL_ICONS.star,
+    featured: true,
   },
   {
-    id: "repost",
-    titleKey: "pioneer.reward.repost.title",
-    descriptionKey: "pioneer.reward.repost.desc",
-    image: APP_SCREENS.rewards.repost,
-  },
-  {
-    id: "ranking",
-    titleKey: "pioneer.reward.ranking.title",
-    descriptionKey: "pioneer.reward.ranking.desc",
-    image: APP_SCREENS.rewards.ranking,
-  },
-  {
-    id: "early",
+    id: "early-access",
     titleKey: "pioneer.reward.early.title",
     descriptionKey: "pioneer.reward.early.desc",
-    image: APP_SCREENS.rewards.early,
+    icon: PIXEL_ICONS.bolt,
+    featured: true,
+  },
+  // Beneficios adicionales
+  {
+    id: "leaderboard-status",
+    titleKey: "pioneer.reward.ranking.title",
+    descriptionKey: "pioneer.reward.ranking.desc",
+    icon: PIXEL_ICONS.trophy,
   },
   {
-    id: "creator",
-    titleKey: "pioneer.reward.creator.title",
-    descriptionKey: "pioneer.reward.creator.desc",
-    image: APP_SCREENS.rewards.creator,
-    featured: true,
+    id: "impact-metrics",
+    titleKey: "pioneer.reward.metrics.title",
+    descriptionKey: "pioneer.reward.metrics.desc",
+    icon: PIXEL_ICONS.chart,
+  },
+  {
+    id: "partner-perks",
+    titleKey: "pioneer.reward.partners.title",
+    descriptionKey: "pioneer.reward.partners.desc",
+    icon: PIXEL_ICONS.chest,
+    tagKey: "pioneer.reward.partners.tag",
+  },
+  {
+    id: "brand-collabs",
+    titleKey: "pioneer.reward.collabs.title",
+    descriptionKey: "pioneer.reward.collabs.desc",
+    icon: PIXEL_ICONS.ticket,
   },
 ];
 
