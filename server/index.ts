@@ -33,9 +33,15 @@ import {
 // @ts-ignore
 import { handlePioneersLanding } from "./api-lib/pioneers/pioneersRouter.mjs";
 // @ts-ignore
-import { ensureRequestId } from "./api-lib/http/requestContext.mjs";
+import { ensureRequestId, routePath } from "./api-lib/http/requestContext.mjs";
+// @ts-ignore
+import { resolveApiRoute } from "./api-lib/http/resolveApiRoute.mjs";
 // @ts-ignore
 import { errorSummary, logger } from "./api-lib/observability/logger.mjs";
+// @ts-ignore
+import { recordApiRequest } from "./api-lib/observability/metrics.mjs";
+// @ts-ignore
+import { observabilityConfigStatus, flushPendingLokiLogs, runWithObservabilityContext } from "./api-lib/observability/lokiLogger.mjs";
 import { requireAdmin } from "./adminAuth.js";
 import { config } from "./config.js";
 import {
@@ -56,6 +62,16 @@ import { markLaunchNotifiedFirestore } from "./waitlistFirestore.js";
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+
+// Request-scoped Loki flush for local Express (same enqueue path as Vercel waitUntil).
+app.use((_req, res, next) => {
+  runWithObservabilityContext(() => {
+    res.on("finish", () => {
+      void flushPendingLokiLogs({ timeoutMs: 1500 });
+    });
+    next();
+  });
+});
 
 type FetchHandler = (request: Request) => Promise<Response>;
 
@@ -83,6 +99,8 @@ async function sendFetchResponse(
   req: ExpressRequest,
   res: ExpressResponse,
 ) {
+  const started = Date.now();
+  let routeLabel = "/api";
   try {
     const headers = expressHeaders(req);
     let body: string | undefined;
@@ -97,6 +115,7 @@ async function sendFetchResponse(
       body,
     });
     const { request: requestWithId } = ensureRequestId(request);
+    routeLabel = routePath(resolveApiRoute(requestWithId));
     const response = await handler(requestWithId);
 
     res.status(response.status);
@@ -109,11 +128,24 @@ async function sendFetchResponse(
     const buffer = Buffer.from(await response.arrayBuffer());
     if (buffer.length > 0) res.send(buffer);
     else res.end();
+
+    recordApiRequest({
+      route: routeLabel,
+      method: req.method,
+      status: response.status,
+      durationMs: Date.now() - started,
+    });
   } catch (err) {
     logger.error("Express API handler failed", {
       route: req.originalUrl || req.url,
       method: req.method,
       error: errorSummary(err),
+    });
+    recordApiRequest({
+      route: routeLabel,
+      method: req.method,
+      status: 500,
+      durationMs: Date.now() - started,
     });
     res.status(500).json({ ok: false, error: "Unexpected server error." });
   }
@@ -423,7 +455,19 @@ app.get("/api/me", (req, res) => {
 });
 
 app.listen(config.port, () => {
+  const obs = observabilityConfigStatus();
+  const metricsConfigured = Boolean(String(process.env.METRICS_TOKEN || "").trim());
+  logger.info("API server listening", {
+    port: config.port,
+    environment: process.env.APP_ENV || process.env.NODE_ENV || "development",
+    metrics_token_configured: metricsConfigured,
+    loki_ready: obs.loki_ready,
+    grafana_logs_enabled: obs.grafana_logs_enabled,
+  });
   console.log(`API http://localhost:${config.port}`);
   console.log(`Admin: ${config.adminEmail}`);
   console.log(`SMTP ${config.smtp.host}:${config.smtp.port} (Mailpit)`);
+  console.log(
+    `Observability: metrics=${metricsConfigured ? "on" : "off"} loki=${obs.loki_ready ? "ready" : "off"} → Grafana http://localhost:3002`,
+  );
 });

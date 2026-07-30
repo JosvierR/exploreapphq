@@ -1,9 +1,8 @@
 # Local observability stack (free OSS tools).
 # Usage:
 #   npm run obs:up
-#   set METRICS_TOKEN in .env and write it to observability/prometheus/metrics_token
 #   npm run dev:api
-# Grafana: http://localhost:3000 (admin/admin)
+# Grafana: http://localhost:3002 (admin/admin)
 # Prometheus: http://localhost:9090
 # Loki: http://localhost:3100
 
@@ -21,6 +20,11 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
       - --web.enable-lifecycle
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
 
   loki:
     image: grafana/loki:3.3.2
@@ -30,23 +34,39 @@ services:
       - ./loki/loki-config.yml:/etc/loki/local-config.yaml:ro
       - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3100/loki/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 15s
 
   grafana:
     image: grafana/grafana:11.4.0
     ports:
-      - "3000:3000"
+      - "3002:3000"
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SERVER_ROOT_URL: http://localhost:3002
+      GF_INSTALL_PLUGINS: ""
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana_data:/var/lib/grafana
     depends_on:
-      - prometheus
-      - loki
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
 
 volumes:
   prometheus_data:

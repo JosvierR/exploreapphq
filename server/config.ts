@@ -11,7 +11,7 @@ export const config = {
     from: process.env.SMTP_FROM ?? "Explore <noreply@exploreapphq.com>",
   },
   appUrl: process.env.APP_URL ?? "http://localhost:5173",
-  siteUrl: process.env.SITE_URL ?? "https://exploreapphq.com",
+  siteUrl: process.env.SITE_URL ?? "https://www.exploreapphq.com",
   store: {
     apple:
       process.env.APP_STORE_URL ??

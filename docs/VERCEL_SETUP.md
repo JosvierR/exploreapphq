@@ -12,7 +12,7 @@ Copia `vercel.env.example` → `vercel.env`, rellena con los mismos valores de t
 
 En Vercel → **Settings → Environment Variables → Import .env** → pega `vercel.env`.
 
-Marca **Sensitive** en: `SMTP_PASS`, `TWILIO_AUTH_TOKEN`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `SUPABASE_SECRET_KEY`.
+Marca **Sensitive** en: `SMTP_PASS`, `TWILIO_AUTH_TOKEN`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `SUPABASE_SECRET_KEY`, `GRAFANA_LOKI_TOKEN`, `METRICS_TOKEN`, `ANALYTICS_CRON_SECRET`.
 
 | Variable | Notas |
 |----------|--------|
@@ -24,6 +24,16 @@ Marca **Sensitive** en: `SMTP_PASS`, `TWILIO_AUTH_TOKEN`, `FIREBASE_SERVICE_ACCO
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Publishable key de Supabase para login del admin |
 | `SUPABASE_SECRET_KEY` | Service role key, solo server-side en Vercel Functions |
 | `EXPLORE_ADMIN_ALLOWED_EMAILS` | Fallback temporal hasta poblar `admin_users` |
+| `GRAFANA_LOGS_ENABLED` | `true` en Production para enviar logs a Grafana Cloud Loki |
+| `GRAFANA_LOKI_URL` | Push URL de Grafana Cloud Loki |
+| `GRAFANA_LOKI_USERNAME` | Instance ID (numérico) |
+| `GRAFANA_LOKI_TOKEN` | Token Sensitive de Loki |
+| `GRAFANA_LOGS_LEVEL` | `warn` recomendado en prod (`info` para más detalle) |
+| `METRICS_TOKEN` | Token para scrapes de `GET /api/metrics` |
+| `APP_ENV` | `production` |
+
+Detalle de paneles y LogQL: `docs/GRAFANA_DASHBOARD.md`.
+Detail operativo: `docs/OBSERVABILITY.md`.
 
 ## 3. Deploy
 
@@ -49,10 +59,19 @@ Firebase Console → Authentication → Settings → **Authorized domains** → 
 |------|-----|
 | `/access` | Waitlist (teléfono + email) |
 | `/feedback` | Ideas / feedback |
-| `/team` | Admin: `admin@example.com` / `Admin` |
+| `/team` | Redirect al panel admin |
 | `/admin` | Supabase moderation dashboard |
+| `/admin?section=system` | Health + Loki connectivity + metrics |
 | `/admin/reports` | Moderation reports table |
 | `/admin/waitlist` | Panel + broadcast |
+
+### Observability smoke (production)
+
+1. Set Grafana Cloud + `GRAFANA_LOGS_ENABLED=true` → Redeploy
+2. Hit any admin API (open `/admin`)
+3. In Grafana Explore: `{service="explore-web-admin", environment="production"}`
+4. In Admin System: Loki connectivity should be `ok`
+5. Optional: `curl -H "Authorization: Bearer $METRICS_TOKEN" https://www.exploreapphq.com/api/metrics`
 
 ## 7. Dominio custom (exploreapphq.com)
 

@@ -9,5 +9,12 @@ export {
   metricsSnapshot,
   metricsPrometheus,
 } from "./metrics.mjs";
-export { pushLokiLog, lokiConfigured, observabilityConfigStatus } from "./lokiLogger.mjs";
+export {
+  pushLokiLog,
+  lokiConfigured,
+  observabilityConfigStatus,
+  flushPendingLokiLogs,
+  runWithObservabilityContext,
+  probeLokiConnectivity,
+} from "./lokiLogger.mjs";
 export { HttpError, handleApiError, safeClientError } from "./errors.mjs";

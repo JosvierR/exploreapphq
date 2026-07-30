@@ -4,13 +4,13 @@ import { SlidingNumber } from "@/components/animate-ui/primitives/texts/sliding-
 import { T } from "@/components/ui/T";
 import { useI18n } from "@/features/i18n/I18nProvider";
 import { APP_SCREENS } from "@/lib/constants";
-import type { PioneerStats } from "@/features/pioneers/types";
+import type { PioneerDataSource, PioneerStats } from "@/features/pioneers/types";
 import type { TranslationKey } from "@/locales/messages";
 
 type PioneerHeroProps = {
   stats: PioneerStats;
   loading?: boolean;
-  source?: "mock" | "api";
+  source?: PioneerDataSource;
 };
 
 const HERO_BADGES: TranslationKey[] = [
@@ -38,7 +38,7 @@ function HeroStat({ value, label, icon }: { value: number; label: TranslationKey
   );
 }
 
-export function PioneerHero({ stats, loading = false, source = "mock" }: PioneerHeroProps) {
+export function PioneerHero({ stats, loading = false, source = "unavailable" }: PioneerHeroProps) {
   const { t } = useI18n();
 
   return (

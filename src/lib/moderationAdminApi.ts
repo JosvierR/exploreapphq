@@ -227,6 +227,7 @@ export type AdminSystemHealth = {
     moderation_actions_table: "ok" | "warning" | string;
     metrics: "in_memory" | string;
     loki_configured: boolean;
+    loki_connectivity?: "ok" | "warning" | "skipped" | string;
     grafana_logs_enabled: boolean;
   };
   config: {
@@ -240,6 +241,9 @@ export type AdminSystemHealth = {
     loki_token_configured: boolean;
     loki_ready: boolean;
     grafana_logs_enabled: boolean;
+    grafana_logs_level?: string;
+    deployment?: string;
+    loki_probe?: { status: string; reason?: string };
   };
   warnings: string[];
 };

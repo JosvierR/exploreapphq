@@ -59,7 +59,8 @@ function publicMediaUrl(value) {
   return null;
 }
 
-function rangeSince(range = "7d") {
+function rangeSince(range = "lifetime") {
+  if (range === "lifetime" || range === "all") return null;
   const days = range === "30d" ? 30 : 7;
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 }
@@ -93,30 +94,71 @@ function metricForRoute(row) {
   return Number(firstField(row, ["stops_count", "places_count", "likes_count", "like_count"]) || 0);
 }
 
-async function fetchSince(supabase, table, since, limit = 800) {
+export async function fetchSince(supabase, table, since, limit = 800) {
+  const lifetime = !since;
   try {
-    const { data, error } = await supabase
-      .from(table)
-      .select("*")
-      .gte("created_at", since)
-      .order("created_at", { ascending: false })
-      .limit(limit);
+    let query = supabase.from(table).select("*");
+    if (!lifetime) query = query.gte("created_at", since);
+    const { data, error } = await query.order("created_at", { ascending: false }).limit(limit);
     if (error) throw error;
-    return (data || []).filter(isVisibleContent);
-  } catch {
+    return {
+      rows: (data || []).filter(isVisibleContent),
+      failed: false,
+      warnings: [],
+    };
+  } catch (primaryError) {
     try {
       const { data, error } = await supabase.from(table).select("*").limit(limit);
       if (error) throw error;
-      return (data || [])
-        .filter(isVisibleContent)
-        .filter((row) => {
-          const createdAt = createdAtFromRow(row);
-          return createdAt ? createdAt >= since : false;
-        });
-    } catch {
-      return [];
+      console.warn(`[pioneers] fetchSince(${table}) primary query failed; used fallback`, {
+        primary: primaryError?.message || primaryError,
+      });
+      return {
+        rows: (data || [])
+          .filter(isVisibleContent)
+          .filter((row) => {
+            if (lifetime) return true;
+            const createdAt = createdAtFromRow(row);
+            return createdAt ? createdAt >= since : false;
+          }),
+        failed: false,
+        warnings: [`${table} used a fallback query after the primary query failed.`],
+      };
+    } catch (fallbackError) {
+      console.warn(`[pioneers] fetchSince(${table}) failed`, {
+        primary: primaryError?.message || primaryError,
+        fallback: fallbackError?.message || fallbackError,
+      });
+      return {
+        rows: [],
+        failed: true,
+        warnings: [`${table} could not be loaded from Supabase.`],
+      };
     }
   }
+}
+
+async function fetchContentSince(supabase, since) {
+  const [videosResult, placesResult, routesResult] = await Promise.all([
+    fetchSince(supabase, "videos", since),
+    fetchSince(supabase, "places", since),
+    fetchSince(supabase, "routes", since),
+  ]);
+  const results = {
+    videos: videosResult,
+    places: placesResult,
+    routes: routesResult,
+  };
+
+  return {
+    videos: videosResult.rows,
+    places: placesResult.rows,
+    routes: routesResult.rows,
+    failedTables: Object.entries(results)
+      .filter(([, result]) => result.failed)
+      .map(([table]) => table),
+    warnings: Object.values(results).flatMap((result) => result.warnings),
+  };
 }
 
 async function fetchProfilesMap(supabase, ids) {
@@ -135,7 +177,7 @@ async function fetchProfilesMap(supabase, ids) {
           id,
           displayName:
             nullableString(firstField(row, ["display_name", "full_name", "name", "username", "handle"])) ||
-            `Pioneer ${id.slice(0, 6)}`,
+            id,
           handle: nullableString(firstField(row, ["username", "handle"])) || null,
           avatarUrl: publicMediaUrl(firstField(row, ["avatar_url", "avatarUrl", "photo_url", "image_url"])),
         });
@@ -154,7 +196,7 @@ function serializeVideoItem(row, rank, profile) {
   return {
     id,
     type: "video",
-    title: nullableString(firstField(row, ["title", "caption", "description", "name"])) || `Video ${id.slice(0, 6)}`,
+    title: nullableString(firstField(row, ["title", "caption", "description", "name"])) || id,
     subtitle: profile?.displayName || null,
     thumbnailUrl: publicMediaUrl(
       firstField(row, ["thumbnail_url", "thumbnailUrl", "thumbnail", "cover_url", "coverUrl", "poster_url"]),
@@ -172,7 +214,7 @@ function serializePlaceItem(row, rank, profile) {
   return {
     id,
     type: "place",
-    title: nullableString(firstField(row, ["place_name", "name", "title"])) || `Place ${id.slice(0, 6)}`,
+    title: nullableString(firstField(row, ["place_name", "name", "title"])) || id,
     subtitle: nullableString(firstField(row, ["category", "category_name", "type"])) || profile?.displayName || null,
     thumbnailUrl: publicMediaUrl(
       firstField(row, ["cover_url", "coverUrl", "image_url", "imageUrl", "photo_url", "thumbnail_url"]),
@@ -190,7 +232,7 @@ function serializeRouteItem(row, rank, profile) {
   return {
     id,
     type: "route",
-    title: nullableString(firstField(row, ["name", "title"])) || `Route ${id.slice(0, 6)}`,
+    title: nullableString(firstField(row, ["name", "title"])) || id,
     subtitle: nullableString(firstField(row, ["category", "category_name", "type"])) || profile?.displayName || null,
     thumbnailUrl: publicMediaUrl(firstField(row, ["cover_url", "coverUrl", "image_url", "imageUrl", "thumbnail_url"])),
     creatorId: creatorIdFromRow(row),
@@ -229,8 +271,8 @@ function buildUserLeaderboard(videos, places, routes, profiles) {
 
       return {
         id,
-        displayName: profile?.displayName || `Pioneer ${id.slice(0, 6)}`,
-        handle: profile?.handle ? `@${profile.handle.replace(/^@/, "")}` : `@pioneer-${id.slice(0, 6)}`,
+        displayName: profile?.displayName || id,
+        handle: profile?.handle ? `@${profile.handle.replace(/^@/, "")}` : "",
         avatarUrl: profile?.avatarUrl || null,
         rank: 0,
         totalPoints,
@@ -300,23 +342,60 @@ function buildChallenges(stats) {
   ];
 }
 
-export async function getPioneersLandingData({ range = "7d", category = "total" } = {}) {
+export async function getPioneersLandingData({
+  range = "lifetime",
+  category = "total",
+  supabaseClient,
+} = {}) {
   const warnings = [];
   const since = rangeSince(range);
-  const supabase = createServiceClient();
+  const supabase = supabaseClient || createServiceClient();
 
   if (!supabase) {
     return { ok: false, reason: "supabase_not_configured", warnings };
   }
 
-  const [videos, places, routes] = await Promise.all([
-    fetchSince(supabase, "videos", since),
-    fetchSince(supabase, "places", since),
-    fetchSince(supabase, "routes", since),
-  ]);
+  let content = await fetchContentSince(supabase, since);
+  let { videos, places, routes } = content;
+  warnings.push(...content.warnings);
+
+  // A genuinely quiet week and a transient query failure can both produce no
+  // rows. Widen once for bounded ranges only; lifetime already covers all time.
+  if (
+    videos.length === 0 &&
+    places.length === 0 &&
+    routes.length === 0 &&
+    range !== "30d" &&
+    range !== "lifetime" &&
+    range !== "all"
+  ) {
+    const widerSince = rangeSince("30d");
+    warnings.push("Primary range returned no rows; retrying with 30d.");
+    content = await fetchContentSince(supabase, widerSince);
+    ({ videos, places, routes } = content);
+    warnings.push(...content.warnings);
+  }
+
+  if (
+    videos.length === 0 &&
+    places.length === 0 &&
+    routes.length === 0 &&
+    content.failedTables.length > 0
+  ) {
+    warnings.push(`Unable to verify an empty ranking; failed tables: ${content.failedTables.join(", ")}.`);
+    return {
+      ok: false,
+      reason: "supabase_query_failed",
+      warnings: [...new Set(warnings)],
+    };
+  }
 
   if (videos.length === 0 && places.length === 0 && routes.length === 0) {
-    warnings.push("No recent content rows found in Supabase for the selected range.");
+    warnings.push(
+      since
+        ? "No recent content rows found in Supabase for the selected range."
+        : "No content rows found in Supabase for the lifetime ranking.",
+    );
   }
 
   const creatorIds = [
@@ -340,10 +419,23 @@ export async function getPioneersLandingData({ range = "7d", category = "total" 
     .slice(0, 5)
     .map((row, index) => serializeRouteItem(row, index + 1, profiles.get(creatorIdFromRow(row) || "")));
 
+  // Recognition/leaderboards follow the requested range (lifetime by default).
+  // Challenge cards keep "this week" progress even when recognition is lifetime.
+  let challengeVideos = videos;
+  let challengePlaces = places;
+  let challengeRoutes = routes;
+  if (range === "lifetime" || range === "all") {
+    const weekly = await fetchContentSince(supabase, rangeSince("7d"));
+    warnings.push(...weekly.warnings);
+    challengeVideos = weekly.videos;
+    challengePlaces = weekly.places;
+    challengeRoutes = weekly.routes;
+  }
+
   const stats = {
-    placesThisWeek: places.length,
-    routesThisWeek: routes.length,
-    videosThisWeek: videos.length,
+    placesThisWeek: challengePlaces.length,
+    routesThisWeek: challengeRoutes.length,
+    videosThisWeek: challengeVideos.length,
     activePioneers: users.length,
   };
 
@@ -372,6 +464,6 @@ export async function getPioneersLandingData({ range = "7d", category = "total" 
     topPlaces,
     topRoutes,
     leaderboardTabs: ["total", "videos", "routes", "places"],
-    warnings,
+    warnings: [...new Set(warnings)],
   };
 }

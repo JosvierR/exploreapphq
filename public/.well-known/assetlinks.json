@@ -1,11 +1,13 @@
 [
   {
-    "relation": ["delegate_permission/common.handle_all_urls"],
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
     "target": {
       "namespace": "android_app",
       "package_name": "com.explore.miapp",
       "sha256_cert_fingerprints": [
-        "71:CC:F5:20:95:36:03:23:75:0E:17:DA:92:9E:F6:DD:73:BB:B5:3C:DB:91:2E:51:88:29:17:E9:83:39:A9:0C"
+        "13:CB:65:35:3A:11:84:A6:9B:E9:BA:05:C9:5C:90:ED:98:9B:02:90:59:CE:59:23:03:FF:72:BB:AC:96:40:28"
       ]
     }
   }

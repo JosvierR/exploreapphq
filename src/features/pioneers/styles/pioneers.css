@@ -933,6 +933,8 @@
 }
 
 .pioneer-avatar-group {
+  display: flex;
+  align-items: center;
   min-height: 48px;
 }
 
@@ -942,12 +944,17 @@
   height: 48px;
   place-items: center;
   overflow: hidden;
+  margin-left: -12px;
   border: 2px solid var(--pixel-main);
   border-radius: 50%;
   background: linear-gradient(135deg, var(--pixel-main), var(--pixel-accent));
   color: #fff;
   font-family: var(--pixel-font-pixel);
   font-size: 0.5rem;
+}
+
+.pioneer-avatar:first-child {
+  margin-left: 0;
 }
 
 .pioneer-ranking__tabs {
@@ -1135,7 +1142,13 @@
   margin-bottom: 1.5rem;
 }
 
+.pioneer-leaderboard-frame.is-refreshing {
+  opacity: 0.92;
+  transition: opacity 0.2s ease;
+}
+
 .pioneer-content-board {
+  position: relative;
   border: 2px solid rgba(255, 255, 255, 0.14);
   background: rgba(16, 16, 48, 0.8);
   overflow: hidden;
@@ -1146,6 +1159,8 @@
   position: absolute;
   inset: 0 0 auto;
   height: 3px;
+  z-index: 1;
+  pointer-events: none;
   background: linear-gradient(90deg, var(--pixel-main), var(--pixel-accent));
 }
 

@@ -92,16 +92,33 @@ Server-only variables:
 - `GRAFANA_LOKI_URL`
 - `GRAFANA_LOKI_USERNAME`
 - `GRAFANA_LOKI_TOKEN`
+- `GRAFANA_LOGS_LEVEL` (`debug` | `info` | `warn` | `error`)
 
 If not configured, logs go to stdout only. If Loki push fails, the user request still succeeds and the failure is logged as a warning.
 
 Loki stream labels are intentionally low-cardinality: `service`, `environment`, `level`, `deployment`. Route and request metadata stay in the JSON log line, not as Loki labels.
 
+### Production (Vercel)
+
+1. Create a Grafana Cloud Loki source (or reuse an existing stack).
+2. Set the Vercel env vars from `vercel.env.example` (`GRAFANA_LOGS_ENABLED=true`, URL, username, token).
+3. Prefer `GRAFANA_LOGS_LEVEL=warn` in production to limit volume; use `info` for deeper traces.
+4. Redeploy.
+5. Verify in `/admin?section=system` → Loki connectivity `ok`.
+6. Query Grafana: `{service="explore-web-admin", environment="production"}`.
+
+Technical notes:
+
+- Vercel freezes the isolate after the response. Loki pushes are enqueued per request and flushed with `waitUntil` from `@vercel/functions` in `vercelAdapter.mjs`.
+- Without `waitUntil`, production Loki ingestion is unreliable even when env vars are correct.
+- In-memory Prometheus metrics remaining ephemeral on serverless remain intentional; durable ops use Loki + admin system health.
+
+Local Loki (Docker) does not require a token when `GRAFANA_LOKI_URL` points at `localhost` / `127.0.0.1`.
+On Vercel/production, a remote Loki token is required.
+
 ## API error handling
 
 Use `HttpError` and `handleApiError` from `server/api-lib/observability/errors.mjs` for consistent JSON errors, request IDs, and structured logs.
-
-Local Loki (Docker) does not require a token when `GRAFANA_LOKI_URL` points at `localhost` / `127.0.0.1`.
 
 ## Local OSS stack (free)
 
@@ -117,15 +134,25 @@ METRICS_TOKEN=local-dev-metrics-token
 GRAFANA_LOGS_ENABLED=true
 GRAFANA_LOKI_URL=http://localhost:3100/loki/api/v1/push
 
-npm run obs:up
+npm run obs:ready
 npm run dev:api
 ```
 
 | Tool | URL |
 |------|-----|
-| Grafana | http://localhost:3000 (`admin` / `admin`) |
+| Grafana | http://localhost:3002 (`admin` / `admin`) |
 | Prometheus | http://localhost:9090 |
 | Loki | http://localhost:3100 |
+
+Scripts:
+
+- `npm run obs:up` — start Prometheus + Loki + Grafana
+- `npm run obs:ready` — start stack and wait until healthy
+- `npm run obs:smoke` — verify stack (+ `/api/metrics` if API is up)
+- `npm run obs:down` — stop stack
+- `npm run obs:logs` — follow container logs
+
+Local Express (`npm run dev:api`) loads `.env` via `--env-file=.env` and records Prometheus counters on every `/api/*` handler path (same family as Vercel `dispatchApi`).
 
 Implementation modules:
 
@@ -133,4 +160,5 @@ Implementation modules:
 - `server/api-lib/observability/metrics.mjs`
 - `server/api-lib/observability/lokiLogger.mjs`
 - `server/api-lib/observability/errors.mjs`
+- `scripts/obs-smoke.mjs`
 
