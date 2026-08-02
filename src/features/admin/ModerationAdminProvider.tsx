@@ -4,10 +4,11 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
-import type { Session, User } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { AdminApiError, fetchAdminMe, type AdminMe } from "@/lib/moderationAdminApi";
 import { getSupabaseBrowserClient, isSupabaseBrowserConfigured } from "@/lib/supabaseClient";
 
@@ -20,6 +21,8 @@ type AdminStatus =
   | "api_unavailable"
   | "supabase_unavailable";
 
+type VerifyMode = "hard" | "soft";
+
 type ModerationAdminState = {
   status: AdminStatus;
   session: Session | null;
@@ -27,12 +30,17 @@ type ModerationAdminState = {
   admin: AdminMe | null;
   error: string | null;
   configured: boolean;
+  /** True while a background soft re-check is in flight; UI should stay authorized. */
+  sessionRefreshing: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 };
 
 const ModerationAdminContext = createContext<ModerationAdminState | null>(null);
+
+/** Skip duplicate soft `/api/admin/me` calls on tab focus / token refresh storms. */
+const VERIFY_COOLDOWN_MS = 20_000;
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -43,40 +51,109 @@ function logAuthError(error: unknown) {
   console.error("[supabase-admin] signInWithPassword failed", error);
 }
 
+function isSoftAuthEvent(event: AuthChangeEvent) {
+  return event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION";
+}
+
 export function ModerationAdminProvider({ children }: { children: ReactNode }) {
   const configured = isSupabaseBrowserConfigured();
   const [status, setStatus] = useState<AdminStatus>(configured ? "checking" : "not_configured");
   const [session, setSession] = useState<Session | null>(null);
   const [admin, setAdmin] = useState<AdminMe | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sessionRefreshing, setSessionRefreshing] = useState(false);
 
-  const verifySession = useCallback(async (nextSession: Session | null) => {
+  const adminRef = useRef<AdminMe | null>(null);
+  const statusRef = useRef<AdminStatus>(status);
+  const lastSuccessAtRef = useRef(0);
+  const lastUserIdRef = useRef<string | null>(null);
+  const verifyInFlightRef = useRef(0);
+
+  useEffect(() => {
+    adminRef.current = admin;
+  }, [admin]);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
+  const verifySession = useCallback(async (nextSession: Session | null, mode: VerifyMode = "hard") => {
     setSession(nextSession);
-    setAdmin(null);
-    setError(null);
 
     if (!configured) {
+      setAdmin(null);
+      setError(null);
+      setSessionRefreshing(false);
       setStatus("not_configured");
+      lastUserIdRef.current = null;
       return;
     }
 
     if (!nextSession?.access_token) {
+      setAdmin(null);
+      setError(null);
+      setSessionRefreshing(false);
       setStatus("logged_out");
+      lastUserIdRef.current = null;
+      lastSuccessAtRef.current = 0;
       return;
     }
 
-    setStatus("checking");
+    const userId = nextSession.user?.id ?? null;
+    const sameUser = Boolean(userId && userId === lastUserIdRef.current);
+    const alreadyAuthorized = statusRef.current === "authorized" && Boolean(adminRef.current);
+    const soft = mode === "soft" && sameUser && alreadyAuthorized;
+    const withinCooldown = Date.now() - lastSuccessAtRef.current < VERIFY_COOLDOWN_MS;
+
+    if (soft && withinCooldown) {
+      // Keep current authorized UI; skip redundant network verify on focus storms.
+      return;
+    }
+
+    const requestId = ++verifyInFlightRef.current;
+
+    if (soft) {
+      setSessionRefreshing(true);
+      setError(null);
+    } else {
+      setAdmin(null);
+      setError(null);
+      setSessionRefreshing(false);
+      setStatus("checking");
+    }
+
     try {
       const me = await fetchAdminMe(nextSession.access_token);
+      if (requestId !== verifyInFlightRef.current) return;
       setAdmin(me);
+      setError(null);
       setStatus("authorized");
+      lastSuccessAtRef.current = Date.now();
+      lastUserIdRef.current = userId;
     } catch (err) {
+      if (requestId !== verifyInFlightRef.current) return;
       const httpStatus = err instanceof AdminApiError ? err.status : undefined;
-      setError(err instanceof Error ? err.message : "Could not verify admin access.");
+      const message = err instanceof Error ? err.message : "Could not verify admin access.";
+
+      if (soft && httpStatus !== 401 && httpStatus !== 403) {
+        // Transient API blip during soft refresh: keep authorized UI, surface non-blocking error.
+        setError(message);
+        setStatus("authorized");
+        return;
+      }
+
+      setAdmin(null);
+      setError(message);
       if (httpStatus === 403) setStatus("denied");
       else if (httpStatus === 500) setStatus("supabase_unavailable");
       else if (!httpStatus) setStatus("api_unavailable");
       else setStatus("logged_out");
+      lastUserIdRef.current = null;
+      lastSuccessAtRef.current = 0;
+    } finally {
+      if (requestId === verifyInFlightRef.current) {
+        setSessionRefreshing(false);
+      }
     }
   }, [configured]);
 
@@ -90,11 +167,25 @@ export function ModerationAdminProvider({ children }: { children: ReactNode }) {
     let active = true;
 
     client.auth.getSession().then(({ data }) => {
-      if (active) void verifySession(data.session);
+      if (active) void verifySession(data.session, "hard");
     });
 
-    const { data } = client.auth.onAuthStateChange((_event, nextSession) => {
-      void verifySession(nextSession);
+    const { data } = client.auth.onAuthStateChange((event, nextSession) => {
+      if (!active) return;
+      if (event === "SIGNED_OUT") {
+        void verifySession(null, "hard");
+        return;
+      }
+      if (isSoftAuthEvent(event)) {
+        void verifySession(nextSession, "soft");
+        return;
+      }
+      // SIGNED_IN after password login is handled by signIn(); still soft if same user already authorized.
+      const softSameUser =
+        Boolean(nextSession?.user?.id) &&
+        nextSession?.user?.id === lastUserIdRef.current &&
+        statusRef.current === "authorized";
+      void verifySession(nextSession, softSameUser ? "soft" : "hard");
     });
 
     return () => {
@@ -110,7 +201,7 @@ export function ModerationAdminProvider({ children }: { children: ReactNode }) {
     }
 
     const { data } = await getSupabaseBrowserClient().auth.getSession();
-    await verifySession(data.session);
+    await verifySession(data.session, "hard");
   }, [configured, verifySession]);
 
   const signIn = useCallback(async (email: string, password: string) => {
@@ -120,6 +211,7 @@ export function ModerationAdminProvider({ children }: { children: ReactNode }) {
 
     setStatus("checking");
     setError(null);
+    setSessionRefreshing(false);
     const normalizedEmail = normalizeEmail(email);
     const { data, error: authError } = await getSupabaseBrowserClient().auth.signInWithPassword({
       email: normalizedEmail,
@@ -133,7 +225,7 @@ export function ModerationAdminProvider({ children }: { children: ReactNode }) {
       throw authError;
     }
 
-    await verifySession(data.session);
+    await verifySession(data.session, "hard");
   }, [configured, verifySession]);
 
   const signOut = useCallback(async () => {
@@ -143,7 +235,10 @@ export function ModerationAdminProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setAdmin(null);
     setError(null);
+    setSessionRefreshing(false);
     setStatus(configured ? "logged_out" : "not_configured");
+    lastUserIdRef.current = null;
+    lastSuccessAtRef.current = 0;
   }, [configured]);
 
   const value = useMemo(
@@ -154,11 +249,12 @@ export function ModerationAdminProvider({ children }: { children: ReactNode }) {
       admin,
       error,
       configured,
+      sessionRefreshing,
       signIn,
       signOut,
       refresh,
     }),
-    [admin, configured, error, refresh, session, signIn, signOut, status],
+    [admin, configured, error, refresh, session, sessionRefreshing, signIn, signOut, status],
   );
 
   return (

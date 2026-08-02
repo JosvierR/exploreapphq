@@ -1,5 +1,21 @@
 # Explore Web/Admin Observability
 
+## Where to look
+
+| Surface | URL / command | What you get |
+| --- | --- | --- |
+| Admin System console | `/admin?section=system` | Health checks, warnings, ephemeral instance metrics, security signals, Loki readiness |
+| Public health | `/api/health` | Safe, unauthenticated readiness flags |
+| Admin health/metrics APIs | `/api/admin/system/health`, `/api/admin/system/metrics` | Bearer-token JSON used by the Admin UI |
+| Local Grafana | `http://localhost:3002` after `npm run obs:ready` | Full Grafana UI with Prometheus + Loki |
+| Production Grafana | Grafana Cloud (external) | Requires `GRAFANA_*` Vercel env vars |
+
+### Why `/api/admin/system/metrics` shows Authentication required in the browser
+
+Opening that URL in a normal tab does **not** send the Supabase admin access token. The Admin console fetches the same endpoint with `Authorization: Bearer <token>` after login. Use `/admin?section=system` (and the in-page JSON drawers) instead of raw API tabs.
+
+Grafana/Loki are **not** hosted inside `exploreapphq.com`. The System page reports whether log shipping is configured; dashboards live in Grafana Cloud or the local Docker stack.
+
 ## Request IDs
 
 Every `/api/*` request receives an `x-request-id`.

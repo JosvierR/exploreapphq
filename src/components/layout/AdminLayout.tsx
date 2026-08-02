@@ -349,12 +349,22 @@ export function AdminLayout() {
               <HealthPill label="Supabase configured" tone={supabaseConfigured ? "ok" : "error"} />
               <HealthPill
                 label="Admin authorized"
-                tone={adminAuthorized ? "ok" : moderationAdmin.status === "checking" ? "warning" : "error"}
+                tone={
+                  adminAuthorized
+                    ? "ok"
+                    : moderationAdmin.status === "checking" && !moderationAdmin.sessionRefreshing
+                      ? "warning"
+                      : "error"
+                }
               />
             </div>
 
             <div className="admin-console__refresh">
-              <span>Updated {formatLastUpdated(lastUpdated)}</span>
+              <span>
+                {moderationAdmin.sessionRefreshing
+                  ? "Refreshing session…"
+                  : `Updated ${formatLastUpdated(lastUpdated)}`}
+              </span>
               <button
                 type="button"
                 className="admin-btn admin-btn--ghost admin-btn--sm"
