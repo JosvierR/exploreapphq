@@ -33,6 +33,8 @@ import {
 // @ts-ignore
 import { handlePioneersLanding } from "./api-lib/pioneers/pioneersRouter.mjs";
 // @ts-ignore
+import { dispatchOpenApiDocs } from "./api-lib/docs/docsRouter.mjs";
+// @ts-ignore
 import { ensureRequestId, routePath } from "./api-lib/http/requestContext.mjs";
 // @ts-ignore
 import { resolveApiRoute } from "./api-lib/http/resolveApiRoute.mjs";
@@ -267,6 +269,18 @@ app.all("/api/admin/system/metrics", (req, res) => {
 app.all("/api/admin/system/bootstrap-board", (req, res) => {
   void sendFetchResponse(handleBootstrapBoardAdmins, req, res);
 });
+
+const openApiSurfaces = ["postgrest", "edge", "admin"] as const;
+
+for (const surface of openApiSurfaces) {
+  app.all(`/api/admin/openapi/${surface}`, (req, res) => {
+    void sendFetchResponse(
+      (request) => dispatchOpenApiDocs(request, `admin/openapi/${surface}`),
+      req,
+      res,
+    );
+  });
+}
 
 app.all("/api/metrics", (req, res) => {
   void sendFetchResponse(handleTokenMetrics, req, res);

@@ -20,6 +20,7 @@ import { ReportsAdminPage } from "@/pages/admin/ReportsAdminPage";
 import { WaitlistAdminPage } from "@/pages/admin/WaitlistAdminPage";
 
 const HomePage = lazy(() => import("@/pages/marketing/HomePage"));
+const ApiDocsPage = lazy(() => import("@/pages/admin/ApiDocsPage"));
 
 function AppRoot() {
   return (
@@ -32,6 +33,14 @@ function AppRoot() {
 
 function LazyMarketingPage({ children }: { children: ReactNode }) {
   return <Suspense fallback={<main aria-busy="true" />}>{children}</Suspense>;
+}
+
+function LazyAdminPage({ children }: { children: ReactNode }) {
+  return (
+    <Suspense fallback={<div className="admin-page" aria-busy="true">Loading…</div>}>
+      {children}
+    </Suspense>
+  );
 }
 
 export const router = createBrowserRouter([
@@ -64,6 +73,14 @@ export const router = createBrowserRouter([
           { path: "/admin/analytics/business", element: <AdminBusinessInsightsPage /> },
           { path: "/admin/reports", element: <ReportsAdminPage /> },
           { path: "/admin/waitlist", element: <WaitlistAdminPage /> },
+          {
+            path: "/admin/api-docs",
+            element: (
+              <LazyAdminPage>
+                <ApiDocsPage />
+              </LazyAdminPage>
+            ),
+          },
         ],
       },
       {

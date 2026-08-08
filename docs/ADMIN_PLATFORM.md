@@ -9,6 +9,7 @@ Current frontend entry points:
 - `src/components/layout/AdminLayout.tsx` owns the admin shell, sidebar, topbar, refresh action, and system status pills.
 - `src/pages/admin/AdminDashboardPage.tsx` owns overview, users, content, moderation, insights, and analytics-foundation sections.
 - `src/pages/admin/ReportsAdminPage.tsx` owns the moderation report queue and video moderation workspace.
+- `src/pages/admin/ApiDocsPage.tsx` owns the lazy-loaded Scalar OpenAPI browser (`/admin/api-docs`).
 - `src/features/admin/components/` contains reusable admin UI primitives and the admin error boundary.
 - `src/features/admin/observability/` contains System/Observability API and formatting helpers.
 - `src/features/admin/pages/AdminSystemPage.tsx` owns the System/Observability page.
@@ -24,6 +25,19 @@ Current frontend entry points:
 - `/admin?section=system` - System/Observability.
 - `/admin/reports` - moderation reports and video moderation lifecycle.
 - `/admin/waitlist` - waitlist operations.
+- `/admin/api-docs` - Scalar UI over admin-only OpenAPI skeletons (PostgREST, Edge, Admin HTTP).
+
+## Admin OpenAPI (docs)
+
+Admin-authenticated read-only specs (skeletons until later phases):
+
+| Method | Path | Surface |
+|--------|------|---------|
+| `GET` | `/api/admin/openapi/postgrest` | PostgREST |
+| `GET` | `/api/admin/openapi/edge` | Edge Functions |
+| `GET` | `/api/admin/openapi/admin` | Admin HTTP API |
+
+Handlers live in `server/api-lib/docs/` and are wired through `server/api-lib/router.mjs` (mirrored in `server/index.ts`). Each route uses `requireAdmin`.
 
 ## Backend Routing
 
@@ -35,6 +49,7 @@ Vercel keeps one consolidated function:
 - `server/api-lib/moderation/moderationRouter.mjs`
 - `server/api-lib/moderation/supabaseModeration.mjs`
 - `server/api-lib/system/systemRouter.mjs`
+- `server/api-lib/docs/docsRouter.mjs`
 
 `vercel.json` rewrites `/api/(.*)` to `/api/index.js`, preserving the single serverless function pattern.
 
@@ -56,3 +71,5 @@ The UI handles:
 The console must not fake product analytics. Product analytics such as DAU, WAU, retention, CTR, impressions, clicks, and route starts require an analytics event foundation. Until that exists, UI must say `Analytics foundation required` or `Not available`.
 
 Infrastructure metrics are available through request logs, request ids, health endpoints, and in-memory instance metrics.
+
+**Reviewed:** 2026-08-08

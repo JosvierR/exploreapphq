@@ -18,6 +18,7 @@ import {
   handleTokenMetrics,
 } from "./system/systemRouter.mjs";
 import { handlePioneersLanding } from "./pioneers/pioneersRouter.mjs";
+import { dispatchOpenApiDocs, isOpenApiDocsRoute } from "./docs/docsRouter.mjs";
 
 function isModerationRoute(route) {
   return (
@@ -42,6 +43,7 @@ function isModerationRoute(route) {
  * - moderation/*  → reports, admin ops, health
  * - analytics/*   → events ingestion + admin insights
  * - system/*      → observability health/metrics + bootstrap
+ * - docs/*        → admin OpenAPI skeletons for Scalar
  * - netlify/*     → waitlist/feedback legacy handlers
  */
 export async function dispatchApi(incomingRequest) {
@@ -68,6 +70,8 @@ export async function dispatchApi(incomingRequest) {
       response = await handleAdminSystemMetrics(request);
     } else if (route === "admin/system/bootstrap-board") {
       response = await handleBootstrapBoardAdmins(request);
+    } else if (isOpenApiDocsRoute(route)) {
+      response = await dispatchOpenApiDocs(request, route);
     } else if (route === "metrics") {
       response = await handleTokenMetrics(request);
     } else if (route === "waitlist/signup") {

@@ -8,11 +8,13 @@ Browser (Vite React SPA)
   └─ /explorar    → Consumer home
   └─ /team        → Redirect to `/admin` (hidden operator entry; no public nav link)
   └─ /admin/*     → AdminAuthGate (`src/features/admin/components/AdminAuthGate.tsx`)
+  └─ /admin/api-docs → Lazy Scalar OpenAPI UI (`src/pages/admin/ApiDocsPage.tsx`)
   └─ /api/*       → Vercel single function: api/index.js
                     └─ server/api-lib/router.mjs
                          ├─ moderation/   reports, ops, admin auth
                          ├─ analytics/    events ingest + insights
                          ├─ system/       health, metrics, bootstrap
+                         ├─ docs/         admin OpenAPI skeletons (Scalar)
                          └─ netlify/functions/* (waitlist/feedback handlers)
 ```
 
@@ -30,6 +32,7 @@ Local Express (`server/index.ts`) mounts the same handlers for development.
 | `moderation/` | Reports, admin users, ops summary, moderation actions |
 | `analytics/` | `POST /api/events` + admin insights APIs |
 | `system/` | Health, metrics endpoints, board admin bootstrap |
+| `docs/` | Admin-only OpenAPI 3.1 skeletons for Scalar (`/api/admin/openapi/*`) |
 | `router.mjs` | Single dispatcher for all `/api/*` routes |
 
 Learn a domain by reading its folder top-down. Prefer importing from domain folders, not from unrelated modules.
@@ -39,7 +42,7 @@ Learn a domain by reading its folder top-down. Prefer importing from domain fold
 | Path | Responsibility |
 |------|----------------|
 | `src/features/pioneers/` | Pioneros landing pages, sections, API client, styles |
-| `src/pages/admin/` | Admin route pages (dashboard, reports, analytics, waitlist) |
+| `src/pages/admin/` | Admin route pages (dashboard, reports, analytics, waitlist, api-docs) |
 | `src/features/admin/` | Auth gate, primitives, system page, observability hooks |
 | `src/lib/` | Typed API clients (`moderationAdminApi`, `adminAnalyticsApi`) |
 | `src/components/layout/` | `AdminLayout` nav/shell |
@@ -94,6 +97,8 @@ Never put `SUPABASE_SECRET_KEY` or `METRICS_TOKEN` in `VITE_*` variables.
 | `docs/SUPABASE_MODERATION.md` | Moderation API contract |
 | `docs/ANALYTICS_EVENTS_API.md` | Events ingestion |
 | `docs/DATA-004_ADMIN_INSIGHTS_DASHBOARD.md` | Admin analytics UI/API |
+
+**Reviewed:** 2026-08-08
 
 ## Adding a new API route
 

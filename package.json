@@ -11,7 +11,7 @@
     "build:api": "tsc -p tsconfig.server.json",
     "preview": "vite preview",
     "lint": "tsc -b --noEmit",
-    "test": "tsx src/lib/analyticsDisplay.test.ts && tsx src/features/admin/observability/adminMetricsFormat.test.ts && node src/features/pioneers/api/pioneersApi.test.mjs && node server/api-lib/pioneers/pioneersService.test.mjs && node server/api-lib/analytics/analyticsRouter.source.test.mjs && node server/api-lib/analytics/analyticsAdminApi.test.mjs && node server/api-lib/analytics/analyticsOperationsService.test.mjs && node server/api-lib/analytics/businessInsightsService.test.mjs",
+    "test": "tsx src/lib/analyticsDisplay.test.ts && tsx src/features/admin/observability/adminMetricsFormat.test.ts && node src/features/pioneers/api/pioneersApi.test.mjs && node server/api-lib/pioneers/pioneersService.test.mjs && node server/api-lib/analytics/analyticsRouter.source.test.mjs && node server/api-lib/analytics/analyticsAdminApi.test.mjs && node server/api-lib/analytics/analyticsOperationsService.test.mjs && node server/api-lib/analytics/businessInsightsService.test.mjs && node --test server/api-lib/docs/docsRouter.source.test.mjs",
     "obs:up": "docker compose -f observability/docker-compose.observability.yml up -d",
     "obs:down": "docker compose -f observability/docker-compose.observability.yml down",
     "obs:logs": "docker compose -f observability/docker-compose.observability.yml logs -f grafana prometheus loki",
@@ -32,6 +32,7 @@
   "dependencies": {
     "@floating-ui/react": "^0.27.19",
     "@netlify/blobs": "^8.1.0",
+    "@scalar/api-reference-react": "^0.9.61",
     "@supabase/supabase-js": "^2.108.2",
     "@vercel/analytics": "^2.0.1",
     "@vercel/functions": "^2.2.13",

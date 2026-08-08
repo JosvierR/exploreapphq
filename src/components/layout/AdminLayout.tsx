@@ -41,6 +41,7 @@ const insightsItems: NavItem[] = [
 
 const systemItems: NavItem[] = [
   { label: "System / Observability", to: "/admin?section=system", exactQuery: true },
+  { label: "API Docs", to: "/admin/api-docs" },
   { label: "Admins", to: "/admin?section=admins", exactQuery: true },
 ];
 
@@ -134,6 +135,13 @@ function routeMeta(pathname: string, search: string) {
     return {
       title: "Waitlist",
       description: "Manage early access operations.",
+    };
+  }
+
+  if (pathname.startsWith("/admin/api-docs")) {
+    return {
+      title: "API Docs",
+      description: "Browse OpenAPI specs for PostgREST, Edge Functions, and Admin HTTP APIs.",
     };
   }
 
