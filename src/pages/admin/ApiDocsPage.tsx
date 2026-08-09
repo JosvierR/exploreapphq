@@ -29,6 +29,7 @@ function ApiDocsContent() {
   const { session } = useModerationAdmin();
   const accessToken = session?.access_token ?? "";
   const [sources, setSources] = useState<SpecSource[] | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -44,8 +45,9 @@ function ApiDocsContent() {
     async function load() {
       setLoading(true);
       setError(null);
+      setWarnings([]);
       try {
-        const results = await Promise.all(
+        const settled = await Promise.allSettled(
           SOURCE_META.map(async (meta) => {
             const response = await fetch(meta.path, {
               headers: {
@@ -60,12 +62,12 @@ function ApiDocsContent() {
                   ? data.error
                   : `Failed to load ${meta.title} (${response.status})`;
               const code = data && typeof data.code === "string" ? ` [${data.code}]` : "";
-              throw new Error(`${message}${code}`);
+              throw new Error(`${meta.title}: ${message}${code}`);
             }
             if (!data || typeof data !== "object" || data.ok === false) {
               throw new Error(
                 data && typeof data.error === "string"
-                  ? data.error
+                  ? `${meta.title}: ${data.error}`
                   : `${meta.title} returned an invalid OpenAPI document`,
               );
             }
@@ -76,8 +78,18 @@ function ApiDocsContent() {
             } satisfies SpecSource;
           }),
         );
+
+        const nextSources: SpecSource[] = [];
+        const nextWarnings: string[] = [];
+        for (const result of settled) {
+          if (result.status === "fulfilled") nextSources.push(result.value);
+          else nextWarnings.push(result.reason instanceof Error ? result.reason.message : String(result.reason));
+        }
+
         if (!cancelled) {
-          setSources(results);
+          setSources(nextSources.length ? nextSources : null);
+          setWarnings(nextWarnings);
+          setError(nextSources.length ? null : nextWarnings[0] || "Failed to load OpenAPI documents.");
         }
       } catch (err) {
         if (!cancelled) {
@@ -123,18 +135,30 @@ function ApiDocsContent() {
         </div>
       )}
 
-      {!loading && error && (
+      {!loading && error && !configuration && (
         <div className="admin-api-docs__status admin-api-docs__status--error" role="alert">
           <strong>Could not load API docs.</strong>
           <p>{error}</p>
           <p className="admin-muted">
-            For PostgREST, confirm Vercel has <code>SUPABASE_URL</code> and{" "}
-            <code>SUPABASE_ANON_KEY</code> (server-only), then redeploy.
+            PostgREST needs <code>SUPABASE_URL</code> + <code>SUPABASE_ANON_KEY</code> from the{" "}
+            <em>same</em> Supabase project (Dashboard → Settings → API → anon public). Save in Vercel
+            Production and Redeploy.
           </p>
         </div>
       )}
 
-      {!loading && !error && configuration && (
+      {!loading && warnings.length > 0 && configuration && (
+        <div className="admin-api-docs__status admin-api-docs__status--error" role="status">
+          <strong>Some surfaces failed to load.</strong>
+          <ul>
+            {warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {!loading && configuration && (
         <div className="admin-api-docs__scalar">
           <ApiReferenceReact configuration={configuration} />
         </div>

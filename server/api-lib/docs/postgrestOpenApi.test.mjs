@@ -7,6 +7,7 @@ import {
   fetchLivePostgrestOpenApi,
   fitOpenApiForServerless,
   getPostgrestAnonKey,
+  sanitizeSupabaseEnvValue,
 } from "./postgrestOpenApi.mjs";
 
 const SAMPLE_SWAGGER = {
@@ -83,6 +84,12 @@ test("already-OpenAPI documents are normalized to 3.1 without swagger fields", a
   });
   assert.equal(spec.openapi, "3.1.0");
   assert.equal(/** @type {any} */ (spec).paths["/x"].get.responses["200"].description, "ok");
+});
+
+test("sanitizeSupabaseEnvValue strips quotes and Bearer prefix", () => {
+  assert.equal(sanitizeSupabaseEnvValue('  "eyJabc.def"  '), "eyJabc.def");
+  assert.equal(sanitizeSupabaseEnvValue("Bearer eyJabc.def"), "eyJabc.def");
+  assert.equal(sanitizeSupabaseEnvValue("sb_publishable_x"), "sb_publishable_x");
 });
 
 test("getPostgrestAnonKey never reads VITE_* env vars", () => {

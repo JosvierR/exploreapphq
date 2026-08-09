@@ -19,11 +19,32 @@ function configured(value) {
 }
 
 /**
+ * Strip paste artifacts common in Vercel env values (quotes, Bearer prefix, whitespace).
+ * @param {string} value
+ */
+export function sanitizeSupabaseEnvValue(value) {
+  let next = String(value || "").trim();
+  if (
+    (next.startsWith('"') && next.endsWith('"')) ||
+    (next.startsWith("'") && next.endsWith("'"))
+  ) {
+    next = next.slice(1, -1).trim();
+  }
+  if (/^bearer\s+/i.test(next)) {
+    next = next.replace(/^bearer\s+/i, "").trim();
+  }
+  return next;
+}
+
+/**
  * Server-side project URL only. Prefer SUPABASE_URL; URL is not secret so
  * VITE_SUPABASE_URL is an allowed fallback for existing deploys.
  */
 export function getPostgrestSupabaseUrl() {
-  return (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").trim().replace(/\/$/, "");
+  return sanitizeSupabaseEnvValue(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").replace(
+    /\/$/,
+    "",
+  );
 }
 
 /**
@@ -31,13 +52,37 @@ export function getPostgrestSupabaseUrl() {
  * Never read VITE_* here so the key is not coupled to the browser bundle.
  */
 export function getPostgrestAnonKey() {
-  return (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "").trim();
+  return sanitizeSupabaseEnvValue(process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "");
+}
+
+function anonKeyFingerprint(anonKey) {
+  if (!anonKey) return { present: false };
+  return {
+    present: true,
+    length: anonKey.length,
+    kind: anonKey.startsWith("eyJ")
+      ? "legacy_jwt"
+      : anonKey.startsWith("sb_publishable_")
+        ? "sb_publishable"
+        : anonKey.startsWith("sb_")
+          ? "sb_other"
+          : "unknown",
+  };
 }
 
 export function postgrestOpenApiConfigStatus() {
+  const url = getPostgrestSupabaseUrl();
+  let host = "";
+  try {
+    host = url ? new URL(url).host : "";
+  } catch {
+    host = "";
+  }
   return {
-    supabase_url_configured: configured(getPostgrestSupabaseUrl()),
+    supabase_url_configured: configured(url),
+    supabase_url_host: host,
     supabase_anon_key_configured: configured(getPostgrestAnonKey()),
+    supabase_anon_key: anonKeyFingerprint(getPostgrestAnonKey()),
     prefer_lite: PREFER_LITE,
   };
 }
@@ -220,16 +265,28 @@ export async function fetchLivePostgrestOpenApi(options = {}) {
   }
 
   const endpoint = `${url}/rest/v1/`;
-  let response;
+  const accept = "application/openapi+json, application/json";
+  /** @type {Array<Record<string, string>>} */
+  const authAttempts = [
+    { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+    // Some gateways accept apikey alone; retry before failing hard on 401.
+    { apikey: anonKey },
+  ];
+
+  let response = null;
+  let lastStatus = 0;
   try {
-    response = await fetchImpl(endpoint, {
-      method: "GET",
-      headers: {
-        Accept: "application/openapi+json, application/json",
-        apikey: anonKey,
-        Authorization: `Bearer ${anonKey}`,
-      },
-    });
+    for (const authHeaders of authAttempts) {
+      response = await fetchImpl(endpoint, {
+        method: "GET",
+        headers: {
+          Accept: accept,
+          ...authHeaders,
+        },
+      });
+      lastStatus = response.status;
+      if (response.ok || response.status !== 401) break;
+    }
   } catch (error) {
     logger.warn("PostgREST OpenAPI upstream fetch failed", { error: errorSummary(error) });
     throw Object.assign(new Error("Failed to reach PostgREST OpenAPI upstream"), {
@@ -238,11 +295,21 @@ export async function fetchLivePostgrestOpenApi(options = {}) {
     });
   }
 
-  if (!response.ok) {
+  if (!response || !response.ok) {
+    const config = postgrestOpenApiConfigStatus();
     logger.warn("PostgREST OpenAPI upstream returned error", {
-      status: response.status,
+      status: lastStatus || response?.status,
+      ...config,
     });
-    throw Object.assign(new Error(`PostgREST OpenAPI upstream returned ${response.status}`), {
+    if (lastStatus === 401 || response?.status === 401) {
+      throw Object.assign(
+        new Error(
+          `Supabase rejected SUPABASE_ANON_KEY for ${config.supabase_url_host || "SUPABASE_URL"} (HTTP 401). Re-copy the anon/publishable key from the same project's Dashboard → Settings → API (no quotes), save in Vercel as SUPABASE_ANON_KEY, and Redeploy.`,
+        ),
+        { status: 502, code: "postgrest_openapi_upstream_unauthorized" },
+      );
+    }
+    throw Object.assign(new Error(`PostgREST OpenAPI upstream returned ${lastStatus || response?.status}`), {
       status: 502,
       code: "postgrest_openapi_upstream_error",
     });
