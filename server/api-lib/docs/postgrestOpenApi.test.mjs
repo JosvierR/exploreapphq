@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { convertSwagger2LiteToOpenApi31 } from "./convertSwagger2Lite.mjs";
 import {
   clearPostgrestOpenApiCache,
   convertSwaggerToOpenApi31,
   fetchLivePostgrestOpenApi,
+  fitOpenApiForServerless,
   getPostgrestAnonKey,
 } from "./postgrestOpenApi.mjs";
 
@@ -13,6 +15,14 @@ const SAMPLE_SWAGGER = {
   host: "example.supabase.co",
   basePath: "/rest/v1",
   schemes: ["https"],
+  definitions: {
+    profiles: {
+      type: "object",
+      properties: {
+        id: { type: "string", format: "uuid" },
+      },
+    },
+  },
   paths: {
     "/profiles": {
       get: {
@@ -23,9 +33,22 @@ const SAMPLE_SWAGGER = {
             description: "OK",
             schema: {
               type: "array",
-              items: { type: "object" },
+              items: { $ref: "#/definitions/profiles" },
             },
           },
+        },
+      },
+      post: {
+        parameters: [
+          {
+            name: "body",
+            in: "body",
+            required: true,
+            schema: { $ref: "#/definitions/profiles" },
+          },
+        ],
+        responses: {
+          201: { description: "Created" },
         },
       },
     },
@@ -38,6 +61,27 @@ test("convertSwaggerToOpenApi31 yields openapi 3.1 with paths", async () => {
   assert.equal(typeof spec.info?.title, "string");
   assert.ok(spec.paths && typeof spec.paths === "object");
   assert.ok(Object.keys(/** @type {object} */ (spec.paths)).length > 0);
+});
+
+test("lite converter rewrites definition refs and body params", () => {
+  const spec = convertSwagger2LiteToOpenApi31(SAMPLE_SWAGGER);
+  assert.equal(spec.openapi, "3.1.0");
+  const getSchema =
+    /** @type {any} */ (spec).paths["/profiles"].get.responses["200"].content["application/json"].schema;
+  assert.equal(getSchema.items.$ref, "#/components/schemas/profiles");
+  const postBody = /** @type {any} */ (spec).paths["/profiles"].post.requestBody;
+  assert.equal(postBody.content["application/json"].schema.$ref, "#/components/schemas/profiles");
+  assert.ok(/** @type {any} */ (spec).components.schemas.profiles);
+});
+
+test("already-OpenAPI documents are normalized to 3.1 without swagger fields", async () => {
+  const spec = await convertSwaggerToOpenApi31({
+    openapi: "3.0.3",
+    info: { title: "Live", version: "1" },
+    paths: { "/x": { get: { responses: { 200: { description: "ok" } } } } },
+  });
+  assert.equal(spec.openapi, "3.1.0");
+  assert.equal(/** @type {any} */ (spec).paths["/x"].get.responses["200"].description, "ok");
 });
 
 test("getPostgrestAnonKey never reads VITE_* env vars", () => {
@@ -92,6 +136,7 @@ test("fetchLivePostgrestOpenApi caches converted spec briefly", async () => {
     assert.equal(calls, 1);
     assert.equal(first.spec.openapi, "3.1.0");
     assert.equal(second.spec.openapi, "3.1.0");
+    assert.match(first.json, /"openapi":"3\.1\.0"/);
   } finally {
     clearPostgrestOpenApiCache();
     if (prevUrl === undefined) delete process.env.SUPABASE_URL;
@@ -99,4 +144,36 @@ test("fetchLivePostgrestOpenApi caches converted spec briefly", async () => {
     if (prevAnon === undefined) delete process.env.SUPABASE_ANON_KEY;
     else process.env.SUPABASE_ANON_KEY = prevAnon;
   }
+});
+
+test("fitOpenApiForServerless prunes oversized descriptions", () => {
+  const huge = "x".repeat(200_000);
+  const spec = {
+    openapi: "3.1.0",
+    info: { title: "t", version: "1", description: huge },
+    paths: {
+      "/a": {
+        get: {
+          description: huge,
+          responses: { 200: { description: huge } },
+        },
+      },
+    },
+  };
+  // Force prune path by making JSON large enough — pad paths.
+  /** @type {Record<string, unknown>} */
+  const paths = {};
+  for (let i = 0; i < 30; i += 1) {
+    paths[`/p${i}`] = {
+      get: {
+        description: huge,
+        responses: { 200: { description: huge, content: { "application/json": { schema: { type: "object" } } } } },
+      },
+    };
+  }
+  spec.paths = paths;
+  const fitted = fitOpenApiForServerless(spec);
+  assert.ok(fitted.json.length < JSON.stringify(spec).length);
+  assert.equal(fitted.spec.openapi, "3.1.0");
+  assert.equal(/** @type {any} */ (fitted.spec).info.description, undefined);
 });

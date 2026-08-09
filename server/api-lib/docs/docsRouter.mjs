@@ -3,7 +3,11 @@ import { requestIdFromRequest } from "../http/requestContext.mjs";
 import { requireAdmin } from "../moderation/supabaseModeration.mjs";
 import { errorSummary, logger, requestLogMeta } from "../observability/logger.mjs";
 import { buildMinimalOpenApiSpec, isOpenApiSurface } from "./minimalSpecs.mjs";
-import { fetchLivePostgrestOpenApi, postgrestOpenApiConfigStatus } from "./postgrestOpenApi.mjs";
+import {
+  fetchLivePostgrestOpenApi,
+  openApiJsonResponse,
+  postgrestOpenApiConfigStatus,
+} from "./postgrestOpenApi.mjs";
 
 function methodNotAllowed(request) {
   return jsonResponse(405, {
@@ -11,18 +15,6 @@ function methodNotAllowed(request) {
     error: "Method not allowed.",
     request_id: requestIdFromRequest(request),
   });
-}
-
-/**
- * @param {string} surface
- * @returns {Promise<Record<string, unknown>>}
- */
-async function resolveOpenApiSpec(surface) {
-  if (surface === "postgrest") {
-    const { spec } = await fetchLivePostgrestOpenApi();
-    return spec;
-  }
-  return buildMinimalOpenApiSpec(surface);
 }
 
 /**
@@ -47,11 +39,18 @@ export async function dispatchOpenApiDocs(request, route) {
 
   try {
     await requireAdmin(request);
-    const spec = await resolveOpenApiSpec(surface);
-    const headers = {
-      "Cache-Control": surface === "postgrest" ? "private, max-age=60" : "no-store",
-    };
-    return jsonResponse(200, spec, headers);
+
+    if (surface === "postgrest") {
+      const { json, cache } = await fetchLivePostgrestOpenApi();
+      return openApiJsonResponse(request, 200, json, {
+        "Cache-Control": "private, max-age=60",
+        "X-Explore-OpenAPI-Cache": cache,
+      });
+    }
+
+    return jsonResponse(200, buildMinimalOpenApiSpec(surface), {
+      "Cache-Control": "no-store",
+    });
   } catch (error) {
     logger.warn("Admin OpenAPI docs failed", {
       ...requestLogMeta(request, route),
@@ -69,7 +68,7 @@ export async function dispatchOpenApiDocs(request, route) {
           : status === 503
             ? error?.message || "PostgREST OpenAPI is not configured."
             : status === 502
-              ? "Failed to load live PostgREST OpenAPI."
+              ? error?.message || "Failed to load live PostgREST OpenAPI."
               : "Internal server error";
     return jsonResponse(status, {
       ok: false,

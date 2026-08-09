@@ -33,7 +33,7 @@ Admin-authenticated read-only specs:
 
 | Method | Path | Surface |
 |--------|------|---------|
-| `GET` | `/api/admin/openapi/postgrest` | Live PostgREST (Swagger 2 → OpenAPI 3.1, short cache) |
+| `GET` | `/api/admin/openapi/postgrest` | Live PostgREST (Swagger 2/OpenAPI → 3.1, gzip + short cache) |
 | `GET` | `/api/admin/openapi/edge` | Edge Functions skeleton |
 | `GET` | `/api/admin/openapi/admin` | Admin HTTP API skeleton |
 

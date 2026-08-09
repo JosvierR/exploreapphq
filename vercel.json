@@ -25,8 +25,8 @@
   ],
   "functions": {
     "api/index.js": {
-      "includeFiles": "netlify/functions/**,server/emails/**,server/api-lib/**",
-      "maxDuration": 10
+      "includeFiles": "netlify/functions/**,server/emails/**,server/api-lib/**,node_modules/swagger2openapi/**,node_modules/oas-kit-common/**,node_modules/oas-resolver/**,node_modules/oas-schema-walker/**,node_modules/oas-validator/**,node_modules/reftools/**,node_modules/call-me-maybe/**",
+      "maxDuration": 30
     }
   },
   "crons": [
