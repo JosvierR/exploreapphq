@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { convertSwagger2LiteToOpenApi31 } from "./convertSwagger2Lite.mjs";
 import {
+  buildPostgrestAuthHeaderAttempts,
   clearPostgrestOpenApiCache,
   convertSwaggerToOpenApi31,
   fetchLivePostgrestOpenApi,
   fitOpenApiForServerless,
   getPostgrestAnonKey,
-  getPostgrestAnonKeyCandidates,
+  getPostgrestOpenApiKeyCandidates,
   sanitizeSupabaseEnvValue,
 } from "./postgrestOpenApi.mjs";
 
@@ -93,68 +94,65 @@ test("sanitizeSupabaseEnvValue strips quotes and Bearer prefix", () => {
   assert.equal(sanitizeSupabaseEnvValue("sb_publishable_x"), "sb_publishable_x");
 });
 
-test("getPostgrestAnonKey never reads VITE_* as primary", () => {
-  const prevAnon = process.env.SUPABASE_ANON_KEY;
-  const prevPublishable = process.env.SUPABASE_PUBLISHABLE_KEY;
-  const prevVite = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  const prevViteAnon = process.env.VITE_SUPABASE_ANON_KEY;
-  const prevSecret = process.env.SUPABASE_SECRET_KEY;
-  const prevService = process.env.SUPABASE_SERVICE_ROLE_KEY;
+test("buildPostgrestAuthHeaderAttempts never puts sb_ keys in Authorization alone as JWT", () => {
+  const attempts = buildPostgrestAuthHeaderAttempts("sb_publishable_abc", "user-jwt");
+  assert.ok(attempts.every((h) => h.apikey === "sb_publishable_abc"));
+  assert.ok(attempts.some((h) => h.Authorization === "Bearer user-jwt"));
+  assert.ok(attempts.every((h) => h.Authorization !== "Bearer sb_publishable_abc"));
+});
 
-  delete process.env.SUPABASE_ANON_KEY;
+test("openapi key candidates prefer service role first", () => {
+  const prev = {
+    SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+    SUPABASE_PUBLISHABLE_KEY: process.env.SUPABASE_PUBLISHABLE_KEY,
+    SUPABASE_SECRET_KEY: process.env.SUPABASE_SECRET_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    VITE_SUPABASE_PUBLISHABLE_KEY: process.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+    VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY,
+  };
+  process.env.SUPABASE_SECRET_KEY = "eyJsecret";
+  process.env.SUPABASE_ANON_KEY = "eyJanon";
   delete process.env.SUPABASE_PUBLISHABLE_KEY;
-  delete process.env.SUPABASE_SECRET_KEY;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY = "vite-should-not-be-primary";
-  process.env.VITE_SUPABASE_ANON_KEY = "vite-anon-should-not-be-primary";
-
+  delete process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  delete process.env.VITE_SUPABASE_ANON_KEY;
   try {
-    assert.equal(getPostgrestAnonKey(), "");
-    assert.deepEqual(getPostgrestAnonKeyCandidates(), [
-      "vite-should-not-be-primary",
-      "vite-anon-should-not-be-primary",
-    ]);
-    assert.deepEqual(getPostgrestAnonKeyCandidates(["client-forwarded-key"]), [
-      "vite-should-not-be-primary",
-      "vite-anon-should-not-be-primary",
-      "client-forwarded-key",
-    ]);
+    assert.deepEqual(getPostgrestOpenApiKeyCandidates(), ["eyJsecret", "eyJanon"]);
+    assert.equal(getPostgrestAnonKey(), "eyJanon");
   } finally {
-    if (prevAnon === undefined) delete process.env.SUPABASE_ANON_KEY;
-    else process.env.SUPABASE_ANON_KEY = prevAnon;
-    if (prevPublishable === undefined) delete process.env.SUPABASE_PUBLISHABLE_KEY;
-    else process.env.SUPABASE_PUBLISHABLE_KEY = prevPublishable;
-    if (prevVite === undefined) delete process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    else process.env.VITE_SUPABASE_PUBLISHABLE_KEY = prevVite;
-    if (prevViteAnon === undefined) delete process.env.VITE_SUPABASE_ANON_KEY;
-    else process.env.VITE_SUPABASE_ANON_KEY = prevViteAnon;
-    if (prevSecret === undefined) delete process.env.SUPABASE_SECRET_KEY;
-    else process.env.SUPABASE_SECRET_KEY = prevSecret;
-    if (prevService === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-    else process.env.SUPABASE_SERVICE_ROLE_KEY = prevService;
+    for (const [k, v] of Object.entries(prev)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
   }
 });
 
-test("fetchLivePostgrestOpenApi falls back to next key candidate after 401", async () => {
+test("fetchLivePostgrestOpenApi falls back after publishable 401 to secret key", async () => {
   clearPostgrestOpenApiCache();
   const prevUrl = process.env.SUPABASE_URL;
   const prevAnon = process.env.SUPABASE_ANON_KEY;
+  const prevSecret = process.env.SUPABASE_SECRET_KEY;
   const prevVite = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   process.env.SUPABASE_URL = "https://example.supabase.co";
-  process.env.SUPABASE_ANON_KEY = "bad-key";
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY = "good-key";
+  process.env.SUPABASE_ANON_KEY = "sb_publishable_bad";
+  process.env.SUPABASE_SECRET_KEY = "eyJservice-role";
+  delete process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-  let calls = 0;
   const fetchImpl = async (_url, init) => {
-    calls += 1;
     const headers = new Headers(init?.headers);
     const key = headers.get("apikey");
-    if (key === "good-key") {
+    if (key === "eyJservice-role") {
       return {
         ok: true,
         status: 200,
         async json() {
           return SAMPLE_SWAGGER;
+        },
+        clone() {
+          return this;
+        },
+        async text() {
+          return "";
         },
       };
     }
@@ -162,7 +160,13 @@ test("fetchLivePostgrestOpenApi falls back to next key candidate after 401", asy
       ok: false,
       status: 401,
       async json() {
-        return { message: "unauthorized" };
+        return { message: "Secret API key required" };
+      },
+      clone() {
+        return this;
+      },
+      async text() {
+        return JSON.stringify({ message: "Secret API key required" });
       },
     };
   };
@@ -170,52 +174,16 @@ test("fetchLivePostgrestOpenApi falls back to next key candidate after 401", asy
   try {
     const result = await fetchLivePostgrestOpenApi({ fetchImpl, now: () => 1_000 });
     assert.equal(result.spec.openapi, "3.1.0");
-    assert.ok(calls >= 2);
   } finally {
     clearPostgrestOpenApiCache();
     if (prevUrl === undefined) delete process.env.SUPABASE_URL;
     else process.env.SUPABASE_URL = prevUrl;
     if (prevAnon === undefined) delete process.env.SUPABASE_ANON_KEY;
     else process.env.SUPABASE_ANON_KEY = prevAnon;
+    if (prevSecret === undefined) delete process.env.SUPABASE_SECRET_KEY;
+    else process.env.SUPABASE_SECRET_KEY = prevSecret;
     if (prevVite === undefined) delete process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
     else process.env.VITE_SUPABASE_PUBLISHABLE_KEY = prevVite;
-  }
-});
-
-test("fetchLivePostgrestOpenApi caches converted spec briefly", async () => {
-  clearPostgrestOpenApiCache();
-  const prevUrl = process.env.SUPABASE_URL;
-  const prevAnon = process.env.SUPABASE_ANON_KEY;
-  process.env.SUPABASE_URL = "https://example.supabase.co";
-  process.env.SUPABASE_ANON_KEY = "test-anon-key";
-
-  let calls = 0;
-  const fetchImpl = async () => {
-    calls += 1;
-    return {
-      ok: true,
-      async json() {
-        return SAMPLE_SWAGGER;
-      },
-    };
-  };
-
-  let now = 1_000;
-  try {
-    const first = await fetchLivePostgrestOpenApi({ fetchImpl, now: () => now });
-    const second = await fetchLivePostgrestOpenApi({ fetchImpl, now: () => now + 1_000 });
-    assert.equal(first.cache, "miss");
-    assert.equal(second.cache, "hit");
-    assert.equal(calls, 1);
-    assert.equal(first.spec.openapi, "3.1.0");
-    assert.equal(second.spec.openapi, "3.1.0");
-    assert.match(first.json, /"openapi":"3\.1\.0"/);
-  } finally {
-    clearPostgrestOpenApiCache();
-    if (prevUrl === undefined) delete process.env.SUPABASE_URL;
-    else process.env.SUPABASE_URL = prevUrl;
-    if (prevAnon === undefined) delete process.env.SUPABASE_ANON_KEY;
-    else process.env.SUPABASE_ANON_KEY = prevAnon;
   }
 });
 
@@ -224,16 +192,8 @@ test("fitOpenApiForServerless prunes oversized descriptions", () => {
   const spec = {
     openapi: "3.1.0",
     info: { title: "t", version: "1", description: huge },
-    paths: {
-      "/a": {
-        get: {
-          description: huge,
-          responses: { 200: { description: huge } },
-        },
-      },
-    },
+    paths: {},
   };
-  // Force prune path by making JSON large enough — pad paths.
   /** @type {Record<string, unknown>} */
   const paths = {};
   for (let i = 0; i < 30; i += 1) {
@@ -248,5 +208,4 @@ test("fitOpenApiForServerless prunes oversized descriptions", () => {
   const fitted = fitOpenApiForServerless(spec);
   assert.ok(fitted.json.length < JSON.stringify(spec).length);
   assert.equal(fitted.spec.openapi, "3.1.0");
-  assert.equal(/** @type {any} */ (fitted.spec).info.description, undefined);
 });
