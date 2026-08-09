@@ -48,11 +48,27 @@ export function getPostgrestSupabaseUrl() {
 }
 
 /**
- * Anon/publishable key for PostgREST OpenAPI fetch — server-only.
- * Never read VITE_* here so the key is not coupled to the browser bundle.
+ * Preferred server-only anon/publishable key.
+ * Prefer SUPABASE_ANON_KEY / SUPABASE_PUBLISHABLE_KEY (never required in the browser bundle).
  */
 export function getPostgrestAnonKey() {
   return sanitizeSupabaseEnvValue(process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "");
+}
+
+/**
+ * Candidate keys to try against PostgREST.
+ * If SUPABASE_ANON_KEY is set but wrong, fall back to the public publishable key already used by the admin SPA.
+ * @returns {string[]}
+ */
+export function getPostgrestAnonKeyCandidates() {
+  const keys = [
+    sanitizeSupabaseEnvValue(process.env.SUPABASE_ANON_KEY || ""),
+    sanitizeSupabaseEnvValue(process.env.SUPABASE_PUBLISHABLE_KEY || ""),
+    // Last resort: already public in the Vite bundle; fixes mis-pasted SUPABASE_ANON_KEY in Vercel.
+    sanitizeSupabaseEnvValue(process.env.VITE_SUPABASE_PUBLISHABLE_KEY || ""),
+    sanitizeSupabaseEnvValue(process.env.VITE_SUPABASE_ANON_KEY || ""),
+  ].filter(Boolean);
+  return [...new Set(keys)];
 }
 
 function anonKeyFingerprint(anonKey) {
@@ -78,11 +94,13 @@ export function postgrestOpenApiConfigStatus() {
   } catch {
     host = "";
   }
+  const candidates = getPostgrestAnonKeyCandidates();
   return {
     supabase_url_configured: configured(url),
     supabase_url_host: host,
-    supabase_anon_key_configured: configured(getPostgrestAnonKey()),
-    supabase_anon_key: anonKeyFingerprint(getPostgrestAnonKey()),
+    supabase_anon_key_configured: candidates.length > 0,
+    supabase_anon_key: anonKeyFingerprint(candidates[0] || ""),
+    supabase_anon_key_candidates: candidates.length,
     prefer_lite: PREFER_LITE,
   };
 }
@@ -254,11 +272,11 @@ export async function fetchLivePostgrestOpenApi(options = {}) {
   }
 
   const url = getPostgrestSupabaseUrl();
-  const anonKey = getPostgrestAnonKey();
-  if (!url || !anonKey) {
+  const keyCandidates = getPostgrestAnonKeyCandidates();
+  if (!url || keyCandidates.length === 0) {
     throw Object.assign(
       new Error(
-        "PostgREST OpenAPI requires server-side SUPABASE_URL (or VITE_SUPABASE_URL) and SUPABASE_ANON_KEY (or SUPABASE_PUBLISHABLE_KEY). Do not use VITE_* for the anon key.",
+        "PostgREST OpenAPI requires SUPABASE_URL (or VITE_SUPABASE_URL) and SUPABASE_ANON_KEY (or SUPABASE_PUBLISHABLE_KEY / VITE_SUPABASE_PUBLISHABLE_KEY).",
       ),
       { status: 503, code: "postgrest_openapi_config_missing" },
     );
@@ -266,26 +284,40 @@ export async function fetchLivePostgrestOpenApi(options = {}) {
 
   const endpoint = `${url}/rest/v1/`;
   const accept = "application/openapi+json, application/json";
-  /** @type {Array<Record<string, string>>} */
-  const authAttempts = [
-    { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
-    // Some gateways accept apikey alone; retry before failing hard on 401.
-    { apikey: anonKey },
-  ];
 
   let response = null;
   let lastStatus = 0;
+  let usedKeySource = "primary";
   try {
-    for (const authHeaders of authAttempts) {
-      response = await fetchImpl(endpoint, {
-        method: "GET",
-        headers: {
-          Accept: accept,
-          ...authHeaders,
-        },
-      });
-      lastStatus = response.status;
-      if (response.ok || response.status !== 401) break;
+    for (let keyIndex = 0; keyIndex < keyCandidates.length; keyIndex += 1) {
+      const anonKey = keyCandidates[keyIndex];
+      /** @type {Array<Record<string, string>>} */
+      const authAttempts = [
+        { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+        { apikey: anonKey },
+      ];
+      for (const authHeaders of authAttempts) {
+        response = await fetchImpl(endpoint, {
+          method: "GET",
+          headers: {
+            Accept: accept,
+            ...authHeaders,
+          },
+        });
+        lastStatus = response.status;
+        if (response.ok) {
+          usedKeySource = keyIndex === 0 ? "primary" : `fallback_${keyIndex}`;
+          if (keyIndex > 0) {
+            logger.warn("PostgREST OpenAPI succeeded with fallback anon key candidate", {
+              key_index: keyIndex,
+              key: anonKeyFingerprint(anonKey),
+            });
+          }
+          break;
+        }
+        if (response.status !== 401) break;
+      }
+      if (response?.ok || (response && response.status !== 401)) break;
     }
   } catch (error) {
     logger.warn("PostgREST OpenAPI upstream fetch failed", { error: errorSummary(error) });
@@ -304,7 +336,7 @@ export async function fetchLivePostgrestOpenApi(options = {}) {
     if (lastStatus === 401 || response?.status === 401) {
       throw Object.assign(
         new Error(
-          `Supabase rejected SUPABASE_ANON_KEY for ${config.supabase_url_host || "SUPABASE_URL"} (HTTP 401). Re-copy the anon/publishable key from the same project's Dashboard → Settings → API (no quotes), save in Vercel as SUPABASE_ANON_KEY, and Redeploy.`,
+          `Supabase rejected all configured anon/publishable keys for ${config.supabase_url_host || "SUPABASE_URL"} (HTTP 401). In Vercel, set SUPABASE_ANON_KEY to the same value as VITE_SUPABASE_PUBLISHABLE_KEY from this project (Dashboard → Settings → API → anon public), then Redeploy.`,
         ),
         { status: 502, code: "postgrest_openapi_upstream_unauthorized" },
       );
@@ -339,6 +371,7 @@ export async function fetchLivePostgrestOpenApi(options = {}) {
   cache = { spec: fitted.spec, json: fitted.json, expiresAt: at + CACHE_TTL_MS };
   logger.info("PostgREST OpenAPI ready", {
     converter,
+    key_source: usedKeySource,
     bytes: fitted.json.length,
     path_count: Object.keys(/** @type {object} */ (fitted.spec.paths || {})).length,
   });

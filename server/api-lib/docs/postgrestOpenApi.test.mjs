@@ -7,6 +7,7 @@ import {
   fetchLivePostgrestOpenApi,
   fitOpenApiForServerless,
   getPostgrestAnonKey,
+  getPostgrestAnonKeyCandidates,
   sanitizeSupabaseEnvValue,
 } from "./postgrestOpenApi.mjs";
 
@@ -92,7 +93,7 @@ test("sanitizeSupabaseEnvValue strips quotes and Bearer prefix", () => {
   assert.equal(sanitizeSupabaseEnvValue("sb_publishable_x"), "sb_publishable_x");
 });
 
-test("getPostgrestAnonKey never reads VITE_* env vars", () => {
+test("getPostgrestAnonKey never reads VITE_* as primary", () => {
   const prevAnon = process.env.SUPABASE_ANON_KEY;
   const prevPublishable = process.env.SUPABASE_PUBLISHABLE_KEY;
   const prevVite = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -100,11 +101,15 @@ test("getPostgrestAnonKey never reads VITE_* env vars", () => {
 
   delete process.env.SUPABASE_ANON_KEY;
   delete process.env.SUPABASE_PUBLISHABLE_KEY;
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY = "vite-should-not-be-used";
-  process.env.VITE_SUPABASE_ANON_KEY = "vite-anon-should-not-be-used";
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY = "vite-should-not-be-primary";
+  process.env.VITE_SUPABASE_ANON_KEY = "vite-anon-should-not-be-primary";
 
   try {
     assert.equal(getPostgrestAnonKey(), "");
+    assert.deepEqual(getPostgrestAnonKeyCandidates(), [
+      "vite-should-not-be-primary",
+      "vite-anon-should-not-be-primary",
+    ]);
   } finally {
     if (prevAnon === undefined) delete process.env.SUPABASE_ANON_KEY;
     else process.env.SUPABASE_ANON_KEY = prevAnon;
@@ -114,6 +119,53 @@ test("getPostgrestAnonKey never reads VITE_* env vars", () => {
     else process.env.VITE_SUPABASE_PUBLISHABLE_KEY = prevVite;
     if (prevViteAnon === undefined) delete process.env.VITE_SUPABASE_ANON_KEY;
     else process.env.VITE_SUPABASE_ANON_KEY = prevViteAnon;
+  }
+});
+
+test("fetchLivePostgrestOpenApi falls back to next key candidate after 401", async () => {
+  clearPostgrestOpenApiCache();
+  const prevUrl = process.env.SUPABASE_URL;
+  const prevAnon = process.env.SUPABASE_ANON_KEY;
+  const prevVite = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  process.env.SUPABASE_URL = "https://example.supabase.co";
+  process.env.SUPABASE_ANON_KEY = "bad-key";
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY = "good-key";
+
+  let calls = 0;
+  const fetchImpl = async (_url, init) => {
+    calls += 1;
+    const headers = new Headers(init?.headers);
+    const key = headers.get("apikey");
+    if (key === "good-key") {
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return SAMPLE_SWAGGER;
+        },
+      };
+    }
+    return {
+      ok: false,
+      status: 401,
+      async json() {
+        return { message: "unauthorized" };
+      },
+    };
+  };
+
+  try {
+    const result = await fetchLivePostgrestOpenApi({ fetchImpl, now: () => 1_000 });
+    assert.equal(result.spec.openapi, "3.1.0");
+    assert.ok(calls >= 2);
+  } finally {
+    clearPostgrestOpenApiCache();
+    if (prevUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = prevUrl;
+    if (prevAnon === undefined) delete process.env.SUPABASE_ANON_KEY;
+    else process.env.SUPABASE_ANON_KEY = prevAnon;
+    if (prevVite === undefined) delete process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    else process.env.VITE_SUPABASE_PUBLISHABLE_KEY = prevVite;
   }
 });
 
