@@ -29,15 +29,17 @@ Current frontend entry points:
 
 ## Admin OpenAPI (docs)
 
-Admin-authenticated read-only specs (skeletons until later phases):
+Admin-authenticated read-only specs:
 
 | Method | Path | Surface |
 |--------|------|---------|
-| `GET` | `/api/admin/openapi/postgrest` | PostgREST |
-| `GET` | `/api/admin/openapi/edge` | Edge Functions |
-| `GET` | `/api/admin/openapi/admin` | Admin HTTP API |
+| `GET` | `/api/admin/openapi/postgrest` | Live PostgREST (Swagger 2 → OpenAPI 3.1, short cache) |
+| `GET` | `/api/admin/openapi/edge` | Edge Functions skeleton |
+| `GET` | `/api/admin/openapi/admin` | Admin HTTP API skeleton |
 
 Handlers live in `server/api-lib/docs/` and are wired through `server/api-lib/router.mjs` (mirrored in `server/index.ts`). Each route uses `requireAdmin`.
+
+PostgREST live docs fetch `${SUPABASE_URL}/rest/v1/` server-side with `SUPABASE_ANON_KEY` (or `SUPABASE_PUBLISHABLE_KEY`). Do not use `VITE_*` for that anon key.
 
 ## Backend Routing
 

@@ -32,7 +32,7 @@ Local Express (`server/index.ts`) mounts the same handlers for development.
 | `moderation/` | Reports, admin users, ops summary, moderation actions |
 | `analytics/` | `POST /api/events` + admin insights APIs |
 | `system/` | Health, metrics endpoints, board admin bootstrap |
-| `docs/` | Admin-only OpenAPI 3.1 skeletons for Scalar (`/api/admin/openapi/*`) |
+| `docs/` | Admin-only OpenAPI docs (live PostgREST + skeletons) for Scalar (`/api/admin/openapi/*`) |
 | `router.mjs` | Single dispatcher for all `/api/*` routes |
 
 Learn a domain by reading its folder top-down. Prefer importing from domain folders, not from unrelated modules.

@@ -12,7 +12,7 @@ Copia `vercel.env.example` → `vercel.env`, rellena con los mismos valores de t
 
 En Vercel → **Settings → Environment Variables → Import .env** → pega `vercel.env`.
 
-Marca **Sensitive** en: `SMTP_PASS`, `TWILIO_AUTH_TOKEN`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `SUPABASE_SECRET_KEY`, `GRAFANA_LOKI_TOKEN`, `METRICS_TOKEN`, `ANALYTICS_CRON_SECRET`.
+Marca **Sensitive** en: `SMTP_PASS`, `TWILIO_AUTH_TOKEN`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `SUPABASE_SECRET_KEY`, `SUPABASE_ANON_KEY`, `GRAFANA_LOKI_TOKEN`, `METRICS_TOKEN`, `ANALYTICS_CRON_SECRET`.
 
 | Variable | Notas |
 |----------|--------|
@@ -22,6 +22,8 @@ Marca **Sensitive** en: `SMTP_PASS`, `TWILIO_AUTH_TOKEN`, `FIREBASE_SERVICE_ACCO
 | `VITE_*` | Necesarias en **Production** y **Preview** (build del cliente) |
 | `VITE_SUPABASE_URL` | `https://ookbeuiavzjhvezvamfu.supabase.co` |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Publishable key de Supabase para login del admin |
+| `SUPABASE_URL` | URL del proyecto (server). Fallback: `VITE_SUPABASE_URL` |
+| `SUPABASE_ANON_KEY` | Anon/publishable **server-only** para OpenAPI PostgREST en vivo — no uses `VITE_*` en este fetch |
 | `SUPABASE_SECRET_KEY` | Service role key, solo server-side en Vercel Functions |
 | `EXPLORE_ADMIN_ALLOWED_EMAILS` | Fallback temporal hasta poblar `admin_users` |
 | `GRAFANA_LOGS_ENABLED` | `true` en Production para enviar logs a Grafana Cloud Loki |

@@ -55,8 +55,8 @@ function ApiDocsContent() {
     <div className="admin-api-docs">
       <div className="admin-api-docs__intro">
         <p className="admin-muted">
-          OpenAPI skeletons for PostgREST, Edge Functions, and the Admin HTTP API. Specs are
-          admin-only and will be filled in later phases.
+          PostgREST is loaded live from Supabase (converted to OpenAPI 3.1). Edge and Admin
+          surfaces are skeletons until later phases. Specs are admin-only.
         </p>
       </div>
       <div className="admin-api-docs__scalar">

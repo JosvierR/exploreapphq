@@ -6,6 +6,7 @@ These must never be exposed to frontend code or prefixed with `VITE_`:
 
 - `SUPABASE_SECRET_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_ANON_KEY` / `SUPABASE_PUBLISHABLE_KEY` when used for server-side PostgREST OpenAPI fetch (`/api/admin/openapi/postgrest`)
 - `METRICS_TOKEN`
 - `GRAFANA_LOKI_TOKEN`
 - `GRAFANA_LOKI_USERNAME`
@@ -20,7 +21,7 @@ These may be used by Vite when they are public by design:
 - `VITE_SITE_URL`
 - `VITE_EXPLORE_WEB_URL`
 - `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `VITE_SUPABASE_PUBLISHABLE_KEY` (browser Supabase client only — OpenAPI live fetch must use `SUPABASE_ANON_KEY` server-side)
 - Firebase web client config.
 
 Never put a Supabase service role key in `VITE_SUPABASE_*`.

@@ -3,6 +3,7 @@ import { requestIdFromRequest } from "../http/requestContext.mjs";
 import { requireAdmin } from "../moderation/supabaseModeration.mjs";
 import { errorSummary, logger, requestLogMeta } from "../observability/logger.mjs";
 import { buildMinimalOpenApiSpec, isOpenApiSurface } from "./minimalSpecs.mjs";
+import { fetchLivePostgrestOpenApi, postgrestOpenApiConfigStatus } from "./postgrestOpenApi.mjs";
 
 function methodNotAllowed(request) {
   return jsonResponse(405, {
@@ -13,8 +14,20 @@ function methodNotAllowed(request) {
 }
 
 /**
+ * @param {string} surface
+ * @returns {Promise<Record<string, unknown>>}
+ */
+async function resolveOpenApiSpec(surface) {
+  if (surface === "postgrest") {
+    const { spec } = await fetchLivePostgrestOpenApi();
+    return spec;
+  }
+  return buildMinimalOpenApiSpec(surface);
+}
+
+/**
  * GET /api/admin/openapi/{postgrest|edge|admin}
- * Admin-only OpenAPI 3.1 documents (skeletons until later phases).
+ * Admin-only OpenAPI 3.1 documents.
  *
  * @param {Request} request
  * @param {string} route  Resolved route without `/api/` prefix (e.g. `admin/openapi/postgrest`)
@@ -34,19 +47,34 @@ export async function dispatchOpenApiDocs(request, route) {
 
   try {
     await requireAdmin(request);
-    return jsonResponse(200, buildMinimalOpenApiSpec(surface), {
-      "Cache-Control": "no-store",
-    });
+    const spec = await resolveOpenApiSpec(surface);
+    const headers = {
+      "Cache-Control": surface === "postgrest" ? "private, max-age=60" : "no-store",
+    };
+    return jsonResponse(200, spec, headers);
   } catch (error) {
     logger.warn("Admin OpenAPI docs failed", {
       ...requestLogMeta(request, route),
       surface,
+      config: surface === "postgrest" ? postgrestOpenApiConfigStatus() : undefined,
       error: errorSummary(error),
+      code: error?.code,
     });
     const status = error?.status || 500;
+    const message =
+      status === 401
+        ? "Authentication required."
+        : status === 403
+          ? "Access denied."
+          : status === 503
+            ? error?.message || "PostgREST OpenAPI is not configured."
+            : status === 502
+              ? "Failed to load live PostgREST OpenAPI."
+              : "Internal server error";
     return jsonResponse(status, {
       ok: false,
-      error: status === 401 ? "Authentication required." : status === 403 ? "Access denied." : "Internal server error",
+      error: message,
+      code: error?.code,
       request_id: requestIdFromRequest(request),
     });
   }
