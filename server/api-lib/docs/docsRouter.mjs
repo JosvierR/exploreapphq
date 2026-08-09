@@ -41,7 +41,10 @@ export async function dispatchOpenApiDocs(request, route) {
     await requireAdmin(request);
 
     if (surface === "postgrest") {
-      const { json, cache, converter } = await fetchLivePostgrestOpenApi();
+      const clientAnonKey = String(request.headers.get("x-explore-supabase-anon-key") || "").trim();
+      const { json, cache, converter } = await fetchLivePostgrestOpenApi({
+        anonKeyCandidates: clientAnonKey ? [clientAnonKey] : [],
+      });
       return openApiJsonResponse(200, json, {
         "Cache-Control": "private, max-age=60",
         "X-Explore-OpenAPI-Cache": cache,

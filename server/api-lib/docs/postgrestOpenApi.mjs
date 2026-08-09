@@ -55,18 +55,25 @@ export function getPostgrestAnonKey() {
   return sanitizeSupabaseEnvValue(process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "");
 }
 
+function getServiceRoleKey() {
+  return sanitizeSupabaseEnvValue(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "");
+}
+
 /**
- * Candidate keys to try against PostgREST.
- * If SUPABASE_ANON_KEY is set but wrong, fall back to the public publishable key already used by the admin SPA.
+ * Candidate keys to try against PostgREST (anon/publishable first, then optional extras, then service role).
+ * @param {string[]} [extraKeys] e.g. public publishable key forwarded from the admin SPA (already in the Vite bundle)
  * @returns {string[]}
  */
-export function getPostgrestAnonKeyCandidates() {
+export function getPostgrestAnonKeyCandidates(extraKeys = []) {
   const keys = [
     sanitizeSupabaseEnvValue(process.env.SUPABASE_ANON_KEY || ""),
     sanitizeSupabaseEnvValue(process.env.SUPABASE_PUBLISHABLE_KEY || ""),
-    // Last resort: already public in the Vite bundle; fixes mis-pasted SUPABASE_ANON_KEY in Vercel.
+    // Runtime VITE_* may be missing on Vercel functions; still try if present.
     sanitizeSupabaseEnvValue(process.env.VITE_SUPABASE_PUBLISHABLE_KEY || ""),
     sanitizeSupabaseEnvValue(process.env.VITE_SUPABASE_ANON_KEY || ""),
+    ...extraKeys.map((key) => sanitizeSupabaseEnvValue(key)),
+    // Admin-only endpoint: service role is already used elsewhere on the server.
+    getServiceRoleKey(),
   ].filter(Boolean);
   return [...new Set(keys)];
 }
@@ -249,7 +256,7 @@ export function openApiJsonResponse(status, json, headers = {}) {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Request-ID",
+      "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Request-ID, X-Explore-Supabase-Anon-Key",
       "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
       "Access-Control-Expose-Headers":
         "X-Request-ID, X-Explore-OpenAPI, X-Explore-OpenAPI-Cache, X-Explore-OpenAPI-Converter",
@@ -260,7 +267,7 @@ export function openApiJsonResponse(status, json, headers = {}) {
 }
 
 /**
- * @param {{ fetchImpl?: typeof fetch, now?: () => number }} [options]
+ * @param {{ fetchImpl?: typeof fetch, now?: () => number, anonKeyCandidates?: string[] }} [options]
  */
 export async function fetchLivePostgrestOpenApi(options = {}) {
   const fetchImpl = options.fetchImpl || fetch;
@@ -272,11 +279,11 @@ export async function fetchLivePostgrestOpenApi(options = {}) {
   }
 
   const url = getPostgrestSupabaseUrl();
-  const keyCandidates = getPostgrestAnonKeyCandidates();
+  const keyCandidates = getPostgrestAnonKeyCandidates(options.anonKeyCandidates || []);
   if (!url || keyCandidates.length === 0) {
     throw Object.assign(
       new Error(
-        "PostgREST OpenAPI requires SUPABASE_URL (or VITE_SUPABASE_URL) and SUPABASE_ANON_KEY (or SUPABASE_PUBLISHABLE_KEY / VITE_SUPABASE_PUBLISHABLE_KEY).",
+        "PostgREST OpenAPI requires SUPABASE_URL and at least one of SUPABASE_ANON_KEY, VITE_SUPABASE_PUBLISHABLE_KEY, or SUPABASE_SECRET_KEY.",
       ),
       { status: 503, code: "postgrest_openapi_config_missing" },
     );

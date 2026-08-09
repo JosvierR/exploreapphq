@@ -98,9 +98,13 @@ test("getPostgrestAnonKey never reads VITE_* as primary", () => {
   const prevPublishable = process.env.SUPABASE_PUBLISHABLE_KEY;
   const prevVite = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   const prevViteAnon = process.env.VITE_SUPABASE_ANON_KEY;
+  const prevSecret = process.env.SUPABASE_SECRET_KEY;
+  const prevService = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   delete process.env.SUPABASE_ANON_KEY;
   delete process.env.SUPABASE_PUBLISHABLE_KEY;
+  delete process.env.SUPABASE_SECRET_KEY;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   process.env.VITE_SUPABASE_PUBLISHABLE_KEY = "vite-should-not-be-primary";
   process.env.VITE_SUPABASE_ANON_KEY = "vite-anon-should-not-be-primary";
 
@@ -109,6 +113,11 @@ test("getPostgrestAnonKey never reads VITE_* as primary", () => {
     assert.deepEqual(getPostgrestAnonKeyCandidates(), [
       "vite-should-not-be-primary",
       "vite-anon-should-not-be-primary",
+    ]);
+    assert.deepEqual(getPostgrestAnonKeyCandidates(["client-forwarded-key"]), [
+      "vite-should-not-be-primary",
+      "vite-anon-should-not-be-primary",
+      "client-forwarded-key",
     ]);
   } finally {
     if (prevAnon === undefined) delete process.env.SUPABASE_ANON_KEY;
@@ -119,6 +128,10 @@ test("getPostgrestAnonKey never reads VITE_* as primary", () => {
     else process.env.VITE_SUPABASE_PUBLISHABLE_KEY = prevVite;
     if (prevViteAnon === undefined) delete process.env.VITE_SUPABASE_ANON_KEY;
     else process.env.VITE_SUPABASE_ANON_KEY = prevViteAnon;
+    if (prevSecret === undefined) delete process.env.SUPABASE_SECRET_KEY;
+    else process.env.SUPABASE_SECRET_KEY = prevSecret;
+    if (prevService === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = prevService;
   }
 });
 
