@@ -41,10 +41,11 @@ export async function dispatchOpenApiDocs(request, route) {
     await requireAdmin(request);
 
     if (surface === "postgrest") {
-      const { json, cache } = await fetchLivePostgrestOpenApi();
-      return openApiJsonResponse(request, 200, json, {
+      const { json, cache, converter } = await fetchLivePostgrestOpenApi();
+      return openApiJsonResponse(200, json, {
         "Cache-Control": "private, max-age=60",
         "X-Explore-OpenAPI-Cache": cache,
+        "X-Explore-OpenAPI-Converter": converter || "unknown",
       });
     }
 

@@ -1,5 +1,4 @@
 import { createRequire } from "node:module";
-import { gzipSync } from "node:zlib";
 import { errorSummary, logger } from "../observability/logger.mjs";
 import { convertSwagger2LiteToOpenApi31 } from "./convertSwagger2Lite.mjs";
 
@@ -9,6 +8,8 @@ const require = createRequire(import.meta.url);
 const CACHE_TTL_MS = 60_000;
 /** Vercel serverless response body limit is ~4.5MB; stay under with margin. */
 const MAX_JSON_BYTES = 3_500_000;
+/** Prefer lite converter on Vercel — swagger2openapi is heavy and often OOMs/times out. */
+const PREFER_LITE = process.env.VERCEL === "1" || process.env.POSTGREST_OPENAPI_LITE === "1";
 
 /** @type {{ expiresAt: number, spec: Record<string, unknown>, json: string } | null} */
 let cache = null;
@@ -37,6 +38,7 @@ export function postgrestOpenApiConfigStatus() {
   return {
     supabase_url_configured: configured(getPostgrestSupabaseUrl()),
     supabase_anon_key_configured: configured(getPostgrestAnonKey()),
+    prefer_lite: PREFER_LITE,
   };
 }
 
@@ -72,38 +74,6 @@ export function normalizeOpenApi31(doc) {
 }
 
 /**
- * Convert Swagger 2.0 → OpenAPI 3.1 (swagger2openapi preferred, lite fallback).
- * @param {Record<string, unknown>} swagger
- * @returns {Promise<Record<string, unknown>>}
- */
-export async function convertSwaggerToOpenApi31(swagger) {
-  if (typeof swagger.openapi === "string") {
-    return normalizeOpenApi31(swagger);
-  }
-
-  const swagger2openapi = loadSwagger2OpenApi();
-  if (swagger2openapi?.convertObj) {
-    try {
-      const result = await swagger2openapi.convertObj(swagger, {
-        patch: true,
-        warnOnly: true,
-        resolve: false,
-      });
-      if (result?.openapi && typeof result.openapi === "object") {
-        return normalizeOpenApi31(/** @type {Record<string, unknown>} */ (result.openapi));
-      }
-      logger.warn("swagger2openapi returned no document; using lite converter");
-    } catch (error) {
-      logger.warn("swagger2openapi conversion failed; using lite converter", {
-        error: errorSummary(error),
-      });
-    }
-  }
-
-  return convertSwagger2LiteToOpenApi31(swagger);
-}
-
-/**
  * @param {unknown} value
  * @returns {unknown}
  */
@@ -119,6 +89,63 @@ function stripHeavyFields(value) {
     out[key] = stripHeavyFields(child);
   }
   return out;
+}
+
+/**
+ * @param {Record<string, unknown>} document
+ */
+function prepareUpstreamDocument(document) {
+  let json;
+  try {
+    json = JSON.stringify(document);
+  } catch {
+    return document;
+  }
+  if (json.length <= 1_200_000) return document;
+  logger.warn("PostgREST upstream document large; stripping heavy fields before convert", {
+    bytes: json.length,
+  });
+  return /** @type {Record<string, unknown>} */ (stripHeavyFields(document));
+}
+
+/**
+ * Convert Swagger 2.0 → OpenAPI 3.1 (lite on Vercel; swagger2openapi when available).
+ * @param {Record<string, unknown>} swagger
+ * @returns {Promise<{ spec: Record<string, unknown>, converter: string }>}
+ */
+export async function convertSwaggerToOpenApi31(swagger) {
+  if (typeof swagger.openapi === "string") {
+    return { spec: normalizeOpenApi31(swagger), converter: "passthrough" };
+  }
+
+  if (!PREFER_LITE) {
+    const swagger2openapi = loadSwagger2OpenApi();
+    if (swagger2openapi?.convertObj) {
+      try {
+        const result = await swagger2openapi.convertObj(swagger, {
+          patch: true,
+          warnOnly: true,
+          resolve: false,
+        });
+        if (result?.openapi && typeof result.openapi === "object") {
+          return {
+            spec: normalizeOpenApi31(/** @type {Record<string, unknown>} */ (result.openapi)),
+            converter: "swagger2openapi",
+          };
+        }
+        logger.warn("swagger2openapi returned no document; using lite converter");
+      } catch (error) {
+        logger.warn("swagger2openapi conversion failed; using lite converter", {
+          error: errorSummary(error),
+        });
+      }
+    }
+  }
+
+  return {
+    spec: convertSwagger2LiteToOpenApi31(swagger),
+    converter: "lite",
+  };
 }
 
 /**
@@ -148,39 +175,24 @@ export function fitOpenApiForServerless(spec) {
 }
 
 /**
- * @param {Request} request
+ * Plain JSON response (no manual gzip — Vercel/CDN compresses; double-gzip breaks Scalar).
  * @param {number} status
  * @param {string} json
  * @param {Record<string, string>} [headers]
  */
-export function openApiJsonResponse(request, status, json, headers = {}) {
-  const acceptEncoding = request.headers.get("accept-encoding") || "";
-  const baseHeaders = {
-    "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Request-ID",
-    "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
-    "Access-Control-Expose-Headers": "X-Request-ID, X-Explore-OpenAPI, X-Explore-OpenAPI-Cache",
-    "X-Explore-OpenAPI": "postgrest",
-    ...headers,
-  };
-
-  if (json.length > 80_000 && /\bgzip\b/i.test(acceptEncoding)) {
-    const compressed = gzipSync(Buffer.from(json, "utf8"));
-    return new Response(compressed, {
-      status,
-      headers: {
-        ...baseHeaders,
-        "Content-Encoding": "gzip",
-        Vary: "Accept-Encoding",
-        "Content-Length": String(compressed.length),
-      },
-    });
-  }
-
+export function openApiJsonResponse(status, json, headers = {}) {
   return new Response(json, {
     status,
-    headers: baseHeaders,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Request-ID",
+      "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+      "Access-Control-Expose-Headers":
+        "X-Request-ID, X-Explore-OpenAPI, X-Explore-OpenAPI-Cache, X-Explore-OpenAPI-Converter",
+      "X-Explore-OpenAPI": "postgrest",
+      ...headers,
+    },
   });
 }
 
@@ -193,7 +205,7 @@ export async function fetchLivePostgrestOpenApi(options = {}) {
   const at = now();
 
   if (cache && cache.expiresAt > at) {
-    return { spec: cache.spec, json: cache.json, cache: "hit" };
+    return { spec: cache.spec, json: cache.json, cache: "hit", converter: "cache" };
   }
 
   const url = getPostgrestSupabaseUrl();
@@ -213,7 +225,6 @@ export async function fetchLivePostgrestOpenApi(options = {}) {
     response = await fetchImpl(endpoint, {
       method: "GET",
       headers: {
-        // Prefer OpenAPI; fall back to JSON (Swagger 2 on older PostgREST).
         Accept: "application/openapi+json, application/json",
         apikey: anonKey,
         Authorization: `Bearer ${anonKey}`,
@@ -255,10 +266,16 @@ export async function fetchLivePostgrestOpenApi(options = {}) {
     });
   }
 
-  const converted = await convertSwaggerToOpenApi31(/** @type {Record<string, unknown>} */ (document));
+  const prepared = prepareUpstreamDocument(/** @type {Record<string, unknown>} */ (document));
+  const { spec: converted, converter } = await convertSwaggerToOpenApi31(prepared);
   const fitted = fitOpenApiForServerless(converted);
   cache = { spec: fitted.spec, json: fitted.json, expiresAt: at + CACHE_TTL_MS };
-  return { spec: fitted.spec, json: fitted.json, cache: "miss" };
+  logger.info("PostgREST OpenAPI ready", {
+    converter,
+    bytes: fitted.json.length,
+    path_count: Object.keys(/** @type {object} */ (fitted.spec.paths || {})).length,
+  });
+  return { spec: fitted.spec, json: fitted.json, cache: "miss", converter };
 }
 
 /** Test helper */

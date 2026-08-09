@@ -56,8 +56,9 @@ const SAMPLE_SWAGGER = {
 };
 
 test("convertSwaggerToOpenApi31 yields openapi 3.1 with paths", async () => {
-  const spec = await convertSwaggerToOpenApi31(SAMPLE_SWAGGER);
+  const { spec, converter } = await convertSwaggerToOpenApi31(SAMPLE_SWAGGER);
   assert.equal(spec.openapi, "3.1.0");
+  assert.equal(typeof converter, "string");
   assert.equal(typeof spec.info?.title, "string");
   assert.ok(spec.paths && typeof spec.paths === "object");
   assert.ok(Object.keys(/** @type {object} */ (spec.paths)).length > 0);
@@ -75,7 +76,7 @@ test("lite converter rewrites definition refs and body params", () => {
 });
 
 test("already-OpenAPI documents are normalized to 3.1 without swagger fields", async () => {
-  const spec = await convertSwaggerToOpenApi31({
+  const { spec } = await convertSwaggerToOpenApi31({
     openapi: "3.0.3",
     info: { title: "Live", version: "1" },
     paths: { "/x": { get: { responses: { 200: { description: "ok" } } } } },

@@ -9,6 +9,22 @@
   max-width: 52rem;
 }
 
+.admin-api-docs__status {
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--admin-border, #d6dde8) 100%, transparent);
+  background: var(--admin-surface, #fff);
+}
+
+.admin-api-docs__status--error {
+  border-color: color-mix(in srgb, #c44 35%, transparent);
+  background: color-mix(in srgb, #c44 6%, #fff);
+}
+
+.admin-api-docs__status--error p {
+  margin: 0.5rem 0 0;
+}
+
 .admin-api-docs__scalar {
   min-height: 640px;
   border: 1px solid color-mix(in srgb, var(--admin-border, #d6dde8) 100%, transparent);
