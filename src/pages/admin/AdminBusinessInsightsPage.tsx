@@ -375,7 +375,11 @@ function AdminBusinessInsightsContent() {
       },
       {
         label: "Market metadata",
-        status: warningCodes.has("location_metadata_missing") ? "Needs data" : "Healthy",
+        status: warningCodes.has("location_metadata_missing")
+          ? "Needs data"
+          : warningCodes.has("location_derived_from_locale")
+            ? "Warning"
+            : "Healthy",
         detail: "Privacy-safe geography",
       },
       {

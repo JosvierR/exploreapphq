@@ -55,8 +55,28 @@ const LIKE_EVENTS = new Set(["content_like", "video_like", "place_like", "route_
 const SAVE_EVENTS = new Set(["content_save", "video_save", "place_save", "route_save", "place_photo_save"]);
 const SHARE_EVENTS = new Set(["content_share", "video_share", "place_share", "route_share", "place_photo_share"]);
 const SEARCH_EVENTS = new Set(["search_performed", "search_submitted", "search_no_results", "search_result_clicked"]);
-const APP_OPEN_EVENTS = new Set(["app_open"]);
+const APP_OPEN_EVENTS = new Set(["app_open", "session_start"]);
 const SCREEN_VIEW_EVENTS = new Set(["screen_view"]);
+
+function marketCountry(row) {
+  if (row?.country) return String(row.country).trim().toUpperCase();
+  return countryFromLocale(row?.locale);
+}
+
+function countryFromLocale(locale) {
+  const match = String(locale || "")
+    .trim()
+    .match(/[_-]([A-Za-z]{2})$/);
+  return match ? match[1].toUpperCase() : null;
+}
+
+function marketRegion(row) {
+  return row?.region ? String(row.region).trim() : null;
+}
+
+function marketCity(row) {
+  return row?.city ? String(row.city).trim() : null;
+}
 
 export class BusinessInsightsError extends Error {
   constructor(status, message, options = {}) {
@@ -247,7 +267,7 @@ async function detectDeadLetterTimeColumn(supabase) {
 async function fetchEventsSample(supabase, params) {
   let query = supabase
     .from(EVENTS_TABLE)
-    .select("event_id, event_name, entity_type, entity_id, user_id, anonymous_id, session_id, source, platform, country, region, city, received_at, occurred_at, properties, context")
+    .select("event_id, event_name, entity_type, entity_id, user_id, anonymous_id, session_id, source, platform, locale, country, region, city, received_at, occurred_at, properties, context")
     .gte("received_at", params.since)
     .lt("received_at", params.until)
     .order("received_at", { ascending: false })
@@ -587,7 +607,7 @@ export async function getEngagementFunnel(supabase, params) {
   const steps = [
     {
       key: "app_open",
-      label: "App open",
+      label: "App open / session start",
       rows: rows.filter((row) => APP_OPEN_EVENTS.has(row.event_name)),
     },
     {
@@ -631,7 +651,12 @@ export async function getEngagementFunnel(supabase, params) {
   });
 
   if (!rows.some((row) => APP_OPEN_EVENTS.has(row.event_name))) {
-    warnings.push(warning("funnel_taxonomy_incomplete", "app_open events are missing; funnel estimates may be incomplete."));
+    warnings.push(
+      warning(
+        "funnel_taxonomy_incomplete",
+        "app_open and session_start events are missing; funnel estimates may be incomplete.",
+      ),
+    );
   }
 
   return {
@@ -781,9 +806,22 @@ export async function getCreatorPerformance(supabase, params) {
 export async function getLocationInterest(supabase, params) {
   const rows = await fetchEventsSample(supabase, params);
   const warnings = buildBaseWarnings(rows);
-  const withLocation = rows.filter((row) => row.country || row.region || row.city);
+  const enriched = rows.map((row) => ({
+    ...row,
+    country: marketCountry(row),
+    region: marketRegion(row),
+    city: marketCity(row),
+  }));
+  const withLocation = enriched.filter((row) => row.country || row.region || row.city);
   if (withLocation.length === 0) {
     warnings.push(warning("location_metadata_missing", "No country/region/city metadata was found in analytics events."));
+  } else if (rows.every((row) => !row.country) && withLocation.some((row) => row.country)) {
+    warnings.push(
+      warning(
+        "location_derived_from_locale",
+        "Country was derived from locale for some events. Prefer explicit country/region fields or server geo enrichment.",
+      ),
+    );
   }
 
   function aggregate(key) {

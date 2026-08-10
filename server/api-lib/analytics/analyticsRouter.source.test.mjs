@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import {
+  countryFromLocale,
   normalizeAnalyticsEvent,
   normalizeAnalyticsSource,
+  resolveRequestMarketGeo,
   validateAnalyticsEventRow,
 } from "./analyticsRouter.mjs";
 
@@ -79,3 +81,36 @@ const mixedBatch = [
 ];
 assert.equal(mixedBatch.filter((result) => result.row).length, 1);
 assert.equal(mixedBatch.filter((result) => result.rejected).length, 1);
+
+assert.equal(countryFromLocale("es-DO"), "DO");
+assert.equal(countryFromLocale("en_US"), "US");
+assert.equal(countryFromLocale("es"), null);
+
+const geoFromHeaders = resolveRequestMarketGeo({
+  headers: {
+    get(name) {
+      if (name === "x-vercel-ip-country") return "DO";
+      if (name === "x-vercel-ip-country-region") return "32";
+      return "";
+    },
+  },
+});
+assert.equal(geoFromHeaders.country, "DO");
+assert.equal(geoFromHeaders.region, "32");
+assert.equal(geoFromHeaders.city, null);
+
+const geoFromLocale = resolveRequestMarketGeo({ headers: { get() { return ""; } } }, { locale: "es-DO" });
+assert.equal(geoFromLocale.country, "DO");
+
+const enriched = normalizeAnalyticsEvent(buildEvent({ event_id: "test-geo-enrich", country: null, locale: "es-DO" }), {
+  request: {
+    headers: {
+      get(name) {
+        return name === "x-vercel-ip-country" ? "DO" : name === "x-vercel-ip-country-region" ? "SD" : "";
+      },
+    },
+  },
+});
+assert.equal(enriched.row.country, "DO");
+assert.equal(enriched.row.region, "SD");
+assert.equal(enriched.row.city, null);

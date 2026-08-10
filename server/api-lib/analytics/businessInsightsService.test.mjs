@@ -169,6 +169,21 @@ assert.equal(funnel.funnel[0].key, "app_open", "funnel starts with app_open");
 assert.ok(funnel.funnel[0].count >= 1, "funnel app_open count");
 assert.equal(typeof funnel.funnel[1].dropoff_pct, "number", "funnel includes dropoff");
 
+const funnelFromSessionStart = await getEngagementFunnel(
+  mockClient(
+    rows.map((row) =>
+      row.event_name === "app_open" ? { ...row, event_name: "session_start", country: null, locale: "es-DO" } : { ...row, country: null, locale: "es-DO" },
+    ),
+  ),
+  range,
+);
+assert.equal(funnelFromSessionStart.funnel[0].count, 1, "session_start counts as top-of-funnel");
+assert.equal(
+  funnelFromSessionStart.warnings.some((item) => item.code === "funnel_taxonomy_incomplete"),
+  false,
+  "session_start clears funnel taxonomy warning",
+);
+
 const content = await getContentPerformance(mockClient(), range);
 assert.equal(content.sections.videos[0].entity_id, "video-1", "content includes video");
 assert.equal(content.sections.videos[0].engagement_score, 1 * 1 + 1 * 3, "content score formula");
@@ -209,6 +224,21 @@ const sparseLocations = await getLocationInterest(
 assert.ok(
   sparseLocations.warnings.some((item) => item.code === "location_metadata_missing"),
   "location warning when metadata missing",
+);
+
+const localeLocations = await getLocationInterest(
+  mockClient(rows.map((row) => ({ ...row, country: null, region: null, city: null, locale: "es-DO" }))),
+  range,
+);
+assert.ok(localeLocations.countries.some((item) => item.country === "DO"), "locale-derived country");
+assert.equal(
+  localeLocations.warnings.some((item) => item.code === "location_metadata_missing"),
+  false,
+  "locale derivation clears missing location warning",
+);
+assert.ok(
+  localeLocations.warnings.some((item) => item.code === "location_derived_from_locale"),
+  "locale derivation emits advisory warning",
 );
 
 const investor = await getInvestorSnapshot(mockClient(), range);

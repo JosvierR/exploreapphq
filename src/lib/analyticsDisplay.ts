@@ -340,6 +340,7 @@ export const WARNING_LABELS: Record<string, string> = {
   no_events_in_range: "Waiting for analytics activity",
   creator_id_not_in_analytics_events: "Creator metadata missing",
   location_metadata_missing: "Location metadata missing",
+  location_derived_from_locale: "Location derived from locale",
   no_content_entity_id: "Content IDs missing",
   missing_query_hash: "Search fingerprints incomplete",
   sample_capped: "Sample capped",
@@ -418,6 +419,11 @@ export const WARNING_COPY: Record<string, { title: string; body: string; action?
   location_metadata_missing: {
     title: "Market insights need safe location metadata",
     body: "Events do not include country, region, or city yet. Do not send exact lat/lng. Only send aggregated market metadata.",
+    action: "Server now fills country/region from edge IP headers when the client omits them. Refresh after new traffic.",
+  },
+  location_derived_from_locale: {
+    title: "Market country inferred from locale",
+    body: "Some events lacked country fields, so country was inferred from locale for market insights. Prefer explicit country/region or server geo enrichment.",
   },
   no_content_entity_id: {
     title: "Content rankings need content IDs",
@@ -441,7 +447,8 @@ export const WARNING_COPY: Record<string, { title: string; body: string; action?
   },
   funnel_taxonomy_incomplete: {
     title: "Funnel taxonomy incomplete",
-    body: "App-open events are missing, so funnel estimates may be incomplete.",
+    body: "App-open and session-start events are missing, so funnel estimates may be incomplete.",
+    action: "Emit app_open or session_start at session begin so the top of funnel is measurable.",
   },
   content_entities_missing: {
     title: "Content entities missing",

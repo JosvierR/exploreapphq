@@ -595,7 +595,52 @@ function reject(reason, event, userId = null) {
   };
 }
 
-export function normalizeAnalyticsEvent(event, { userId = null } = {}) {
+function headerValue(headers, name) {
+  if (!headers) return "";
+  if (typeof headers.get === "function") return String(headers.get(name) || "").trim();
+  return String(headers[name] || headers[name.toLowerCase()] || "").trim();
+}
+
+const BLOCKED_GEO_COUNTRIES = new Set(["XX", "T1", "A1", "A2"]);
+
+/**
+ * Privacy-safe market geo for analytics rows.
+ * Prefer client-provided country/region; otherwise use edge IP country/region headers.
+ * Never invent city from IP.
+ */
+export function resolveRequestMarketGeo(request, { locale = null } = {}) {
+  const headers = request?.headers;
+  let country =
+    cleanString(headerValue(headers, "x-vercel-ip-country"), 2)?.toUpperCase() ||
+    cleanString(headerValue(headers, "cf-ipcountry"), 2)?.toUpperCase() ||
+    cleanString(headerValue(headers, "x-country-code"), 2)?.toUpperCase() ||
+    null;
+  if (country && BLOCKED_GEO_COUNTRIES.has(country)) country = null;
+
+  const region =
+    cleanString(headerValue(headers, "x-vercel-ip-country-region"), 120) ||
+    cleanString(headerValue(headers, "x-region-code"), 120) ||
+    null;
+
+  if (!country && locale) {
+    country = countryFromLocale(locale);
+  }
+
+  return {
+    country,
+    region: country ? region : null,
+    city: null,
+  };
+}
+
+export function countryFromLocale(locale) {
+  const match = String(locale || "")
+    .trim()
+    .match(/[_-]([A-Za-z]{2})$/);
+  return match ? match[1].toUpperCase() : null;
+}
+
+export function normalizeAnalyticsEvent(event, { userId = null, request = null } = {}) {
   if (!isPlainObject(event)) return { rejected: reject("event must be a JSON object", event, userId), warnings: [] };
 
   const eventId = cleanString(event.event_id, MAX_ID_LENGTH);
@@ -628,6 +673,8 @@ export function normalizeAnalyticsEvent(event, { userId = null } = {}) {
   }
 
   const eventVersion = Number.isInteger(event.event_version) && event.event_version > 0 ? event.event_version : 1;
+  const locale = cleanString(event.locale, 40);
+  const requestGeo = resolveRequestMarketGeo(request, { locale });
   const row = {
     event_id: eventId,
     event_name: eventName,
@@ -642,10 +689,10 @@ export function normalizeAnalyticsEvent(event, { userId = null } = {}) {
     app_version: cleanString(event.app_version, 80),
     build_number: cleanString(event.build_number, 80),
     device_os: cleanString(event.device_os, 80),
-    locale: cleanString(event.locale, 40),
+    locale,
     timezone: cleanString(event.timezone, 80),
-    country: cleanString(event.country, 2)?.toUpperCase() || null,
-    region: cleanString(event.region, 120),
+    country: cleanString(event.country, 2)?.toUpperCase() || requestGeo.country || null,
+    region: cleanString(event.region, 120) || requestGeo.region || null,
     city: cleanString(event.city, 120),
     properties: properties.value,
     context: context.value,
@@ -816,6 +863,7 @@ export async function handleEvents(request) {
     for (const event of body.events) {
       const result = validateEvent(event, {
         userId: auth.userId,
+        request,
       });
       warnings.push(...result.warnings);
       if (result.rejected) {
