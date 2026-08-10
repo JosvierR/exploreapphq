@@ -29,6 +29,11 @@ import {
   targetTitle,
 } from "@/lib/adminModerationFormat";
 import { humanizeKey } from "@/lib/analyticsDisplay";
+import {
+  fetchAnalyticsOverview,
+  type ProductAnalyticsMetrics,
+  type ProductFoundationStatus,
+} from "@/lib/adminAnalyticsApi";
 import "@/styles/admin-moderation.css";
 
 type ConsoleSection = "overview" | "users" | "content" | "moderation" | "insights" | "analytics" | "system" | "admins";
@@ -126,15 +131,7 @@ function AdminDashboardContent() {
       {section === "content" && <ContentSection summary={summary} loading={loading} />}
       {section === "moderation" && <ModerationSection summary={summary} pending={pending} loading={loading} />}
       {section === "insights" && <InsightsSection summary={summary} loading={loading} />}
-      {section === "analytics" && (
-        <section className="admin-panel admin-panel--foundation">
-          <PanelHeader kicker="Analytics" title="Insights dashboard" />
-          <p>Explore analytics events, ingestion health, search insights, and top content.</p>
-          <Link className="admin-btn admin-btn--secondary" to="/admin/analytics">
-            Open Analytics dashboard
-          </Link>
-        </section>
-      )}
+      {section === "analytics" && <ProductAnalyticsConsoleSection />}
       {section === "system" && <AdminSystemPage adminEmail={admin.user?.email ?? "Not signed in"} />}
       {section === "admins" && (
         <ComingSoonSection
@@ -144,6 +141,40 @@ function AdminDashboardContent() {
       )}
     </div>
   );
+}
+
+function useProductAnalytics() {
+  const [metrics, setMetrics] = useState<ProductAnalyticsMetrics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await fetchAnalyticsOverview({ range: "7d" });
+      setMetrics(result.product_metrics || result.overview?.product_metrics || null);
+    } catch {
+      setMetrics(null);
+      setError("Unable to load product analytics.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    function handleGlobalRefresh() {
+      void load();
+    }
+    window.addEventListener("admin:refresh", handleGlobalRefresh);
+    return () => window.removeEventListener("admin:refresh", handleGlobalRefresh);
+  }, [load]);
+
+  return { metrics, loading, error, reload: load };
 }
 
 function OverviewSection({
@@ -236,6 +267,7 @@ function UsersSection({ summary }: { summary: AdminOpsSummary | null }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const { metrics: productMetrics, loading: productLoading } = useProductAnalytics();
 
   const loadUsers = useCallback(async (nextQuery: string) => {
     setLoading(true);
@@ -263,6 +295,11 @@ function UsersSection({ summary }: { summary: AdminOpsSummary | null }) {
     void loadUsers(value);
   }
 
+  const dauWauValue =
+    productMetrics?.unlocked && (productMetrics.dau != null || productMetrics.wau != null)
+      ? `${formatMetric(productMetrics.dau)} / ${formatMetric(productMetrics.wau)}`
+      : foundationLabel(productMetrics?.foundation_status);
+
   return (
     <>
       <MetricGroup title="User Growth" description="Profile/account data available from the current Supabase schema.">
@@ -271,7 +308,13 @@ function UsersSection({ summary }: { summary: AdminOpsSummary | null }) {
         <StatCard label="New users 7d" value={summary?.users.new_7d} loading={false} tone="green" />
         <StatCard label="Deactivated" value={summary?.users.deactivated} loading={false} tone="warning" />
         <StatCard label="Ghost/test users" value={summary?.users.ghost} loading={false} tone="neutral" />
-        <StatCard label="DAU/WAU" value="Foundation required" loading={false} tone="violet" hint="Analytics events needed" />
+        <StatCard
+          label="DAU / WAU"
+          value={dauWauValue}
+          loading={productLoading}
+          tone="violet"
+          hint={productMetrics?.unlocked ? "Distinct actors today / last 7d" : "Requires analytics_events"}
+        />
       </MetricGroup>
 
       <section className="admin-panel">
@@ -508,26 +551,102 @@ function InsightsSection({ summary, loading }: { summary: AdminOpsSummary | null
         <InsightCard title="Users created 7d" value={formatMetric(summary?.users.new_7d)} loading={loading} />
       </section>
 
-      <AnalyticsFoundationSection />
+      <ProductAnalyticsPanel />
     </>
   );
 }
 
-function AnalyticsFoundationSection() {
+function ProductAnalyticsConsoleSection() {
   return (
-    <section className="admin-panel admin-panel--foundation">
-      <PanelHeader kicker="Analytics foundation required" title="Unlock product analytics" />
-      <p>
-        To unlock clicks, impressions, CTR, retention, DAU/WAU, preferences, route starts and recommendation signals,
-        Explore needs the Analytics/Data Foundation. This console only reports metrics available from current operational tables.
-      </p>
-      <div className="admin-foundation-grid">
-        {["Analytics events", "Daily active users", "Weekly active users", "Impressions", "Click-through rate", "Route starts"].map((item) => (
-          <span key={item}>{item}</span>
-        ))}
-      </div>
-    </section>
+    <>
+      <ProductAnalyticsPanel showOpsLinks />
+    </>
   );
+}
+
+function ProductAnalyticsPanel({ showOpsLinks = false }: { showOpsLinks?: boolean }) {
+  const { metrics, loading, error, reload } = useProductAnalytics();
+  const unlocked = Boolean(metrics?.unlocked);
+
+  return (
+    <>
+      <MetricGroup
+        title="Product analytics"
+        description={
+          unlocked
+            ? "Live metrics from analytics_events (DAU/WAU, impressions, content CTR, route starts)."
+            : "Product KPIs unlock when the analytics event foundation is installed and receiving events."
+        }
+      >
+        <StatCard label="DAU" value={unlocked ? metrics?.dau : foundationLabel(metrics?.foundation_status)} loading={loading} tone="violet" hint="UTC day" />
+        <StatCard label="WAU" value={unlocked ? metrics?.wau : foundationLabel(metrics?.foundation_status)} loading={loading} tone="violet" hint="Last 7 days" />
+        <StatCard label="Impressions 7d" value={unlocked ? metrics?.impressions_7d : "Not available"} loading={loading} tone="blue" />
+        <StatCard label="Content CTR 7d" value={unlocked ? formatCtr(metrics?.content_ctr_7d) : "Not available"} loading={loading} tone="green" />
+        <StatCard label="Route starts 7d" value={unlocked ? metrics?.route_starts_7d : "Not available"} loading={loading} tone="neutral" />
+        <StatCard label="Clicks 7d" value={unlocked ? metrics?.clicks_7d : "Not available"} loading={loading} tone="blue" />
+      </MetricGroup>
+
+      <section className={`admin-panel${unlocked ? "" : " admin-panel--foundation"}`}>
+        <PanelHeader
+          kicker={unlocked ? "Foundation ready" : "Analytics foundation"}
+          title={unlocked ? "Product signals are live" : "Unlock product analytics"}
+          meta={metrics?.source ? `source: ${metrics.source}` : undefined}
+        />
+        <p>
+          {unlocked
+            ? "Clicks, impressions, CTR, DAU/WAU, and route starts are computed from allowlisted analytics events. Retention cohorts and recommendation preference models still need longer history and affinity scoring."
+            : foundationMessage(metrics?.foundation_status)}
+        </p>
+        {!unlocked ? (
+          <div className="admin-foundation-grid">
+            {["Analytics events", "Daily active users", "Weekly active users", "Impressions", "Click-through rate", "Route starts"].map((item) => (
+              <span key={item}>{item}</span>
+            ))}
+          </div>
+        ) : null}
+        {error ? <InlineError message={error} onRetry={() => void reload()} /> : null}
+        <div className="admin-page-header__actions" style={{ marginTop: "0.85rem" }}>
+          <Link className="admin-btn admin-btn--secondary admin-btn--sm" to="/admin/analytics">
+            Open Analytics Ops
+          </Link>
+          <Link className="admin-btn admin-btn--ghost admin-btn--sm" to="/admin/analytics/business">
+            Business Insights
+          </Link>
+          {showOpsLinks ? (
+            <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm" onClick={() => void reload()} disabled={loading}>
+              {loading ? "Refreshing…" : "Refresh metrics"}
+            </button>
+          ) : null}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function foundationLabel(status?: ProductFoundationStatus | string | null) {
+  if (status === "empty") return "No events yet";
+  if (status === "not_selectable") return "Not selectable";
+  if (status === "schema_missing") return "Schema missing";
+  if (status === "ready") return "Ready";
+  return "Foundation required";
+}
+
+function foundationMessage(status?: ProductFoundationStatus | string | null) {
+  if (status === "schema_missing") {
+    return "Apply the analytics_events migrations in Supabase, then confirm POST /api/events can insert. Until then this console only reports operational table metrics.";
+  }
+  if (status === "not_selectable") {
+    return "analytics_events exists but is not selectable with the current service role. Check SUPABASE_SECRET_KEY and table grants.";
+  }
+  if (status === "empty") {
+    return "Schema is ready, but no analytics events arrived in the last 7 days. Ship mobile/web DATA-003 instrumentation to POST /api/events.";
+  }
+  return "To unlock clicks, impressions, CTR, retention, DAU/WAU, preferences, route starts and recommendation signals, Explore needs the Analytics/Data Foundation. This console only reports metrics available from current operational tables.";
+}
+
+function formatCtr(value: number | null | undefined) {
+  if (value == null || Number.isNaN(value)) return "Not available";
+  return `${(value * 100).toFixed(1)}%`;
 }
 
 function ContentTabPanel({

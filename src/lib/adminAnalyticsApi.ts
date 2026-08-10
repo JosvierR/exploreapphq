@@ -47,6 +47,9 @@ export type AnalyticsOverview = {
   ingestion_health: "healthy" | "warning" | "critical" | string;
   latest_received_at: string | null;
   latest_occurred_at: string | null;
+  dau?: number | null;
+  wau?: number | null;
+  product_metrics?: ProductAnalyticsMetrics | null;
   breakdowns: {
     event_name: BreakdownEntry[];
     event_names?: BreakdownEntry[];
@@ -64,6 +67,24 @@ export type AnalyticsOverview = {
     };
   };
   daily_view: Array<Record<string, unknown>> | null;
+};
+
+export type ProductFoundationStatus = "schema_missing" | "not_selectable" | "empty" | "ready";
+
+export type ProductAnalyticsMetrics = {
+  foundation_status: ProductFoundationStatus | string;
+  unlocked: boolean;
+  dau: number | null;
+  wau: number | null;
+  impressions_7d: number | null;
+  clicks_7d: number | null;
+  content_ctr_7d: number | null;
+  route_starts_7d: number | null;
+  events_7d?: number | null;
+  events_today?: number | null;
+  latest_received_at?: string | null;
+  source?: string;
+  definitions?: Record<string, string>;
 };
 
 export type AnalyticsTimeseries = {
@@ -215,10 +236,13 @@ async function analyticsFetch<T>(path: string, init: RequestInit = {}): Promise<
 
 export function fetchAnalyticsOverview(params: RangeParams = {}) {
   const query = rangeQuery(params.range);
-  return analyticsFetch<{ request_id: string; overview: AnalyticsOverview | null; diagnostics: AnalyticsDiagnostics; warnings: AnalyticsWarning[] }>(
-    `/api/admin/analytics/overview?${query}`,
-    { signal: params.signal },
-  );
+  return analyticsFetch<{
+    request_id: string;
+    overview: AnalyticsOverview | null;
+    product_metrics?: ProductAnalyticsMetrics | null;
+    diagnostics: AnalyticsDiagnostics;
+    warnings: AnalyticsWarning[];
+  }>(`/api/admin/analytics/overview?${query}`, { signal: params.signal });
 }
 
 export function fetchAnalyticsTimeseries(params: RangeParams = {}) {

@@ -76,8 +76,21 @@ The UI handles:
 
 ## Analytics Boundaries
 
-The console must not fake product analytics. Product analytics such as DAU, WAU, retention, CTR, impressions, clicks, and route starts require an analytics event foundation. Until that exists, UI must say `Analytics foundation required` or `Not available`.
+Product analytics (DAU, WAU, impressions, content CTR, route starts) are computed from
+`public.analytics_events` via `GET /api/admin/analytics/overview` → `product_metrics`.
 
-Infrastructure metrics are available through request logs, request ids, health endpoints, and in-memory instance metrics.
+Preferred source: Supabase RPC `admin_product_analytics_snapshot()`
+(`supabase/migrations/20260810120000_admin_product_analytics_snapshot.sql`).
+If the RPC is missing, the API falls back to exact event-name counts plus sampled actor uniqueness.
 
-**Reviewed:** 2026-08-08
+The console must not invent these metrics from operational tables (profiles, videos, reports).
+Until the foundation is selectable and receiving events, UI shows an explicit foundation status
+(`schema_missing`, `not_selectable`, `empty`) instead of fabricated numbers.
+
+Retention cohorts and recommendation preference models still require longer history / affinity
+scoring and remain separately gated.
+
+Infrastructure metrics remain available through request logs, request ids, health endpoints, and
+in-memory instance metrics.
+
+**Reviewed:** 2026-08-10

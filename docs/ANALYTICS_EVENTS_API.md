@@ -15,6 +15,8 @@ Apply the migration before calling `POST /api/events` in production:
 1. Open [Supabase SQL Editor](https://supabase.com/dashboard/project/ookbeuiavzjhvezvamfu/sql/new) for the Explore project.
 2. Paste and run `supabase/migrations/20260701120000_analytics_events.sql`.
 3. Paste and run `supabase/migrations/20260702120000_analytics_events_data001_compat.sql`.
+4. Paste and run aggregation migrations through `20260704160000_analytics_aggregate_safe_deletes.sql` (daily rollups).
+5. Paste and run `supabase/migrations/20260810120000_admin_product_analytics_snapshot.sql` (DAU/WAU/impressions/CTR/route starts RPC).
 
 Without these tables, ingestion returns `503` with `"Analytics schema not installed."`.
 Other Supabase readiness problems return a safe error code, for example
@@ -25,6 +27,10 @@ Tables created:
 
 - `public.analytics_events` — validated event rows (deduped by `event_id`)
 - `public.analytics_event_dead_letters` — rejected events for debugging
+
+Product KPIs for the admin console (`GET /api/admin/analytics/overview` → `product_metrics`) prefer
+`select public.admin_product_analytics_snapshot();` and fall back to counted/sampled metrics when the
+RPC is not installed yet.
 
 Inserts use the Vercel `SUPABASE_SECRET_KEY` service role. Mobile clients must not write to these tables directly.
 

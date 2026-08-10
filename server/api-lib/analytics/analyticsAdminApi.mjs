@@ -2,8 +2,12 @@ import { createClient } from "@supabase/supabase-js";
 import WebSocket from "ws";
 import {
   buildOverviewFromEvents,
+  buildProductMetrics,
   buildTimeseriesFromEvents,
   makeAnalyticsWarning,
+  PRODUCT_CLICK_EVENTS,
+  PRODUCT_IMPRESSION_EVENTS,
+  PRODUCT_ROUTE_START_EVENTS,
 } from "./analyticsAdminShapes.mjs";
 import {
   AnalyticsOperationsError,
@@ -303,6 +307,81 @@ async function countEventsSince(supabase, since, until = null) {
   return count || 0;
 }
 
+async function countEventsByNames(supabase, names, since, until = null) {
+  let query = supabase
+    .from(EVENTS_TABLE)
+    .select("event_id", { count: "exact", head: true })
+    .in("event_name", names)
+    .gte("received_at", since);
+  if (until) query = query.lte("received_at", until);
+  const { count, error } = await query;
+  if (error) throw error;
+  return count || 0;
+}
+
+async function loadProductMetrics(supabase, request, diagnostics, { eventsToday, events7d, sample, warnings }) {
+  const dayStartIso = startOfUtcDayIso();
+  const weekStartIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  if (!diagnostics?.analytics_events_selectable) {
+    return buildProductMetrics({
+      diagnostics,
+      eventsToday,
+      events7d: 0,
+      rangeRows: [],
+      dayStartIso,
+      weekStartIso,
+      source: "diagnostics",
+    });
+  }
+
+  const rpc = await supabase.rpc("admin_product_analytics_snapshot");
+  if (!rpc.error && rpc.data) {
+    return buildProductMetrics({ diagnostics, rpcSnapshot: rpc.data });
+  }
+
+  if (rpc.error) {
+    const code = classifySupabaseAnalyticsError(rpc.error);
+    warnings.push(
+      makeAnalyticsWarning(
+        "product_analytics_rpc_unavailable",
+        "Product analytics RPC unavailable; using counted/sampled fallback.",
+        { classified_code: code },
+      ),
+    );
+    logger.warn("Product analytics RPC unavailable", {
+      ...requestLogMeta(request, "admin/analytics/overview"),
+      code,
+      error: serializeErrorForLog(rpc.error),
+    });
+  }
+
+  const [impressions, clicks, routeStarts] = await Promise.all([
+    countEventsByNames(supabase, PRODUCT_IMPRESSION_EVENTS, weekStartIso),
+    countEventsByNames(supabase, PRODUCT_CLICK_EVENTS, weekStartIso),
+    countEventsByNames(supabase, PRODUCT_ROUTE_START_EVENTS, weekStartIso),
+  ]);
+
+  const sampled = buildProductMetrics({
+    diagnostics,
+    rangeRows: sample,
+    eventsToday,
+    events7d,
+    dayStartIso,
+    weekStartIso,
+    source: "hybrid",
+  });
+
+  return {
+    ...sampled,
+    impressions_7d: impressions,
+    clicks_7d: clicks,
+    content_ctr_7d: impressions > 0 ? Math.round((clicks / impressions) * 1000) / 1000 : null,
+    route_starts_7d: routeStarts,
+    source: "hybrid",
+  };
+}
+
 async function detectTimestampColumn(supabase, table, candidates) {
   for (const column of candidates) {
     const { error } = await supabase.from(table).select(column, { count: "exact", head: true }).limit(1);
@@ -591,12 +670,27 @@ export async function handleAdminAnalyticsOverview(request) {
       warnings,
     });
 
+    const productMetrics = await loadProductMetrics(supabase, request, diagnostics, {
+      eventsToday,
+      events7d,
+      sample: rangeRows,
+      warnings: body.warnings,
+    });
+
+    const overview = {
+      ...body.overview,
+      product_metrics: productMetrics,
+      dau: productMetrics.dau,
+      wau: productMetrics.wau,
+    };
+
     return jsonResponse(200, {
       ok: true,
       request_id: requestIdFromRequest(request),
       range,
-      overview: body.overview,
-      data: body.overview,
+      overview,
+      data: overview,
+      product_metrics: productMetrics,
       diagnostics,
       warnings: body.warnings,
     });

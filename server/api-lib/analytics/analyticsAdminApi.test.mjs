@@ -3,8 +3,10 @@ import { dispatchAdminAnalyticsApi, handleAdminAnalyticsOverview } from "./analy
 import {
   buildHealthPayload,
   buildOverviewFromEvents,
+  buildProductMetrics,
   buildTimeseriesFromEvents,
   makeAnalyticsWarning,
+  resolveProductFoundationStatus,
 } from "./analyticsAdminShapes.mjs";
 import { runAnalyticsAggregationForDay } from "./analyticsOperationsService.mjs";
 
@@ -70,6 +72,74 @@ assert.equal(overviewPayload.overview.breakdowns.source[0].value, "web", "source
 assert.equal(overviewPayload.overview.breakdowns.platform[0].value, "web", "platform breakdown includes web");
 assert.equal(overviewPayload.overview.breakdowns.entity_type[0].value, "system", "entity type breakdown includes system");
 assert.equal(overviewPayload.warnings[0].code, "daily_view_unavailable", "overview exposes fallback warning");
+
+assert.equal(
+  resolveProductFoundationStatus({ analyticsEventsSelectable: false, analyticsEventsExists: false }),
+  "schema_missing",
+);
+assert.equal(
+  resolveProductFoundationStatus({ analyticsEventsSelectable: true, events7d: 0 }),
+  "empty",
+);
+assert.equal(
+  resolveProductFoundationStatus({ analyticsEventsSelectable: true, events7d: 12 }),
+  "ready",
+);
+
+const productReady = buildProductMetrics({
+  diagnostics: { analytics_events_selectable: true, analytics_events_exists: true },
+  rpcSnapshot: {
+    foundation_status: "ready",
+    dau: 4,
+    wau: 11,
+    impressions_7d: 100,
+    clicks_7d: 25,
+    content_ctr_7d: 0.25,
+    route_starts_7d: 3,
+    events_7d: 140,
+    events_today: 12,
+    latest_received_at: "2026-08-10T12:00:00.000Z",
+    source: "rpc",
+  },
+});
+assert.equal(productReady.unlocked, true, "rpc snapshot unlocks product metrics");
+assert.equal(productReady.dau, 4);
+assert.equal(productReady.content_ctr_7d, 0.25);
+assert.equal(productReady.route_starts_7d, 3);
+
+const productSample = buildProductMetrics({
+  diagnostics: { analytics_events_selectable: true, analytics_events_exists: true },
+  rangeRows: [
+    {
+      event_name: "video_impression",
+      user_id: "u1",
+      anonymous_id: null,
+      received_at: "2026-08-10T10:00:00.000Z",
+    },
+    {
+      event_name: "video_view_start",
+      user_id: "u1",
+      anonymous_id: null,
+      received_at: "2026-08-10T10:01:00.000Z",
+    },
+    {
+      event_name: "route_start",
+      user_id: null,
+      anonymous_id: "a1",
+      received_at: "2026-08-10T11:00:00.000Z",
+    },
+  ],
+  eventsToday: 3,
+  events7d: 3,
+  dayStartIso: "2026-08-10T00:00:00.000Z",
+  weekStartIso: "2026-08-03T00:00:00.000Z",
+});
+assert.equal(productSample.foundation_status, "ready");
+assert.equal(productSample.dau, 2);
+assert.equal(productSample.impressions_7d, 1);
+assert.equal(productSample.clicks_7d, 1);
+assert.equal(productSample.route_starts_7d, 1);
+assert.equal(productSample.content_ctr_7d, 1);
 
 const timeseriesPayload = buildTimeseriesFromEvents(rows, "7d", warnings);
 assert.equal(timeseriesPayload.timeseries.events_by_day.length, 1, "timeseries fallback groups rows into buckets");

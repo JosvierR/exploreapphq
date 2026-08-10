@@ -14,6 +14,10 @@ function uniqueCount(rows, key) {
   return new Set(rows.map((row) => row?.[key]).filter(Boolean)).size;
 }
 
+export const PRODUCT_IMPRESSION_EVENTS = ["video_impression", "place_impression", "route_impression"];
+export const PRODUCT_CLICK_EVENTS = ["place_click", "route_click", "video_view_start"];
+export const PRODUCT_ROUTE_START_EVENTS = ["route_start"];
+
 function avgEventsPerSession(rows) {
   const sessions = new Map();
   for (const row of rows) {
@@ -23,6 +27,125 @@ function avgEventsPerSession(rows) {
   if (sessions.size === 0) return null;
   const total = [...sessions.values()].reduce((sum, count) => sum + count, 0);
   return Math.round((total / sessions.size) * 10) / 10;
+}
+
+function actorKey(row) {
+  if (row?.user_id) return `u:${row.user_id}`;
+  if (row?.anonymous_id) return `a:${row.anonymous_id}`;
+  return null;
+}
+
+function uniqueActors(rows, sinceIso = null) {
+  const keys = new Set();
+  for (const row of rows) {
+    if (sinceIso && row?.received_at && row.received_at < sinceIso) continue;
+    const key = actorKey(row);
+    if (key) keys.add(key);
+  }
+  return keys.size;
+}
+
+function countNamedEvents(rows, names, sinceIso = null) {
+  const allow = new Set(names);
+  let total = 0;
+  for (const row of rows) {
+    if (sinceIso && row?.received_at && row.received_at < sinceIso) continue;
+    if (allow.has(row?.event_name)) total += 1;
+  }
+  return total;
+}
+
+function roundRate(numerator, denominator) {
+  if (!denominator) return null;
+  return Math.round((numerator / denominator) * 1000) / 1000;
+}
+
+export function resolveProductFoundationStatus({
+  analyticsEventsSelectable = false,
+  analyticsEventsExists = null,
+  events7d = 0,
+} = {}) {
+  if (analyticsEventsExists === false || analyticsEventsSelectable === false) {
+    return analyticsEventsExists === false ? "schema_missing" : "not_selectable";
+  }
+  if (!events7d) return "empty";
+  return "ready";
+}
+
+/**
+ * Product KPIs for the admin console.
+ * Prefer RPC snapshot fields; fall back to event samples when RPC is unavailable.
+ */
+export function buildProductMetrics({
+  diagnostics = null,
+  rpcSnapshot = null,
+  rangeRows = [],
+  eventsToday = 0,
+  events7d = 0,
+  dayStartIso = null,
+  weekStartIso = null,
+  source = "sample",
+} = {}) {
+  if (rpcSnapshot && typeof rpcSnapshot === "object") {
+    const eventsWeek = Number(rpcSnapshot.events_7d || 0);
+    const status =
+      rpcSnapshot.foundation_status ||
+      resolveProductFoundationStatus({
+        analyticsEventsSelectable: diagnostics?.analytics_events_selectable,
+        analyticsEventsExists: diagnostics?.analytics_events_exists,
+        events7d: eventsWeek,
+      });
+    return {
+      foundation_status: status,
+      unlocked: status === "ready",
+      dau: rpcSnapshot.dau ?? null,
+      wau: rpcSnapshot.wau ?? null,
+      impressions_7d: rpcSnapshot.impressions_7d ?? null,
+      clicks_7d: rpcSnapshot.clicks_7d ?? null,
+      content_ctr_7d: rpcSnapshot.content_ctr_7d ?? null,
+      route_starts_7d: rpcSnapshot.route_starts_7d ?? null,
+      events_7d: rpcSnapshot.events_7d ?? eventsWeek,
+      events_today: rpcSnapshot.events_today ?? null,
+      latest_received_at: rpcSnapshot.latest_received_at ?? null,
+      source: rpcSnapshot.source || "rpc",
+      definitions: {
+        dau: "Distinct authenticated or anonymous actors with events since UTC midnight.",
+        wau: "Distinct actors with events in the last 7 days.",
+        content_ctr: "place_click + route_click + video_view_start over video/place/route impressions (7d).",
+        route_starts: "Count of route_start events in the last 7 days.",
+      },
+    };
+  }
+
+  const impressions = countNamedEvents(rangeRows, PRODUCT_IMPRESSION_EVENTS, weekStartIso);
+  const clicks = countNamedEvents(rangeRows, PRODUCT_CLICK_EVENTS, weekStartIso);
+  const routeStarts = countNamedEvents(rangeRows, PRODUCT_ROUTE_START_EVENTS, weekStartIso);
+  const status = resolveProductFoundationStatus({
+    analyticsEventsSelectable: diagnostics?.analytics_events_selectable,
+    analyticsEventsExists: diagnostics?.analytics_events_exists,
+    events7d,
+  });
+
+  return {
+    foundation_status: status,
+    unlocked: status === "ready",
+    dau: uniqueActors(rangeRows, dayStartIso),
+    wau: uniqueActors(rangeRows, weekStartIso),
+    impressions_7d: impressions,
+    clicks_7d: clicks,
+    content_ctr_7d: roundRate(clicks, impressions),
+    route_starts_7d: routeStarts,
+    events_7d: events7d,
+    events_today: eventsToday,
+    latest_received_at: rangeRows[0]?.received_at || null,
+    source,
+    definitions: {
+      dau: "Distinct authenticated or anonymous actors with events since UTC midnight.",
+      wau: "Distinct actors with events in the last 7 days.",
+      content_ctr: "place_click + route_click + video_view_start over video/place/route impressions (7d).",
+      route_starts: "Count of route_start events in the last 7 days.",
+    },
+  };
 }
 
 function authShare(rows) {
