@@ -6,6 +6,7 @@ import { fetchApiHealth, type AdminHealth } from "@/lib/moderationAdminApi";
 import { getHardcodedAdminSession } from "@/lib/hardcodedAdmin";
 import "@/styles/admin-waitlist.css";
 import "@/styles/admin-moderation.css";
+import "@/styles/admin-apple.css";
 
 type NavItem = {
   label: string;
@@ -16,11 +17,11 @@ type NavItem = {
 };
 
 const moderationItems: NavItem[] = [
-  { label: "Moderation Home", to: "/admin?section=moderation" },
+  { label: "Moderation", to: "/admin?section=moderation" },
   { label: "Reports", to: "/admin/reports?status=all", exactQuery: true },
-  { label: "Pending Queue", to: "/admin/reports?status=pending" },
+  { label: "Pending", to: "/admin/reports?status=pending" },
   { label: "Reviewed", to: "/admin/reports?status=reviewed" },
-  { label: "Removed/Hidden", to: "/admin/reports?status=all&visibility=hidden_removed" },
+  { label: "Hidden", to: "/admin/reports?status=all&visibility=hidden_removed" },
 ];
 
 const overviewItems: NavItem[] = [{ label: "Dashboard", to: "/admin?section=overview", exactQuery: true }];
@@ -35,12 +36,12 @@ const operationsItems: NavItem[] = [
 
 const insightsItems: NavItem[] = [
   { label: "Product Insights", to: "/admin?section=insights", exactQuery: true },
-  { label: "Analytics Ops", to: "/admin/analytics", note: "Health, dead letters, event explorer" },
-  { label: "Business Insights", to: "/admin/analytics/business", note: "Growth, content, investor snapshot" },
+  { label: "Analytics Ops", to: "/admin/analytics" },
+  { label: "Business Insights", to: "/admin/analytics/business" },
 ];
 
 const systemItems: NavItem[] = [
-  { label: "System / Observability", to: "/admin?section=system", exactQuery: true },
+  { label: "System", to: "/admin?section=system", exactQuery: true },
   { label: "API Docs", to: "/admin/api-docs" },
   { label: "Admins", to: "/admin?section=admins", exactQuery: true },
 ];
@@ -327,9 +328,8 @@ export function AdminLayout() {
         </nav>
 
         <div className="admin-console__sidebar-footer">
-          <p>Explore Admin Console for operations, content, moderation, and product health.</p>
           <Link to="/" className="admin-console__utility-link" onClick={() => setNavOpen(false)}>
-            View public site
+            Public site
           </Link>
         </div>
       </aside>
@@ -350,17 +350,16 @@ export function AdminLayout() {
           </button>
 
           <div className="admin-console__page-title">
-            <span>Explore Admin Console</span>
             <h1>{meta.title}</h1>
             <p>{meta.description}</p>
           </div>
 
           <div className="admin-console__topbar-actions">
             <div className="admin-system-status" aria-label="System status">
-              <HealthPill label="API connected" tone={health?.ok ? "ok" : healthLoading ? "warning" : "error"} />
-              <HealthPill label="Supabase configured" tone={supabaseConfigured ? "ok" : "error"} />
+              <HealthPill label="API" tone={health?.ok ? "ok" : healthLoading ? "warning" : "error"} />
+              <HealthPill label="Supabase" tone={supabaseConfigured ? "ok" : "error"} />
               <HealthPill
-                label="Admin authorized"
+                label="Admin"
                 tone={
                   adminAuthorized
                     ? "ok"
@@ -372,10 +371,8 @@ export function AdminLayout() {
             </div>
 
             <div className="admin-console__refresh">
-              <span>
-                {moderationAdmin.sessionRefreshing
-                  ? "Refreshing session…"
-                  : `Updated ${formatLastUpdated(lastUpdated)}`}
+              <span title={moderationAdmin.sessionRefreshing ? "Refreshing session…" : undefined}>
+                {formatLastUpdated(lastUpdated)}
               </span>
               <button
                 type="button"
@@ -384,7 +381,7 @@ export function AdminLayout() {
                 onClick={() => void handleRefresh()}
                 disabled={healthLoading}
               >
-                {healthLoading ? "Refreshing..." : "Refresh"}
+                {healthLoading ? "…" : "Refresh"}
               </button>
             </div>
 

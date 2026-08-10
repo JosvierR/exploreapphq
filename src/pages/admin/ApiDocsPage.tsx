@@ -136,29 +136,20 @@ function ApiDocsContent() {
   return (
     <div className="admin-api-docs">
       <div className="admin-api-docs__intro">
-        <p className="admin-muted">
-          PostgREST loads live from Supabase. Admin HTTP uses{" "}
-          <code>openapi.admin.yaml</code>. Edge Functions use the synced Explore-V2
-          contract (<code>openapi.edge.yaml</code>). Specs are admin-only.
-        </p>
-        {edgePin && (
-          <p className="admin-muted">
-            Edge OpenAPI pin:{" "}
-            {edgePin.url ? (
+        <p>
+          Live PostgREST · Admin HTTP contract · Edge pin{" "}
+          {edgePin ? (
+            edgePin.url ? (
               <a href={edgePin.url} target="_blank" rel="noreferrer">
                 <code>{edgePin.short}</code>
               </a>
             ) : (
               <code>{edgePin.short}</code>
-            )}
-            {edgePin.full && edgePin.full !== edgePin.short ? (
-              <>
-                {" "}
-                (<code>{edgePin.full}</code>)
-              </>
-            ) : null}
-          </p>
-        )}
+            )
+          ) : (
+            <span className="admin-muted">loading…</span>
+          )}
+        </p>
       </div>
 
       {loading && (

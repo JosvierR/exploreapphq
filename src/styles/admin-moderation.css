@@ -1,39 +1,39 @@
 :root {
-  --admin-bg: #f4f7fb;
+  --admin-bg: #f5f5f7;
   --admin-surface: #ffffff;
-  --admin-surface-soft: #f8fafc;
-  --admin-shell: #08111f;
-  --admin-shell-2: #0e1a2b;
-  --admin-ink: #101828;
-  --admin-muted: #667085;
-  --admin-muted-2: #98a2b3;
-  --admin-border: #dbe3ef;
-  --admin-border-soft: #e8edf4;
-  --admin-blue: #0b7fe8;
-  --admin-blue-soft: #eaf4ff;
-  --admin-cyan: #13a8d8;
-  --admin-green: #15803d;
-  --admin-green-soft: #eaf7ef;
-  --admin-amber: #b76e00;
-  --admin-amber-soft: #fff5dc;
-  --admin-red: #c43737;
-  --admin-red-soft: #fff0f0;
-  --admin-violet: #7152c8;
-  --admin-violet-soft: #f2efff;
-  --admin-radius: 8px;
-  --admin-radius-sm: 6px;
-  --admin-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
-  --admin-shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.08);
-  --admin-sidebar-w: 280px;
+  --admin-surface-soft: #f5f5f7;
+  --admin-shell: #fafafa;
+  --admin-shell-2: #f5f5f7;
+  --admin-ink: #1d1d1f;
+  --admin-muted: #6e6e73;
+  --admin-muted-2: #86868b;
+  --admin-border: rgba(0, 0, 0, 0.1);
+  --admin-border-soft: rgba(0, 0, 0, 0.06);
+  --admin-blue: #0071e3;
+  --admin-blue-soft: #eaf3ff;
+  --admin-cyan: #32ade6;
+  --admin-green: #34c759;
+  --admin-green-soft: #eafaf0;
+  --admin-amber: #ff9f0a;
+  --admin-amber-soft: #fff6e5;
+  --admin-red: #ff3b30;
+  --admin-red-soft: #ffecec;
+  --admin-violet: #af52de;
+  --admin-violet-soft: #f7edfc;
+  --admin-radius: 14px;
+  --admin-radius-sm: 10px;
+  --admin-shadow: none;
+  --admin-shadow-soft: none;
+  --admin-sidebar-w: 232px;
   --admin-kpi-surface: #ffffff;
-  --admin-kpi-border: #dce5f0;
-  --admin-kpi-number: #0f172a;
-  --admin-chart-grid: #e8edf4;
-  --admin-chart-primary: #0b7fe8;
-  --admin-chart-secondary: #13a8d8;
-  --admin-positive: #15803d;
-  --admin-negative: #c43737;
-  --admin-warning: #b76e00;
+  --admin-kpi-border: rgba(0, 0, 0, 0.06);
+  --admin-kpi-number: #1d1d1f;
+  --admin-chart-grid: rgba(0, 0, 0, 0.06);
+  --admin-chart-primary: #0071e3;
+  --admin-chart-secondary: #32ade6;
+  --admin-positive: #34c759;
+  --admin-negative: #ff3b30;
+  --admin-warning: #ff9f0a;
 }
 
 .admin-console {
@@ -1840,7 +1840,8 @@
 
 .admin-table-wrap {
   overflow-x: auto;
-  max-height: min(72vh, 820px);
+  overflow-y: visible;
+  max-height: none;
 }
 
 .admin-table {

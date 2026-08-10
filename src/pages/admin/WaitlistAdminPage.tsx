@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminAuthGate } from "@/features/admin/components/AdminAuthGate";
-import { useModerationAdmin } from "@/features/admin/ModerationAdminProvider";
 import {
   fetchAdminWaitlist,
   previewLaunchNotify,
@@ -24,7 +23,6 @@ export function WaitlistAdminPage() {
 }
 
 function WaitlistAdminContent() {
-  const admin = useModerationAdmin();
   const [stats, setStats] = useState<WaitlistStats | null>(null);
   const [rows, setRows] = useState<WaitlistRow[]>([]);
   const [source, setSource] = useState<string>("");
@@ -174,15 +172,16 @@ function WaitlistAdminContent() {
   const configMissing = error?.includes("FIREBASE_SERVICE_ACCOUNT_JSON");
 
   return (
-    <div className="admin-waitlist">
-      <header className="admin-waitlist__header">
-        <p className="admin-waitlist__eyebrow">Early access</p>
-        <h1>Waitlist</h1>
-        <p className="admin-waitlist__sub">
-          Signed in as <strong>{admin.user?.email ?? "Admin"}</strong>
-          {source ? ` · Data: ${source}` : ""}
-        </p>
+    <div className="admin-waitlist admin-section-stack">
+      <header className="admin-page-header admin-page-header--compact">
+        <div className="admin-page-header__actions">
+          <button type="button" className="admin-btn admin-btn--secondary admin-btn--sm" disabled={busy} onClick={() => void load()}>
+            {busy ? "…" : "Refresh"}
+          </button>
+        </div>
       </header>
+
+      {source ? <p className="admin-muted">Data source: {source}</p> : null}
 
       {emailStatus && !emailStatus.ready && (
         <div className="admin-waitlist__banner" role="alert">
@@ -224,18 +223,18 @@ function WaitlistAdminContent() {
       )}
 
       {stats && (
-        <div className="admin-waitlist__stats">
-          <div className="admin-stat">
-            <span className="admin-stat__value">{stats.total}</span>
-            <span className="admin-stat__label">Total signups</span>
+        <div className="admin-waitlist__stats admin-metric-row">
+          <div className="admin-stat-card">
+            <span className="admin-stat-card__label">Total signups</span>
+            <strong>{stats.total}</strong>
           </div>
-          <div className="admin-stat admin-stat--highlight">
-            <span className="admin-stat__value">{stats.pendingLaunch}</span>
-            <span className="admin-stat__label">Awaiting launch email</span>
+          <div className="admin-stat-card">
+            <span className="admin-stat-card__label">Awaiting launch email</span>
+            <strong>{stats.pendingLaunch}</strong>
           </div>
-          <div className="admin-stat">
-            <span className="admin-stat__value">{stats.notified}</span>
-            <span className="admin-stat__label">Already notified</span>
+          <div className="admin-stat-card">
+            <span className="admin-stat-card__label">Already notified</span>
+            <strong>{stats.notified}</strong>
           </div>
         </div>
       )}

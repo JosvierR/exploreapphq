@@ -362,19 +362,11 @@ function ReportsAdminContent() {
   }
 
   return (
-    <div className="admin-moderation admin-moderation--reports">
-      <header className="admin-page-header">
-        <div>
-          <p className="admin-eyebrow">Moderation workspace</p>
-          <h2>{contentType === "video" ? "Video Reports" : "Reports console"}</h2>
-          <p>
-            Report decisions update the case lifecycle. Hide, remove, and restore actions change public visibility for
-            everyone.
-          </p>
-        </div>
+    <div className="admin-moderation admin-moderation--reports admin-section-stack">
+      <header className="admin-page-header admin-page-header--compact">
         <div className="admin-page-header__actions">
-          <button type="button" className="admin-btn admin-btn--secondary" onClick={() => void load()} disabled={loading}>
-            {loading ? "Refreshing..." : "Refresh"}
+          <button type="button" className="admin-btn admin-btn--secondary admin-btn--sm" onClick={() => void load()} disabled={loading}>
+            {loading ? "Refreshing…" : "Refresh"}
           </button>
         </div>
       </header>

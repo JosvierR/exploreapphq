@@ -2,15 +2,15 @@ import type { CSSProperties } from "react";
 import { formatCompact, formatNumber } from "@/lib/analyticsDisplay";
 
 export const chartColors = {
-  primary: "#0b7fe8",
-  secondary: "#13a8d8",
-  positive: "#15803d",
-  warning: "#b76e00",
-  negative: "#c43737",
-  slate: "#64748b",
-  ink: "#101828",
-  muted: "#667085",
-  grid: "#e8edf4",
+  primary: "#0071e3",
+  secondary: "#32ade6",
+  positive: "#34c759",
+  warning: "#ff9f0a",
+  negative: "#ff3b30",
+  slate: "#8e8e93",
+  ink: "#1d1d1f",
+  muted: "#6e6e73",
+  grid: "rgba(0, 0, 0, 0.06)",
   surface: "#ffffff",
 } as const;
 
@@ -20,20 +20,20 @@ export const chartPalette = [
   chartColors.positive,
   chartColors.warning,
   chartColors.slate,
-  "#7c8da5",
+  "#af52de",
 ] as const;
 
 export const chartAxisStyle = {
   fill: chartColors.muted,
-  fontSize: 12,
-  fontWeight: 600,
+  fontSize: 11,
+  fontWeight: 500,
 } as const;
 
 export const chartTooltipStyle: CSSProperties = {
   border: `1px solid ${chartColors.grid}`,
-  borderRadius: 8,
+  borderRadius: 10,
   background: chartColors.surface,
-  boxShadow: "0 10px 28px rgba(15, 23, 42, 0.12)",
+  boxShadow: "none",
   color: chartColors.ink,
   fontSize: 12,
 };

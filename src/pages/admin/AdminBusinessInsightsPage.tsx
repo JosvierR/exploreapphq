@@ -361,7 +361,12 @@ function AdminBusinessInsightsContent() {
       eyebrow="Business Insights"
       title="Business Command Center"
       description="Know what moved, where users drop, and what deserves action in under 30 seconds."
-      actions={<Link className="admin-btn admin-btn--ghost" to="/admin/analytics">Analytics Ops</Link>}
+      compactHeader
+      actions={
+        <Link className="admin-btn admin-btn--ghost admin-btn--sm" to="/admin/analytics">
+          Analytics Ops
+        </Link>
+      }
     >
       <div className="admin-command-strip">
         <div className="admin-command-strip__period">
@@ -508,7 +513,7 @@ function AdminBusinessInsightsContent() {
             emptyTitle={`No ranked ${entityLabel(contentTab).toLowerCase()} yet`}
             emptyMessage="Rankings need both content type and content ID on view and engagement events. Add that metadata, generate activity, then refresh."
             actions={
-              <div className="admin-content-tabs" role="tablist" aria-label="Content type">
+              <div className="admin-segmented" role="tablist" aria-label="Content type">
                 {CONTENT_TABS.map((tab) => (
                   <button
                     key={tab}

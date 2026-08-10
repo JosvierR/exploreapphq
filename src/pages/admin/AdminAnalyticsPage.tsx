@@ -427,10 +427,11 @@ function AdminAnalyticsContent() {
       eyebrow="Insights"
       title="Analytics Ops"
       description="Operational health, cron, dead letters, and raw event explorer."
+      compactHeader
       actions={
-        <div className="admin-page-header__actions">
-          <Link className="admin-btn admin-btn--ghost" to="/admin/analytics/business">
-            Business Insights
+        <div className="admin-page-header__actions admin-toolbar">
+          <Link className="admin-btn admin-btn--ghost admin-btn--sm" to="/admin/analytics/business">
+            Business
           </Link>
           <label className="admin-inline-field">
             <span>Range</span>
@@ -442,7 +443,7 @@ function AdminAnalyticsContent() {
               ))}
             </select>
           </label>
-          <button type="button" className="admin-btn admin-btn--secondary" onClick={() => setRefreshKey((value) => value + 1)}>
+          <button type="button" className="admin-btn admin-btn--secondary admin-btn--sm" onClick={() => setRefreshKey((value) => value + 1)}>
             Refresh
           </button>
         </div>

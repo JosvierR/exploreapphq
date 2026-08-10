@@ -227,26 +227,18 @@ export function AdminSystemPage({ adminEmail }: { adminEmail: string }) {
 
   return (
     <>
-      <header className="admin-page-header">
-        <div>
-          <p className="admin-eyebrow">System / Observability</p>
-          <h2>Operations, security, and log readiness</h2>
-          <p>
-            In-app health and ephemeral runtime metrics for this Vercel instance. Grafana/Loki dashboards live outside Explore
-            (Grafana Cloud or local Docker) — this page shows readiness and security signals, not an embedded Grafana UI.
-          </p>
-        </div>
+      <header className="admin-page-header admin-page-header--compact">
         <div className="admin-page-header__actions">
           {requestId ? <CopyButton value={requestId} label="Copy request id" /> : null}
-          <button type="button" className="admin-btn admin-btn--secondary" onClick={() => void load()} disabled={state.loading}>
-            {state.loading ? "Refreshing..." : "Refresh"}
+          <button type="button" className="admin-btn admin-btn--secondary admin-btn--sm" onClick={() => void load()} disabled={state.loading}>
+            {state.loading ? "Refreshing…" : "Refresh"}
           </button>
         </div>
       </header>
 
       {state.error && <ErrorState title="System health unavailable" message={state.error} onRetry={() => void load()} />}
 
-      <section className="admin-stats-grid admin-stats-grid--ops" aria-label="Observability overview">
+      <section className="admin-metric-row admin-stats-grid admin-stats-grid--ops" aria-label="Observability overview">
         {healthCards.map((card) => (
           <StatCard key={card.label} label={card.label} value={card.value} tone={card.tone} hint={card.hint} loading={state.loading} />
         ))}

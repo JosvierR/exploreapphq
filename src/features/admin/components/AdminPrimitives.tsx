@@ -8,24 +8,31 @@ export function AdminPageShell({
   description,
   actions,
   children,
+  compactHeader = true,
 }: {
   eyebrow: string;
   title: string;
   description?: string;
   actions?: ReactNode;
   children: ReactNode;
+  /** When true, hide duplicate title (layout topbar already shows it). */
+  compactHeader?: boolean;
 }) {
   return (
     <div className="admin-moderation admin-feature-page">
-      <header className="admin-page-header">
-        <div>
-          <p className="admin-eyebrow">{eyebrow}</p>
-          <h2>{title}</h2>
-          {description && <p>{description}</p>}
-        </div>
-        {actions && <div className="admin-page-header__actions">{actions}</div>}
-      </header>
-      {children}
+      {(actions || !compactHeader) && (
+        <header className={`admin-page-header${compactHeader ? " admin-page-header--compact" : ""}`}>
+          {!compactHeader && (
+            <div>
+              <p className="admin-eyebrow">{eyebrow}</p>
+              <h2>{title}</h2>
+              {description && <p>{description}</p>}
+            </div>
+          )}
+          {actions && <div className="admin-page-header__actions">{actions}</div>}
+        </header>
+      )}
+      <div className="admin-section-stack">{children}</div>
     </div>
   );
 }
@@ -58,10 +65,32 @@ export function StatCard({
   return (
     <article className={`admin-stat-card admin-stat-card--${tone === "amber" ? "warning" : tone === "red" ? "danger" : tone}`}>
       <span className="admin-stat-card__label">{label}</span>
-      {loading ? <span className="admin-skeleton admin-skeleton--number" aria-label="Loading" /> : <strong>{value ?? "Not available"}</strong>}
+      {loading ? <span className="admin-skeleton admin-skeleton--number" aria-label="Loading" /> : <strong>{value ?? "—"}</strong>}
       {hint && <span className="admin-stat-card__hint">{hint}</span>}
     </article>
   );
+}
+
+export function MetricRow({ children }: { children: ReactNode }) {
+  return <div className="admin-metric-row">{children}</div>;
+}
+
+export function SegmentedControl({
+  ariaLabel,
+  children,
+}: {
+  ariaLabel: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="admin-segmented" role="tablist" aria-label={ariaLabel}>
+      {children}
+    </div>
+  );
+}
+
+export function AdminToolbar({ children }: { children: ReactNode }) {
+  return <div className="admin-toolbar">{children}</div>;
 }
 
 export function StatusBadge({ label, tone = "slate" }: { label: string; tone?: AdminTone }) {
@@ -84,7 +113,9 @@ export function AdminDataTable({ children, label }: { children: ReactNode; label
 export function EmptyState({ title, message }: { title: string; message: string }) {
   return (
     <div className="admin-empty-state admin-empty-state--compact">
-      <div className="admin-empty-state__mark" aria-hidden="true"><span /></div>
+      <div className="admin-empty-state__mark" aria-hidden="true">
+        <span />
+      </div>
       <h3>{title}</h3>
       <p>{message}</p>
     </div>
@@ -158,7 +189,7 @@ export function ConfirmModal({
   return (
     <div className="admin-confirmation" role="presentation" onMouseDown={(event) => event.currentTarget === event.target && onCancel()}>
       <section ref={dialogRef} className="admin-confirmation__dialog" role="dialog" aria-modal="true" tabIndex={-1}>
-        <p className="admin-eyebrow">Confirmation required</p>
+        <p className="admin-eyebrow">Confirm</p>
         <h3>{title}</h3>
         <p className="admin-muted">{message}</p>
         <div className="admin-confirmation__actions">
@@ -166,7 +197,7 @@ export function ConfirmModal({
             Cancel
           </button>
           <button type="button" className={`admin-btn ${tone === "red" ? "admin-btn--danger" : "admin-btn--primary"}`} onClick={onConfirm} disabled={busy}>
-            {busy ? "Working..." : confirmLabel}
+            {busy ? "Working…" : confirmLabel}
           </button>
         </div>
       </section>
@@ -203,7 +234,11 @@ export function Timeline({ items }: { items: Array<{ id: string; title: string; 
         <li key={item.id}>
           <span>
             <strong>{item.title}</strong>
-            {item.time && <small><RelativeTime value={item.time} /></small>}
+            {item.time && (
+              <small>
+                <RelativeTime value={item.time} />
+              </small>
+            )}
           </span>
           {item.detail && <p>{item.detail}</p>}
         </li>
@@ -233,7 +268,7 @@ export function CopyButton({ value, label = "Copy" }: { value: string; label?: s
 }
 
 export function RelativeTime({ value }: { value?: string | null }) {
-  if (!value) return <>Not available</>;
+  if (!value) return <>—</>;
   const deltaMs = Date.now() - new Date(value).getTime();
   const minutes = Math.max(0, Math.round(deltaMs / 60000));
   if (minutes < 1) return <>Just now</>;

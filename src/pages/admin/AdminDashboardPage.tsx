@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { AdminAuthGate } from "@/features/admin/components/AdminAuthGate";
@@ -98,21 +98,14 @@ function AdminDashboardContent() {
     return () => window.removeEventListener("admin:refresh", handleGlobalRefresh);
   }, [load]);
 
-  const displayName = useMemo(() => admin.user?.email?.split("@")[0] || "admin", [admin.user?.email]);
-
   return (
-    <div className="admin-moderation admin-moderation--dashboard admin-console-page">
-      <header className="admin-page-header admin-page-header--console">
-        <div>
-          <p className="admin-eyebrow">Welcome back, {displayName}</p>
-          <h2>Explore Admin Console</h2>
-          <p>Operate users, content, moderation, and product health from one calm internal workspace.</p>
-        </div>
+    <div className="admin-moderation admin-moderation--dashboard admin-console-page admin-section-stack">
+      <header className="admin-page-header admin-page-header--compact">
         <div className="admin-page-header__actions">
-          <button type="button" className="admin-btn admin-btn--secondary" onClick={() => void load()} disabled={loading}>
-            {loading ? "Refreshing..." : "Refresh console"}
+          <button type="button" className="admin-btn admin-btn--secondary admin-btn--sm" onClick={() => void load()} disabled={loading}>
+            {loading ? "Refreshing…" : "Refresh"}
           </button>
-          <Link to="/admin/reports?status=pending&sort=priority" className="admin-btn admin-btn--primary">
+          <Link to="/admin/reports?status=pending&sort=priority" className="admin-btn admin-btn--primary admin-btn--sm">
             Open queue
           </Link>
         </div>
@@ -181,17 +174,16 @@ function OverviewSection({
 
   return (
     <>
-      <section className={`admin-console-hero admin-overview-hero admin-overview-hero--${isHealthy ? "healthy" : "attention"}`}>
+      <section className={`admin-panel admin-overview-hero admin-overview-hero--${isHealthy ? "healthy" : "attention"}`}>
         <div className="admin-overview-hero__content">
-          <p className="admin-eyebrow">Executive overview</p>
           <h3>{statusTitle}</h3>
           <p>{statusCopy}</p>
           <div className="admin-overview-hero__actions">
-            <Link className="admin-btn admin-btn--primary" to="/admin/analytics/business">
-              Open Business Insights
+            <Link className="admin-btn admin-btn--primary admin-btn--sm" to="/admin/analytics/business">
+              Business Insights
             </Link>
-            <Link className="admin-btn admin-btn--ghost" to="/admin/reports?status=pending&sort=priority">
-              Review moderation queue
+            <Link className="admin-btn admin-btn--ghost admin-btn--sm" to="/admin/reports?status=pending&sort=priority">
+              Moderation queue
             </Link>
           </div>
         </div>
@@ -202,7 +194,7 @@ function OverviewSection({
         </div>
       </section>
 
-      <div className="admin-overview-kpis" aria-label="Key operating metrics">
+      <div className="admin-metric-row admin-overview-kpis" aria-label="Key operating metrics">
         <StatCard label="Users" value={summary?.users.total} loading={loading} tone="blue" hint="Total product accounts" />
         <StatCard label="Content" value={totalContent} loading={loading} tone="green" hint="Videos, places, and routes" />
         <StatCard label="Pending reports" value={pendingCount} loading={loading} tone={pendingCount ? "danger" : "green"} hint={pendingCount ? "Requires review" : "Queue is clear"} />
@@ -333,7 +325,7 @@ function ContentSection({ summary, loading }: { summary: AdminOpsSummary | null;
 
       <section className="admin-panel">
         <PanelHeader kicker="Inventory" title="Content operations" />
-        <div className="admin-segmented-control" role="tablist" aria-label="Content type">
+        <div className="admin-segmented" role="tablist" aria-label="Content type">
           {(["videos", "places", "routes"] as const).map((tab) => (
             <button
               type="button"
