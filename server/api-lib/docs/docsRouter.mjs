@@ -41,14 +41,7 @@ export async function dispatchOpenApiDocs(request, route) {
     await requireAdmin(request);
 
     if (surface === "postgrest") {
-      const clientAnonKey = String(request.headers.get("x-explore-supabase-anon-key") || "").trim();
-      const userAccessToken = String(request.headers.get("authorization") || "")
-        .replace(/^Bearer\s+/i, "")
-        .trim();
-      const { json, cache, converter } = await fetchLivePostgrestOpenApi({
-        anonKeyCandidates: clientAnonKey ? [clientAnonKey] : [],
-        userAccessToken,
-      });
+      const { json, cache, converter } = await fetchLivePostgrestOpenApi();
       return openApiJsonResponse(200, json, {
         "Cache-Control": "private, max-age=60",
         "X-Explore-OpenAPI-Cache": cache,
@@ -82,6 +75,7 @@ export async function dispatchOpenApiDocs(request, route) {
       ok: false,
       error: message,
       code: error?.code,
+      config: surface === "postgrest" ? postgrestOpenApiConfigStatus() : undefined,
       request_id: requestIdFromRequest(request),
     });
   }

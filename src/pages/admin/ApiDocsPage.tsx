@@ -53,15 +53,6 @@ function ApiDocsContent() {
               Authorization: `Bearer ${accessToken}`,
               Accept: "application/json",
             };
-            // Public publishable key is already in the Vite bundle; forward it so the
-            // serverless function can call PostgREST even when Vercel SUPABASE_ANON_KEY is wrong.
-            if (meta.slug === "postgrest") {
-              const publishable =
-                import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-              if (publishable) {
-                headers["X-Explore-Supabase-Anon-Key"] = publishable;
-              }
-            }
             const response = await fetch(meta.path, { headers });
             const data = (await response.json().catch(() => null)) as Record<string, unknown> | null;
             if (!response.ok) {

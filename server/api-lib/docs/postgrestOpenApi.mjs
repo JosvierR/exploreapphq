@@ -37,8 +37,7 @@ export function sanitizeSupabaseEnvValue(value) {
 }
 
 /**
- * Server-side project URL only. Prefer SUPABASE_URL; URL is not secret so
- * VITE_SUPABASE_URL is an allowed fallback for existing deploys.
+ * Same URL resolution as moderation/analytics (`createServiceClient`).
  */
 export function getPostgrestSupabaseUrl() {
   return sanitizeSupabaseEnvValue(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").replace(
@@ -48,84 +47,78 @@ export function getPostgrestSupabaseUrl() {
 }
 
 /**
- * Preferred server-only anon/publishable key (not sufficient alone for OpenAPI root anymore).
+ * Same secret resolution as moderation/analytics — required for OpenAPI root.
+ * Supabase returns: "Secret API key required" for publishable/anon on GET /rest/v1/.
  */
+export function getPostgrestSecretKey() {
+  return sanitizeSupabaseEnvValue(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "");
+}
+
+/** @deprecated kept for tests/compat */
 export function getPostgrestAnonKey() {
   return sanitizeSupabaseEnvValue(process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "");
 }
 
-function getServiceRoleKey() {
-  return sanitizeSupabaseEnvValue(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "");
-}
-
-function isLegacyJwtKey(key) {
-  return String(key || "").startsWith("eyJ");
-}
-
-function isNewSupabaseApiKey(key) {
-  return /^sb_(publishable|secret)_/i.test(String(key || ""));
-}
-
 /**
- * Keys for PostgREST OpenAPI. Supabase now requires a secret key for GET /rest/v1/ OpenAPI
- * ("Secret API key required"). Prefer service-role/secret first; keep anon candidates as fallback
- * for older projects that still allow publishable/anon on this endpoint.
- * @param {string[]} [extraKeys]
- * @returns {string[]}
+ * Header variants aligned with `boardAdminProvision` + Supabase new-key rules.
+ * - Legacy JWT service_role (`eyJ…`): apikey + Authorization Bearer (same as createClient / restHeaders)
+ * - New `sb_secret_…`: apikey only first (Bearer with sb_* is rejected as Invalid JWT)
+ * @param {string} secretKey
+ * @returns {Array<Record<string, string>>}
  */
+export function buildPostgrestSecretAuthAttempts(secretKey) {
+  const accept = "application/openapi+json, application/json";
+  if (secretKey.startsWith("sb_")) {
+    return [
+      { apikey: secretKey, Accept: accept },
+      // Some gateways still accept matching Bearer == apikey for sb_secret.
+      { apikey: secretKey, Authorization: `Bearer ${secretKey}`, Accept: accept },
+    ];
+  }
+  return [
+    // Matches boardAdminProvision.restHeaders / @supabase createClient service role.
+    { apikey: secretKey, Authorization: `Bearer ${secretKey}`, Accept: accept },
+    { apikey: secretKey, Accept: accept },
+  ];
+}
+
+/** @deprecated use buildPostgrestSecretAuthAttempts */
+export function buildPostgrestAuthHeaderAttempts(apiKey, userJwt = "") {
+  const attempts = buildPostgrestSecretAuthAttempts(apiKey);
+  if (!userJwt || apiKey.startsWith("sb_")) return attempts;
+  return [
+    { apikey: apiKey, Authorization: `Bearer ${userJwt}`, Accept: "application/openapi+json, application/json" },
+    ...attempts,
+  ];
+}
+
+/** @deprecated */
 export function getPostgrestOpenApiKeyCandidates(extraKeys = []) {
-  const keys = [
-    getServiceRoleKey(),
-    sanitizeSupabaseEnvValue(process.env.SUPABASE_ANON_KEY || ""),
-    sanitizeSupabaseEnvValue(process.env.SUPABASE_PUBLISHABLE_KEY || ""),
-    sanitizeSupabaseEnvValue(process.env.VITE_SUPABASE_PUBLISHABLE_KEY || ""),
-    sanitizeSupabaseEnvValue(process.env.VITE_SUPABASE_ANON_KEY || ""),
-    ...extraKeys.map((key) => sanitizeSupabaseEnvValue(key)),
-  ].filter(Boolean);
+  const keys = [getPostgrestSecretKey(), getPostgrestAnonKey(), ...extraKeys.map(sanitizeSupabaseEnvValue)].filter(
+    Boolean,
+  );
   return [...new Set(keys)];
 }
 
-/** @deprecated use getPostgrestOpenApiKeyCandidates */
+/** @deprecated */
 export function getPostgrestAnonKeyCandidates(extraKeys = []) {
   return getPostgrestOpenApiKeyCandidates(extraKeys);
 }
 
-/**
- * Build auth header variants for a key.
- * New sb_* keys must NOT be sent as Authorization Bearer (Invalid JWT). Use apikey only,
- * optionally with a real user JWT.
- * @param {string} apiKey
- * @param {string} [userJwt]
- * @returns {Array<Record<string, string>>}
- */
-export function buildPostgrestAuthHeaderAttempts(apiKey, userJwt = "") {
-  const userAuth = userJwt ? { Authorization: `Bearer ${userJwt}` } : null;
-  if (isNewSupabaseApiKey(apiKey)) {
-    return [
-      userAuth ? { apikey: apiKey, ...userAuth } : null,
-      { apikey: apiKey },
-    ].filter(Boolean);
-  }
-  // Legacy JWT anon/service_role keys.
-  return [
-    { apikey: apiKey, Authorization: `Bearer ${apiKey}` },
-    userAuth ? { apikey: apiKey, ...userAuth } : null,
-    { apikey: apiKey },
-  ].filter(Boolean);
-}
-
-function anonKeyFingerprint(anonKey) {
-  if (!anonKey) return { present: false };
+function keyFingerprint(key) {
+  if (!key) return { present: false };
   return {
     present: true,
-    length: anonKey.length,
-    kind: anonKey.startsWith("eyJ")
+    length: key.length,
+    kind: key.startsWith("eyJ")
       ? "legacy_jwt"
-      : anonKey.startsWith("sb_publishable_")
-        ? "sb_publishable"
-        : anonKey.startsWith("sb_")
-          ? "sb_other"
-          : "unknown",
+      : key.startsWith("sb_secret_")
+        ? "sb_secret"
+        : key.startsWith("sb_publishable_")
+          ? "sb_publishable"
+          : key.startsWith("sb_")
+            ? "sb_other"
+            : "unknown",
   };
 }
 
@@ -137,14 +130,12 @@ export function postgrestOpenApiConfigStatus() {
   } catch {
     host = "";
   }
-  const candidates = getPostgrestOpenApiKeyCandidates();
+  const secretKey = getPostgrestSecretKey();
   return {
     supabase_url_configured: configured(url),
     supabase_url_host: host,
-    supabase_anon_key_configured: Boolean(getPostgrestAnonKey()),
-    supabase_secret_key_configured: Boolean(getServiceRoleKey()),
-    supabase_openapi_key_candidates: candidates.length,
-    supabase_anon_key: anonKeyFingerprint(getPostgrestAnonKey() || candidates[0] || ""),
+    supabase_secret_key_configured: configured(secretKey),
+    supabase_secret_key: keyFingerprint(secretKey),
     prefer_lite: PREFER_LITE,
   };
 }
@@ -208,7 +199,8 @@ function prepareUpstreamDocument(document) {
   } catch {
     return document;
   }
-  if (json.length <= 1_200_000) return document;
+  // Always prune large specs before conversion (serverless CPU/memory).
+  if (json.length <= 400_000) return document;
   logger.warn("PostgREST upstream document large; stripping heavy fields before convert", {
     bytes: json.length,
   });
@@ -282,7 +274,6 @@ export function fitOpenApiForServerless(spec) {
 }
 
 /**
- * Plain JSON response (no manual gzip — Vercel/CDN compresses; double-gzip breaks Scalar).
  * @param {number} status
  * @param {string} json
  * @param {Record<string, string>} [headers]
@@ -293,7 +284,7 @@ export function openApiJsonResponse(status, json, headers = {}) {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Request-ID, X-Explore-Supabase-Anon-Key",
+      "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Request-ID",
       "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
       "Access-Control-Expose-Headers":
         "X-Request-ID, X-Explore-OpenAPI, X-Explore-OpenAPI-Cache, X-Explore-OpenAPI-Converter",
@@ -304,12 +295,8 @@ export function openApiJsonResponse(status, json, headers = {}) {
 }
 
 /**
- * @param {{
- *   fetchImpl?: typeof fetch,
- *   now?: () => number,
- *   anonKeyCandidates?: string[],
- *   userAccessToken?: string,
- * }} [options]
+ * Fetch live PostgREST OpenAPI using the same secret key as admin stats/moderation.
+ * @param {{ fetchImpl?: typeof fetch, now?: () => number }} [options]
  */
 export async function fetchLivePostgrestOpenApi(options = {}) {
   const fetchImpl = options.fetchImpl || fetch;
@@ -321,60 +308,35 @@ export async function fetchLivePostgrestOpenApi(options = {}) {
   }
 
   const url = getPostgrestSupabaseUrl();
-  const keyCandidates = getPostgrestOpenApiKeyCandidates(options.anonKeyCandidates || []);
-  if (!url || keyCandidates.length === 0) {
+  const secretKey = getPostgrestSecretKey();
+  if (!url || !secretKey) {
     throw Object.assign(
       new Error(
-        "PostgREST OpenAPI requires SUPABASE_URL and SUPABASE_SECRET_KEY (or legacy service_role). Supabase now rejects publishable/anon keys for GET /rest/v1/ OpenAPI.",
+        "PostgREST OpenAPI requires SUPABASE_URL (or VITE_SUPABASE_URL) and SUPABASE_SECRET_KEY — the same server secret used by admin analytics/moderation.",
       ),
       { status: 503, code: "postgrest_openapi_config_missing" },
     );
   }
 
   const endpoint = `${url}/rest/v1/`;
-  const accept = "application/openapi+json, application/json";
-  const userJwt = sanitizeSupabaseEnvValue(options.userAccessToken || "");
+  const attempts = buildPostgrestSecretAuthAttempts(secretKey);
 
   let response = null;
   let lastStatus = 0;
   let lastBody = "";
-  let usedKeySource = "primary";
+
   try {
-    for (let keyIndex = 0; keyIndex < keyCandidates.length; keyIndex += 1) {
-      const apiKey = keyCandidates[keyIndex];
-      const authAttempts = buildPostgrestAuthHeaderAttempts(apiKey, userJwt);
-      for (const authHeaders of authAttempts) {
-        response = await fetchImpl(endpoint, {
-          method: "GET",
-          headers: {
-            Accept: accept,
-            ...authHeaders,
-          },
-        });
-        lastStatus = response.status;
-        if (response.ok) {
-          usedKeySource = keyIndex === 0 ? "primary" : `fallback_${keyIndex}`;
-          if (keyIndex > 0 || isNewSupabaseApiKey(apiKey)) {
-            logger.info("PostgREST OpenAPI upstream auth succeeded", {
-              key_index: keyIndex,
-              key: anonKeyFingerprint(apiKey),
-              used_user_jwt: Boolean(userJwt && authHeaders.Authorization),
-            });
-          }
-          break;
-        }
-        // Keep trying other keys on 401 (wrong key type / publishable rejected for OpenAPI).
-        if (response.status === 401) {
-          try {
-            lastBody = await response.clone().text();
-          } catch {
-            lastBody = "";
-          }
-          continue;
-        }
-        break;
+    for (const headers of attempts) {
+      response = await fetchImpl(endpoint, { method: "GET", headers });
+      lastStatus = response.status;
+      if (response.ok) break;
+      try {
+        lastBody = await response.clone().text();
+      } catch {
+        lastBody = "";
       }
-      if (response?.ok) break;
+      // Only retry alternate header shape on 401.
+      if (response.status !== 401) break;
     }
   } catch (error) {
     logger.warn("PostgREST OpenAPI upstream fetch failed", { error: errorSummary(error) });
@@ -392,12 +354,9 @@ export async function fetchLivePostgrestOpenApi(options = {}) {
       ...config,
     });
     if (lastStatus === 401 || response?.status === 401) {
-      const needsSecret = /secret api key required/i.test(lastBody);
       throw Object.assign(
         new Error(
-          needsSecret
-            ? `Supabase requires a secret/service_role key for PostgREST OpenAPI on ${config.supabase_url_host || "SUPABASE_URL"}. Set SUPABASE_SECRET_KEY in Vercel (same project), then Redeploy.`
-            : `Supabase rejected configured API keys for PostgREST OpenAPI on ${config.supabase_url_host || "SUPABASE_URL"} (HTTP 401). Ensure SUPABASE_SECRET_KEY is set for this admin endpoint.`,
+          `Supabase rejected SUPABASE_SECRET_KEY for PostgREST OpenAPI on ${config.supabase_url_host || "SUPABASE_URL"} (HTTP 401). Confirm the secret/service_role key matches this project (same key analytics uses). Hint: ${lastBody.slice(0, 160) || "n/a"}`,
         ),
         { status: 502, code: "postgrest_openapi_upstream_unauthorized" },
       );
@@ -432,7 +391,7 @@ export async function fetchLivePostgrestOpenApi(options = {}) {
   cache = { spec: fitted.spec, json: fitted.json, expiresAt: at + CACHE_TTL_MS };
   logger.info("PostgREST OpenAPI ready", {
     converter,
-    key_source: usedKeySource,
+    key: keyFingerprint(secretKey),
     bytes: fitted.json.length,
     path_count: Object.keys(/** @type {object} */ (fitted.spec.paths || {})).length,
   });

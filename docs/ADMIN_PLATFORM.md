@@ -39,7 +39,7 @@ Admin-authenticated read-only specs:
 
 Handlers live in `server/api-lib/docs/` and are wired through `server/api-lib/router.mjs` (mirrored in `server/index.ts`). Each route uses `requireAdmin`.
 
-PostgREST live docs fetch `${SUPABASE_URL}/rest/v1/` server-side. Supabase currently requires a **secret/service_role** key for that OpenAPI root (`Secret API key required` for publishable/anon). Prefer `SUPABASE_SECRET_KEY` (already used by admin APIs). Do not put `sb_*` keys in `Authorization: Bearer`.
+PostgREST live docs fetch `${SUPABASE_URL}/rest/v1/` with the same `SUPABASE_SECRET_KEY` used by admin analytics/moderation. Supabase rejects publishable/anon keys for that OpenAPI root (`Secret API key required`).
 
 ## Backend Routing
 
