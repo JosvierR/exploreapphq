@@ -159,6 +159,9 @@ assert.equal(overview.summary.total_events, 6, "overview counts events");
 assert.equal(overview.summary.app_opens, 1, "overview counts app opens");
 assert.equal(overview.summary.video_views, 1, "overview counts video views");
 assert.ok(overview.breakdowns.top_event_names.length > 0, "overview has event breakdown");
+assert.equal(typeof overview.summary.content_ctr === "number" || overview.summary.content_ctr === null, true, "content_ctr present");
+assert.equal(typeof overview.summary.search_ctr === "number" || overview.summary.search_ctr === null, true, "search_ctr present");
+assert.ok(overview.summary.product_signals, "product_signals block present");
 
 const growth = await getGrowthInsights(mockClient(), range);
 assert.ok(growth.series.length >= 1, "growth returns daily series");
@@ -168,6 +171,14 @@ const funnel = await getEngagementFunnel(mockClient(), range);
 assert.equal(funnel.funnel[0].key, "app_open", "funnel starts with app_open");
 assert.ok(funnel.funnel[0].count >= 1, "funnel app_open count");
 assert.equal(typeof funnel.funnel[1].dropoff_pct, "number", "funnel includes dropoff");
+assert.ok(Array.isArray(funnel.watch_funnel), "watch funnel present");
+assert.ok(Array.isArray(funnel.commerce_funnel), "commerce funnel present");
+assert.equal(funnel.funnel[funnel.funnel.length - 1].key, "conversion", "conversion step present");
+assert.equal(
+  funnel.funnel[funnel.funnel.length - 1].label.includes("report"),
+  false,
+  "reports removed from conversion step",
+);
 
 const funnelFromSessionStart = await getEngagementFunnel(
   mockClient(

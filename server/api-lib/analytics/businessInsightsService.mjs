@@ -57,6 +57,21 @@ const SHARE_EVENTS = new Set(["content_share", "video_share", "place_share", "ro
 const SEARCH_EVENTS = new Set(["search_performed", "search_submitted", "search_no_results", "search_result_clicked"]);
 const APP_OPEN_EVENTS = new Set(["app_open", "session_start"]);
 const SCREEN_VIEW_EVENTS = new Set(["screen_view"]);
+const IMPRESSION_EVENTS = new Set(["video_impression", "place_impression", "route_impression"]);
+const CLICK_EVENTS = new Set(["place_click", "route_click", "video_view_start"]);
+const PLACE_COMMERCE_EVENTS = new Set(["place_get_directions", "place_call", "place_website_click", "place_open_map"]);
+const ACQUISITION_EVENTS = new Set(["push_notification_open", "deep_link_open"]);
+const CONVERSION_EVENTS = new Set(["follow_user", "route_complete", "place_get_directions", "place_call", "place_website_click"]);
+
+function rate(numerator, denominator) {
+  if (!denominator) return null;
+  return Math.round((numerator / denominator) * 1000) / 10;
+}
+
+function countNamed(rows, names) {
+  const allow = names instanceof Set ? names : new Set(names);
+  return rows.filter((row) => allow.has(row.event_name)).length;
+}
 
 function marketCountry(row) {
   if (row?.country) return String(row.country).trim().toUpperCase();
@@ -413,24 +428,35 @@ function buildContentSections(rows) {
       entity_type: type,
       entity_id: row.entity_id,
       entity_id_short: shortenId(row.entity_id),
+      impressions: 0,
       views: 0,
+      clicks: 0,
       likes: 0,
       saves: 0,
       shares: 0,
       reports: 0,
       route_starts: 0,
+      route_completes: 0,
+      video_completes: 0,
     };
+    if (IMPRESSION_EVENTS.has(row.event_name)) current.impressions += 1;
     if (isViewEvent(row)) current.views += 1;
+    if (CLICK_EVENTS.has(row.event_name)) current.clicks += 1;
     if (LIKE_EVENTS.has(row.event_name)) current.likes += 1;
     if (SAVE_EVENTS.has(row.event_name)) current.saves += 1;
     if (SHARE_EVENTS.has(row.event_name)) current.shares += 1;
     if (row.event_name === "report_submitted") current.reports += 1;
     if (row.event_name === "route_start") current.route_starts += 1;
+    if (row.event_name === "route_complete") current.route_completes += 1;
+    if (row.event_name === "video_view_complete") current.video_completes += 1;
     groups.set(key, current);
   }
 
   const items = [...groups.values()].map((item) => ({
     ...item,
+    ctr: rate(item.clicks, item.impressions),
+    route_completion_rate: rate(item.route_completes, item.route_starts),
+    video_completion_rate: rate(item.video_completes, item.views),
     engagement_score: contentScore(item),
   }));
 
@@ -491,10 +517,26 @@ function buildOverviewSummary(rows, deadCount) {
   const routeViews = rows.filter((row) => row.entity_type === "route" && isViewEvent(row)).length;
   const profileViews = rows.filter((row) => (row.entity_type === "user" || row.entity_type === "profile") && isViewEvent(row)).length;
   const searches = rows.filter((row) => SEARCH_EVENTS.has(row.event_name) && row.event_name !== "search_result_clicked").length;
+  const searchSubmitted = rows.filter((row) => ["search_performed", "search_submitted"].includes(row.event_name)).length;
+  const searchClicks = countNamed(rows, ["search_result_clicked"]);
   const saves = rows.filter((row) => SAVE_EVENTS.has(row.event_name)).length;
   const likes = rows.filter((row) => LIKE_EVENTS.has(row.event_name)).length;
   const shares = rows.filter((row) => SHARE_EVENTS.has(row.event_name)).length;
   const reports = rows.filter((row) => row.event_name === "report_submitted").length;
+  const impressions = countNamed(rows, IMPRESSION_EVENTS);
+  const clicks = countNamed(rows, CLICK_EVENTS);
+  const videoStarts = countNamed(rows, ["video_view_start"]);
+  const videoCompletes = countNamed(rows, ["video_view_complete"]);
+  const videoSkips = countNamed(rows, ["video_skip_fast"]);
+  const routeStarts = countNamed(rows, ["route_start"]);
+  const routeCompletes = countNamed(rows, ["route_complete"]);
+  const placeDirections = countNamed(rows, ["place_get_directions"]);
+  const placeCalls = countNamed(rows, ["place_call"]);
+  const placeWebsiteClicks = countNamed(rows, ["place_website_click"]);
+  const placeMapOpens = countNamed(rows, ["place_open_map"]);
+  const placeCommerce = placeDirections + placeCalls + placeWebsiteClicks + placeMapOpens;
+  const pushOpens = countNamed(rows, ["push_notification_open"]);
+  const deepLinkOpens = countNamed(rows, ["deep_link_open"]);
   const sessions = uniqueCount(rows, "session_id");
   const activeAnonymous = uniqueCount(rows, "anonymous_id");
   const activeAuthenticated = uniqueCount(rows, "user_id");
@@ -512,16 +554,45 @@ function buildOverviewSummary(rows, deadCount) {
     route_views: routeViews,
     profile_views: profileViews,
     searches_total: searches,
+    search_result_clicks: searchClicks,
+    search_ctr: rate(searchClicks, searchSubmitted),
     saves_total: saves,
     likes_total: likes,
     shares_total: shares,
     reports_total: reports,
     engagement_actions: likes + saves + shares,
+    impressions_total: impressions,
+    content_ctr: rate(clicks, impressions),
+    video_starts: videoStarts,
+    video_completes: videoCompletes,
+    video_skips: videoSkips,
+    video_completion_rate: rate(videoCompletes, videoStarts),
+    video_skip_rate: rate(videoSkips, videoStarts),
+    route_starts: routeStarts,
+    route_completes: routeCompletes,
+    route_completion_rate: rate(routeCompletes, routeStarts),
+    place_commerce_actions: placeCommerce,
+    place_directions: placeDirections,
+    place_calls: placeCalls,
+    place_website_clicks: placeWebsiteClicks,
+    place_map_opens: placeMapOpens,
+    place_commerce_rate: rate(placeCommerce, placeViews || impressions),
+    push_opens: pushOpens,
+    deep_link_opens: deepLinkOpens,
+    acquisition_opens: pushOpens + deepLinkOpens,
     dead_letters_total: deadCount,
     engagement_rate_estimate: contentViews > 0 ? Math.round((actions / contentViews) * 1000) / 10 : 0,
     conversion_estimate: {
       app_open_to_content_view: appOpens > 0 ? Math.round((contentViews / appOpens) * 1000) / 10 : 0,
       content_view_to_action: contentViews > 0 ? Math.round((actions / contentViews) * 1000) / 10 : 0,
+      content_view_to_commerce: contentViews > 0 ? Math.round((placeCommerce / contentViews) * 1000) / 10 : 0,
+    },
+    product_signals: {
+      watch_quality: rate(videoCompletes, videoStarts),
+      feed_ctr: rate(clicks, impressions),
+      search_ctr: rate(searchClicks, searchSubmitted),
+      route_completion: rate(routeCompletes, routeStarts),
+      local_intent: rate(placeCommerce, Math.max(placeViews, 1)),
     },
   };
 }
@@ -627,28 +698,71 @@ export async function getEngagementFunnel(supabase, params) {
     },
     {
       key: "conversion",
-      label: "Creator / conversion action",
-      rows: rows.filter((row) =>
-        ["follow_user", "route_complete", "place_get_directions", "place_call", "place_website_click", "report_submitted"].includes(
-          row.event_name,
-        ),
-      ),
+      label: "High-intent conversion",
+      rows: rows.filter((row) => CONVERSION_EVENTS.has(row.event_name)),
     },
   ];
 
-  const funnel = steps.map((step, index) => {
-    const count = step.rows.length;
-    const sessions = uniqueCount(step.rows, "session_id");
-    const previous = index === 0 ? count : steps[index - 1].rows.length;
-    const dropoff_pct = previous > 0 ? Math.round(((previous - count) / previous) * 1000) / 10 : 0;
-    return {
-      key: step.key,
-      label: step.label,
-      count,
-      unique_sessions: sessions,
-      dropoff_pct: index === 0 ? 0 : Math.max(dropoff_pct, 0),
-    };
-  });
+  const commerceSteps = [
+    {
+      key: "place_impression_or_view",
+      label: "Place discovery",
+      rows: rows.filter(
+        (row) =>
+          row.event_name === "place_impression" ||
+          (row.entity_type === "place" && isViewEvent(row)) ||
+          row.event_name === "place_click",
+      ),
+    },
+    {
+      key: "place_commerce",
+      label: "Local intent (directions / call / web / map)",
+      rows: rows.filter((row) => PLACE_COMMERCE_EVENTS.has(row.event_name)),
+    },
+  ];
+
+  const watchSteps = [
+    {
+      key: "video_view_start",
+      label: "Video start",
+      rows: rows.filter((row) => row.event_name === "video_view_start"),
+    },
+    {
+      key: "video_view_3s",
+      label: "Watched 3s",
+      rows: rows.filter((row) => row.event_name === "video_view_3s"),
+    },
+    {
+      key: "video_view_50",
+      label: "Watched 50%",
+      rows: rows.filter((row) => row.event_name === "video_view_50"),
+    },
+    {
+      key: "video_view_complete",
+      label: "Completed",
+      rows: rows.filter((row) => row.event_name === "video_view_complete"),
+    },
+  ];
+
+  function toFunnel(steps) {
+    return steps.map((step, index) => {
+      const count = step.rows.length;
+      const sessions = uniqueCount(step.rows, "session_id");
+      const previous = index === 0 ? count : steps[index - 1].rows.length;
+      const dropoff_pct = previous > 0 ? Math.round(((previous - count) / previous) * 1000) / 10 : 0;
+      return {
+        key: step.key,
+        label: step.label,
+        count,
+        unique_sessions: sessions,
+        dropoff_pct: index === 0 ? 0 : Math.max(dropoff_pct, 0),
+      };
+    });
+  }
+
+  const funnel = toFunnel(steps);
+  const commerce_funnel = toFunnel(commerceSteps);
+  const watch_funnel = toFunnel(watchSteps);
 
   if (!rows.some((row) => APP_OPEN_EVENTS.has(row.event_name))) {
     warnings.push(
@@ -665,8 +779,14 @@ export async function getEngagementFunnel(supabase, params) {
       steps: funnel.length,
       top_of_funnel: funnel[0]?.count || 0,
       bottom_of_funnel: funnel[funnel.length - 1]?.count || 0,
+      commerce_conversions: commerce_funnel[1]?.count || 0,
+      video_starts: watch_funnel[0]?.count || 0,
+      video_completes: watch_funnel[watch_funnel.length - 1]?.count || 0,
+      video_completion_rate: rate(watch_funnel[watch_funnel.length - 1]?.count || 0, watch_funnel[0]?.count || 0),
     },
     funnel,
+    commerce_funnel,
+    watch_funnel,
     warnings,
   };
 }
@@ -734,6 +854,7 @@ export async function getSearchInsights(supabase, params) {
       total_searches: submitted.length,
       no_result_searches: noResults.length,
       no_result_rate: submitted.length > 0 ? Math.round((noResults.length / submitted.length) * 1000) / 10 : 0,
+      search_ctr: submitted.length > 0 ? Math.round((clicks.length / submitted.length) * 1000) / 10 : 0,
       search_to_content_view_estimate: submitted.length > 0 ? Math.round((contentViews / submitted.length) * 1000) / 10 : 0,
       result_clicks: clicks.length,
     },
@@ -906,6 +1027,11 @@ export async function getInvestorSnapshot(supabase, params) {
       searches: overview.summary.searches_total,
       engagement_actions:
         overview.summary.likes_total + overview.summary.saves_total + overview.summary.shares_total,
+      video_completion_rate: overview.summary.video_completion_rate,
+      search_ctr: overview.summary.search_ctr,
+      content_ctr: overview.summary.content_ctr,
+      route_completion_rate: overview.summary.route_completion_rate,
+      place_commerce_actions: overview.summary.place_commerce_actions,
       top_content_types: topContentTypes,
       top_markets: locations.countries.slice(0, 5).map((item) => ({
         country: item.country,
@@ -915,6 +1041,10 @@ export async function getInvestorSnapshot(supabase, params) {
         `Estimated new anonymous IDs: ${growth.summary.estimated_new_anonymous_ids}`,
         `Estimated returning anonymous IDs: ${growth.summary.estimated_returning_anonymous_ids}`,
         `App opens: ${overview.summary.app_opens}`,
+        `Video completion rate: ${overview.summary.video_completion_rate ?? "n/a"}%`,
+        `Search CTR: ${overview.summary.search_ctr ?? "n/a"}%`,
+        `Route completion rate: ${overview.summary.route_completion_rate ?? "n/a"}%`,
+        `Local commerce actions: ${overview.summary.place_commerce_actions}`,
       ],
       data_quality_notes: notes,
     },
@@ -927,7 +1057,18 @@ export async function getInvestorSnapshot(supabase, params) {
       `- Tracked actions: ${overview.summary.total_events}`,
       `- Content views: ${overview.summary.content_views_total}`,
       `- Searches: ${overview.summary.searches_total}`,
+      `- Search CTR: ${overview.summary.search_ctr ?? "n/a"}%`,
+      `- Video completion: ${overview.summary.video_completion_rate ?? "n/a"}%`,
+      `- Feed CTR: ${overview.summary.content_ctr ?? "n/a"}%`,
+      `- Route completion: ${overview.summary.route_completion_rate ?? "n/a"}%`,
+      `- Local commerce actions: ${overview.summary.place_commerce_actions}`,
       `- Engagement actions: ${overview.summary.engagement_actions}`,
+      "",
+      "Top content types:",
+      ...topContentTypes.map((item) => `- ${item.type}: ${item.count}`),
+      "",
+      "Top markets:",
+      ...locations.countries.slice(0, 5).map((item) => `- ${item.country}: ${item.events}`),
       "",
       "Notes:",
       ...(notes.length ? notes.map((note) => `- ${note}`) : ["- No major data-quality blockers detected."]),

@@ -436,8 +436,10 @@ export function getBusinessGrowth(params: BusinessParams = {}) {
 
 export function getBusinessFunnel(params: BusinessParams = {}) {
   return businessFetch<{
-    summary: Record<string, number>;
+    summary: Record<string, number | null>;
     funnel: Array<{ key: string; label: string; count: number; unique_sessions: number; dropoff_pct: number }>;
+    watch_funnel?: Array<{ key: string; label: string; count: number; unique_sessions: number; dropoff_pct: number }>;
+    commerce_funnel?: Array<{ key: string; label: string; count: number; unique_sessions: number; dropoff_pct: number }>;
   }>("/api/admin/analytics/business/funnel", params);
 }
 

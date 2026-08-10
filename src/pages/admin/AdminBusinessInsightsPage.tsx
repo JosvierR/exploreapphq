@@ -89,6 +89,11 @@ function joinError(message: string, requestId?: string | null) {
   return requestId ? `${message} If this continues, check logs for request ID ${requestId}.` : message;
 }
 
+function formatRate(value: unknown) {
+  if (value == null || typeof value !== "number" || Number.isNaN(value)) return "—";
+  return formatPercent(value);
+}
+
 function numberValue(value: unknown) {
   const numeric = Number(value || 0);
   return Number.isFinite(numeric) ? numeric : 0;
@@ -436,6 +441,35 @@ function AdminBusinessInsightsContent() {
         owner: "Content / Supply",
       });
     }
+    const searchCtr = numberValue(summary.search_ctr);
+    if (searchTotal > 0 && searchCtr != null && searchCtr < 15) {
+      decisions.push({
+        priority: "opportunity",
+        title: "Improve search result relevance",
+        evidence: `Search CTR is ${formatPercent(searchCtr)} across ${formatNumber(searchTotal)} searches.`,
+        action: "Inspect top fingerprints with clicks vs no-results and tighten ranking for high-intent queries.",
+        owner: "Product / Search",
+      });
+    }
+    const videoCompletion = numberValue(summary.video_completion_rate);
+    if (numberValue(summary.video_starts) >= 10 && videoCompletion != null && videoCompletion < 20) {
+      decisions.push({
+        priority: "high",
+        title: "Raise video watch-through",
+        evidence: `Only ${formatPercent(videoCompletion)} of ${formatNumber(summary.video_starts)} video starts reach completion.`,
+        action: "Audit opening hooks, length, and skip patterns; target completion rate as the experiment KPI.",
+        owner: "Product / Content",
+      });
+    }
+    if (numberValue(summary.route_starts) >= 5 && numberValue(summary.route_completion_rate) != null && numberValue(summary.route_completion_rate) < 25) {
+      decisions.push({
+        priority: "opportunity",
+        title: "Improve route completion",
+        evidence: `Route completion is ${formatPercent(summary.route_completion_rate)} across ${formatNumber(summary.route_starts)} starts.`,
+        action: "Simplify first steps and confirm route_complete fires when users finish.",
+        owner: "Product",
+      });
+    }
     if (marketChartData.length > 0) {
       decisions.push({
         priority: "opportunity",
@@ -548,6 +582,41 @@ function AdminBusinessInsightsContent() {
       </ExecutiveSection>
 
       <ExecutiveSection
+        kicker="Product signals"
+        title="Business metrics you can act on"
+        subtitle="Watch quality, feed CTR, search demand, route success, and local commerce intent — computed from allowlisted analytics events only."
+      >
+        {overview.error ? (
+          <SectionError title="Product signals" state={overview} onRetry={retry} />
+        ) : (
+          <>
+            <div className="admin-executive-kpis">
+              <SignalRateCard label={metricLabel("video_completion_rate")} value={summary.video_completion_rate} detail={`${formatNumber(summary.video_completes)} / ${formatNumber(summary.video_starts)} completes`} loading={overview.loading} />
+              <SignalRateCard label={metricLabel("content_ctr")} value={summary.content_ctr} detail={`${formatNumber(summary.impressions_total)} impressions`} loading={overview.loading} />
+              <SignalRateCard label={metricLabel("search_ctr")} value={summary.search_ctr} detail={`${formatNumber(summary.search_result_clicks)} result clicks`} loading={overview.loading} />
+              <SignalRateCard label={metricLabel("route_completion_rate")} value={summary.route_completion_rate} detail={`${formatNumber(summary.route_completes)} / ${formatNumber(summary.route_starts)} completes`} loading={overview.loading} />
+              <SignalRateCard label={metricLabel("engagement_rate_estimate")} value={summary.engagement_rate_estimate} detail="Actions / content views" loading={overview.loading} />
+              <article className="admin-kpi-card admin-kpi-card--neutral">
+                <div className="admin-kpi-card__topline"><span>{metricLabel("place_commerce_actions")}</span></div>
+                {overview.loading ? <span className="admin-skeleton admin-skeleton--number" aria-label="Loading" /> : <strong>{formatNumber(summary.place_commerce_actions)}</strong>}
+                <small>Directions · call · web · map</small>
+              </article>
+            </div>
+            <div className="admin-mini-metrics admin-mini-metrics--compact" style={{ marginTop: "0.85rem" }}>
+              <div className="admin-mini-metric"><span>Likes</span><strong>{formatNumber(summary.likes_total)}</strong></div>
+              <div className="admin-mini-metric"><span>Saves</span><strong>{formatNumber(summary.saves_total)}</strong></div>
+              <div className="admin-mini-metric"><span>Shares</span><strong>{formatNumber(summary.shares_total)}</strong></div>
+              <div className="admin-mini-metric"><span>Reports</span><strong>{formatNumber(summary.reports_total)}</strong></div>
+              <div className="admin-mini-metric"><span>Video starts</span><strong>{formatNumber(summary.video_starts)}</strong></div>
+              <div className="admin-mini-metric"><span>Impressions</span><strong>{formatNumber(summary.impressions_total)}</strong></div>
+              <div className="admin-mini-metric"><span>Route starts</span><strong>{formatNumber(summary.route_starts)}</strong></div>
+              <div className="admin-mini-metric"><span>Acquisition opens</span><strong>{formatNumber(summary.acquisition_opens)}</strong></div>
+            </div>
+          </>
+        )}
+      </ExecutiveSection>
+
+      <ExecutiveSection
         kicker="Growth"
         title="Is usage accelerating?"
         subtitle="Daily sessions and app opens show whether product usage is gaining momentum."
@@ -575,16 +644,24 @@ function AdminBusinessInsightsContent() {
                 ]}
               />
             </ChartCard>
-            <ChartCard
-              title="By platform"
-              subtitle="Where tracked activity originates"
-              loading={growth.loading}
-              empty={platformData.length === 0}
-              emptyTitle="No platform split yet"
-              emptyMessage="Platform mix appears when events include iOS, Android, or Web metadata."
-            >
-              <DonutBreakdownChart data={platformData} valueLabel={metricLabel("events")} ariaLabel="Events by platform" />
-            </ChartCard>
+            <div className="admin-growth-side">
+              <ChartCard
+                title="By platform"
+                subtitle="Where tracked activity originates"
+                loading={growth.loading}
+                empty={platformData.length === 0}
+                emptyTitle="No platform split yet"
+                emptyMessage="Platform mix appears when events include iOS, Android, or Web metadata."
+              >
+                <DonutBreakdownChart data={platformData} valueLabel={metricLabel("events")} ariaLabel="Events by platform" />
+              </ChartCard>
+              <div className="admin-mini-metrics admin-mini-metrics--compact">
+                <div className="admin-mini-metric"><span>New anon</span><strong>{formatNumber(growth.data?.summary.estimated_new_anonymous_ids)}</strong></div>
+                <div className="admin-mini-metric"><span>Returning anon</span><strong>{formatNumber(growth.data?.summary.estimated_returning_anonymous_ids)}</strong></div>
+                <div className="admin-mini-metric"><span>Auth users</span><strong>{formatNumber(growth.data?.summary.active_authenticated_users)}</strong></div>
+                <div className="admin-mini-metric"><span>Anonymous</span><strong>{formatNumber(growth.data?.summary.active_anonymous_ids)}</strong></div>
+              </div>
+            </div>
           </div>
         )}
       </ExecutiveSection>
@@ -598,17 +675,46 @@ function AdminBusinessInsightsContent() {
         {funnel.error ? (
           <SectionError title="Engagement funnel" state={funnel} onRetry={retry} />
         ) : (
-          <ChartCard
-            title="Engagement funnel"
-            subtitle="From app open to high-intent action"
-            insight={buildFunnelInsight(funnelData)}
-            loading={funnel.loading}
-            empty={funnelData.every((item) => item.value === 0)}
-            emptyTitle="The journey has no measurable activity"
-            emptyMessage="Capture app opens, screen views, content views, and actions to reveal conversion gaps."
-          >
-            <FunnelChart data={funnelData} />
-          </ChartCard>
+          <div className="admin-growth-grid">
+            <ChartCard
+              title="Engagement funnel"
+              subtitle="From app open to high-intent action"
+              insight={buildFunnelInsight(funnelData)}
+              loading={funnel.loading}
+              empty={funnelData.every((item) => item.value === 0)}
+              emptyTitle="The journey has no measurable activity"
+              emptyMessage="Capture app opens, screen views, content views, and actions to reveal conversion gaps."
+              className="admin-growth-grid__trend"
+            >
+              <FunnelChart data={funnelData} />
+            </ChartCard>
+            <div className="admin-growth-side">
+              <ChartCard
+                title="Watch quality"
+                subtitle="Video start → completion"
+                loading={funnel.loading}
+                empty={(funnel.data?.watch_funnel || []).every((step) => step.count === 0)}
+                emptyTitle="No watch funnel yet"
+                emptyMessage="Emit video_view_start and completion milestones to measure watch-through."
+              >
+                <FunnelChart
+                  data={(funnel.data?.watch_funnel || []).map((step) => ({
+                    key: step.key,
+                    label: step.label,
+                    value: step.count,
+                    sessions: step.unique_sessions,
+                    dropoff: step.dropoff_pct,
+                  }))}
+                />
+              </ChartCard>
+              <div className="admin-mini-metrics admin-mini-metrics--compact">
+                <div className="admin-mini-metric"><span>Video completion</span><strong>{formatRate(funnel.data?.summary.video_completion_rate)}</strong></div>
+                <div className="admin-mini-metric"><span>Local commerce</span><strong>{formatNumber(funnel.data?.summary.commerce_conversions)}</strong></div>
+                <div className="admin-mini-metric"><span>Place discovery</span><strong>{formatNumber(funnel.data?.commerce_funnel?.[0]?.count)}</strong></div>
+                <div className="admin-mini-metric"><span>Local intent</span><strong>{formatNumber(funnel.data?.commerce_funnel?.[1]?.count)}</strong></div>
+              </div>
+            </div>
+          </div>
         )}
         {funnel.warnings.map((item) => <InsightCallout key={item.code} code={item.code} message={item.message} />)}
       </ExecutiveSection>
@@ -751,10 +857,14 @@ function ContentPerformanceTable({ rows, type }: { rows: Array<Record<string, un
           <th>Rank</th>
           <th>Type</th>
           <th>Content ID</th>
+          <th>Impr.</th>
           <th>Views</th>
+          <th>CTR</th>
           <th>Likes</th>
           <th>Saves</th>
           <th>Shares</th>
+          <th>Routes</th>
+          <th>Reports</th>
           <th>Engagement</th>
         </tr>
       </thead>
@@ -764,10 +874,14 @@ function ContentPerformanceTable({ rows, type }: { rows: Array<Record<string, un
             <td><span className="admin-rank">{index + 1}</span></td>
             <td>{entityLabel(String(row.entity_type || type.slice(0, -1)))}</td>
             <td><code>{shortenId(row.entity_id)}</code></td>
+            <td>{formatNumber(row.impressions)}</td>
             <td>{formatNumber(row.views)}</td>
+            <td>{formatRate(row.ctr)}</td>
             <td>{formatNumber(row.likes)}</td>
             <td>{formatNumber(row.saves)}</td>
             <td>{formatNumber(row.shares)}</td>
+            <td>{formatNumber(row.route_starts)}</td>
+            <td>{formatNumber(row.reports)}</td>
             <td><strong>{formatNumber(row.engagement_score)}</strong></td>
           </tr>
         ))}
@@ -778,11 +892,15 @@ function ContentPerformanceTable({ rows, type }: { rows: Array<Record<string, un
 
 function SearchPanel({ data, total, noResultRate }: { data: SearchData | null; total: number; noResultRate: number }) {
   const rows = data?.breakdowns.top_query_hashes || [];
+  const searchCtr = data?.summary.search_ctr;
+  const resultClicks = numberValue(data?.summary.result_clicks);
   return (
     <div className="admin-search-panel">
       <div className="admin-search-panel__summary">
         <div><span>{metricLabel("total_searches")}</span><strong>{formatNumber(total)}</strong></div>
         <div className={noResultRate > 25 ? "is-warning" : ""}><span>{metricLabel("no_result_rate")}</span><strong>{formatPercent(noResultRate)}</strong></div>
+        <div><span>{metricLabel("search_ctr")}</span><strong>{formatRate(searchCtr)}</strong></div>
+        <div><span>{metricLabel("result_clicks")}</span><strong>{formatNumber(resultClicks)}</strong></div>
       </div>
       {rows.length ? (
         <AdminDataTable label="Search fingerprints">
@@ -833,8 +951,23 @@ function InvestorSnapshotCard({
   onExport: () => void;
 }) {
   const snapshot = data?.snapshot || {};
-  const metrics = ["active_users_estimate", "sessions", "events", "content_views", "searches", "engagement_actions"];
+  const metrics = [
+    "active_users_estimate",
+    "sessions",
+    "events",
+    "content_views",
+    "searches",
+    "engagement_actions",
+    "video_completion_rate",
+    "search_ctr",
+    "content_ctr",
+    "route_completion_rate",
+    "place_commerce_actions",
+  ];
   const notes = arrayValue<string>(snapshot.data_quality_notes);
+  const growthNotes = arrayValue<string>(snapshot.growth_notes);
+  const topMarkets = arrayValue<{ country?: string; events?: number }>(snapshot.top_markets);
+  const topTypes = arrayValue<{ type?: string; count?: number }>(snapshot.top_content_types);
 
   return (
     <article className="admin-investor-card">
@@ -849,14 +982,67 @@ function InvestorSnapshotCard({
       ) : (
         <>
           <div className="admin-investor-card__metrics">
-            {metrics.map((key) => <div key={key}><span>{metricLabel(key)}</span><strong>{formatNumber(snapshot[key])}</strong></div>)}
+            {metrics.map((key) => (
+              <div key={key}>
+                <span>{metricLabel(key)}</span>
+                <strong>
+                  {key.endsWith("_rate") || key.endsWith("_ctr") ? formatRate(snapshot[key]) : formatNumber(snapshot[key])}
+                </strong>
+              </div>
+            ))}
           </div>
+          {(topTypes.length > 0 || topMarkets.length > 0 || growthNotes.length > 0) && (
+            <div className="admin-investor-card__notes">
+              {topTypes.length > 0 && (
+                <>
+                  <span>Top content types</span>
+                  <div>{topTypes.map((item) => <small key={String(item.type)}>{item.type}: {formatNumber(item.count)}</small>)}</div>
+                </>
+              )}
+              {topMarkets.length > 0 && (
+                <>
+                  <span>Top markets</span>
+                  <div>{topMarkets.map((item) => <small key={String(item.country)}>{item.country}: {formatNumber(item.events)}</small>)}</div>
+                </>
+              )}
+              {growthNotes.length > 0 && (
+                <>
+                  <span>Growth notes</span>
+                  <div>{growthNotes.map((note) => <small key={note}>{note}</small>)}</div>
+                </>
+              )}
+            </div>
+          )}
           <div className="admin-investor-card__notes">
             <span>Data-quality notes</span>
             <div>{notes.length ? notes.map((note) => <small key={note}>{note}</small>) : <small>No major blockers detected</small>}</div>
           </div>
         </>
       )}
+    </article>
+  );
+}
+
+function SignalRateCard({
+  label,
+  value,
+  detail,
+  loading,
+}: {
+  label: string;
+  value: unknown;
+  detail: string;
+  loading: boolean;
+}) {
+  return (
+    <article className="admin-kpi-card admin-kpi-card--neutral">
+      <div className="admin-kpi-card__topline"><span>{label}</span></div>
+      {loading ? (
+        <span className="admin-skeleton admin-skeleton--number" aria-label="Loading" />
+      ) : (
+        <strong>{formatRate(value)}</strong>
+      )}
+      <small>{detail}</small>
     </article>
   );
 }
