@@ -310,6 +310,10 @@ export function AdminLayout() {
         <div className="admin-console__brand">
           <Link to="/admin" className="admin-console__brand-link" onClick={() => setNavOpen(false)}>
             <BrandLogo size={34} />
+            <span className="admin-console__brand-copy">
+              <strong>Explore</strong>
+              <small>Admin</small>
+            </span>
           </Link>
           <span className="admin-console__badge">{envLabel}</span>
         </div>
@@ -402,7 +406,9 @@ export function AdminLayout() {
         </header>
 
         <main className="admin-console__main">
-          <Outlet />
+          <div className="admin-console__route" key={`${location.pathname}${location.search}`}>
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>
