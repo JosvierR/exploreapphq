@@ -788,17 +788,137 @@
 }
 
 .admin-command-strip {
+  position: static !important;
+  top: auto !important;
+  z-index: auto !important;
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.75rem 0.9rem;
-  margin-bottom: 1rem;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 0.75rem 1rem;
+  padding: 0.65rem 0;
+  margin: 0 0 1.25rem;
+  border: 0;
+  border-bottom: 1px solid var(--admin-border-soft);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.admin-command-strip__period {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 10rem;
+}
+
+.admin-command-strip__period span,
+.admin-command-strip__filters label > span {
+  color: var(--admin-muted-2);
+  font-size: 0.65rem;
+  font-weight: 550;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.admin-command-strip__period strong {
+  color: var(--admin-ink);
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.admin-command-strip__period small {
+  color: var(--admin-muted);
+  font-size: 0.7rem;
+}
+
+.admin-command-strip__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  flex: 1;
+}
+
+.admin-command-strip__filters label {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 7.5rem;
+}
+
+.admin-command-strip__filters select {
+  width: 100%;
+  min-height: 32px;
+  padding: 0.3rem 0.55rem;
   border: 1px solid var(--admin-border-soft);
-  border-radius: var(--admin-radius);
+  border-radius: 8px;
   background: var(--admin-surface);
-  box-shadow: none;
+  color: var(--admin-ink);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.admin-command-strip__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.admin-executive-section {
+  margin: 0 0 1.75rem;
+  padding: 0;
+  border: 0;
+}
+
+.admin-executive-section__header {
+  margin-bottom: 0.75rem;
+  gap: 0.35rem;
+}
+
+.admin-executive-section__header p {
+  color: var(--admin-muted-2);
+  font-size: 0.65rem;
+  font-weight: 550;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.admin-executive-section__header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+
+.admin-executive-section__header span {
+  color: var(--admin-muted);
+  font-size: 0.8rem;
+}
+
+.admin-executive-kpis {
+  gap: 0.65rem;
+}
+
+.admin-growth-grid {
+  gap: 0.75rem;
+}
+
+.admin-chart-card {
+  padding: 0.85rem 0.95rem;
+}
+
+.admin-chart-card__header h3 {
+  font-size: 0.92rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.admin-chart-card__insight {
+  color: var(--admin-muted);
+  font-size: 0.78rem;
 }
 
 .admin-overview-hero {

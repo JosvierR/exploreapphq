@@ -144,7 +144,7 @@ function ExecutiveSection({
 
 function exportButton(label: string, fileName: string, rows: Array<Record<string, unknown>>) {
   return (
-    <button type="button" className="admin-btn admin-btn--ghost" onClick={() => downloadCsv(fileName, rows)} disabled={!rows.length}>
+    <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm" onClick={() => downloadCsv(fileName, rows)} disabled={!rows.length}>
       {label}
     </button>
   );
@@ -401,9 +401,8 @@ function AdminBusinessInsightsContent() {
           </label>
         </div>
         <div className="admin-command-strip__actions">
-          <button type="button" className="admin-btn admin-btn--secondary" onClick={retry}>Refresh</button>
           {exportButton("Export overview", `explore-business-overview-${range}.csv`, overviewRows)}
-          <button type="button" className="admin-btn admin-btn--ghost" onClick={() => void copyInvestorSnapshot()} disabled={!investor.data?.copy_text}>
+          <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm" onClick={() => void copyInvestorSnapshot()} disabled={!investor.data?.copy_text}>
             Copy snapshot
           </button>
         </div>
@@ -411,7 +410,7 @@ function AdminBusinessInsightsContent() {
       {copyMessage && <p className="admin-copy-feedback" role="status">{copyMessage}</p>}
 
       <ExecutiveSection
-        kicker="01 · Company pulse"
+        kicker="Pulse"
         title="The numbers that matter now"
         subtitle={buildUsageInsight(deltas.active_sessions)}
       >
@@ -430,7 +429,7 @@ function AdminBusinessInsightsContent() {
       </ExecutiveSection>
 
       <ExecutiveSection
-        kicker="02 · Growth story"
+        kicker="Growth"
         title="Is usage accelerating?"
         subtitle="Daily sessions and app opens show whether product usage is gaining momentum."
         action={growth.data ? exportButton("Export growth", `explore-growth-${range}.csv`, flattenGrowthSeries(growth.data)) : undefined}
@@ -472,7 +471,7 @@ function AdminBusinessInsightsContent() {
       </ExecutiveSection>
 
       <ExecutiveSection
-        kicker="03 · Engagement"
+        kicker="Engagement"
         title="Where users fall out of the journey"
         subtitle="The largest step-down is the clearest place to focus product work."
         action={funnel.data ? exportButton("Export funnel", `explore-funnel-${range}.csv`, flattenFunnel(funnel.data)) : undefined}
@@ -496,7 +495,7 @@ function AdminBusinessInsightsContent() {
       </ExecutiveSection>
 
       <ExecutiveSection
-        kicker="04 · Content"
+        kicker="Content"
         title="What earns attention"
         subtitle="Ranked content reveals which formats and items create meaningful engagement."
         action={content.data ? exportButton("Export content", `explore-content-performance-${range}.csv`, flattenContentPerformance(content.data)) : undefined}
@@ -535,7 +534,7 @@ function AdminBusinessInsightsContent() {
       </ExecutiveSection>
 
       <ExecutiveSection
-        kicker="05 · Demand & reach"
+        kicker="Demand"
         title="What people want—and where"
         subtitle="Search quality exposes unmet demand while markets show where Explore is resonating."
       >
@@ -589,7 +588,7 @@ function AdminBusinessInsightsContent() {
       </ExecutiveSection>
 
       <ExecutiveSection
-        kicker="06 · Investor view"
+        kicker="Investor"
         title="A presentation-ready snapshot"
         subtitle="A concise, privacy-safe summary for updates, board conversations, and fundraising."
       >
@@ -606,7 +605,7 @@ function AdminBusinessInsightsContent() {
       </ExecutiveSection>
 
       <ExecutiveSection
-        kicker="07 · Trust"
+        kicker="Trust"
         title="Can we trust this read?"
         subtitle="Coverage and ingest checks show where decisions need more instrumentation."
       >
