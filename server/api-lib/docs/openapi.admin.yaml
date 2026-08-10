@@ -144,6 +144,121 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/admin/admins:
+    get:
+      tags: [Moderation]
+      summary: List admin roster
+      operationId: getAdminRoster
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Admin users from admin_users
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Moderation]
+      summary: Add or upsert an admin by email
+      operationId: postAdminRoster
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                role:
+                  type: string
+                  enum: [admin, moderator]
+      responses:
+        "200":
+          description: Admin upserted
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Auth user not found for email
+    patch:
+      tags: [Moderation]
+      summary: Update an admin role
+      operationId: patchAdminRoster
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, role]
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                role:
+                  type: string
+                  enum: [admin, moderator]
+      responses:
+        "200":
+          description: Role updated
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    delete:
+      tags: [Moderation]
+      summary: Remove an admin from the roster
+      operationId: deleteAdminRoster
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: Admin removed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/admin/reports:
     get:
       tags: [Moderation]

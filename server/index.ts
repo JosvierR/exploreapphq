@@ -24,6 +24,8 @@ import {
   handleUserHiddenContentUnhide,
 } from "./api-lib/moderation/supabaseModeration.mjs";
 // @ts-ignore
+import { handleAdminRoster } from "./api-lib/moderation/adminRosterApi.mjs";
+// @ts-ignore
 import {
   handleAdminSystemHealth,
   handleAdminSystemMetrics,
@@ -190,6 +192,10 @@ app.all("/api/admin/reports", (req, res) => {
 
 app.all("/api/admin/me", (req, res) => {
   void sendFetchResponse(handleAdminMe, req, res);
+});
+
+app.all("/api/admin/admins", (req, res) => {
+  void sendFetchResponse(handleAdminRoster, req, res);
 });
 
 app.all("/api/admin/moderation/summary", (req, res) => {

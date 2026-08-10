@@ -13,6 +13,7 @@ import {
   jsonResponse,
   optionsResponse,
 } from "./supabaseModeration.mjs";
+import { handleAdminRoster } from "./adminRosterApi.mjs";
 import { resolveApiRoute } from "../http/resolveApiRoute.mjs";
 
 /**
@@ -43,6 +44,10 @@ export async function dispatchModerationApi(request, routeOverride) {
 
   if (route === "admin/me") {
     return handleAdminMe(request);
+  }
+
+  if (route === "admin/admins") {
+    return handleAdminRoster(request);
   }
 
   if (route === "admin/reports") {

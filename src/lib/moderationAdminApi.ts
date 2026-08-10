@@ -26,6 +26,30 @@ export type AdminMe = {
   fallback?: boolean;
 };
 
+export type AdminRosterRole = "admin" | "moderator";
+
+export type AdminRosterMember = {
+  user_id: string;
+  role: AdminRosterRole;
+  created_at: string;
+  email: string | null;
+  label: string | null;
+  slot: string | null;
+  last_sign_in_at: string | null;
+  email_confirmed: boolean | null;
+};
+
+export type AdminRosterResponse = {
+  ok: true;
+  admins: AdminRosterMember[];
+  total: number;
+  current_user_id: string;
+  current_role: AdminRosterRole;
+  can_manage: boolean;
+  fallback: boolean;
+  allowlist_emails: string[];
+};
+
 export type AdminReport = {
   id: string;
   content_type: ReportContentType;
@@ -520,6 +544,31 @@ async function publicApiFetch<T>(path: string, init: RequestInit = {}): Promise<
 
 export function fetchAdminMe(token: string) {
   return apiFetch<AdminMe>("/api/admin/me", undefined, token);
+}
+
+export function fetchAdminRoster() {
+  return apiFetch<AdminRosterResponse>("/api/admin/admins");
+}
+
+export function addAdminRosterMember(email: string, role: AdminRosterRole = "moderator") {
+  return apiFetch<{ ok: true; admin: AdminRosterMember; action: string }>("/api/admin/admins", {
+    method: "POST",
+    body: JSON.stringify({ email, role }),
+  });
+}
+
+export function updateAdminRosterRole(userId: string, role: AdminRosterRole) {
+  return apiFetch<{ ok: true; admin: AdminRosterMember; action: string }>("/api/admin/admins", {
+    method: "PATCH",
+    body: JSON.stringify({ user_id: userId, role }),
+  });
+}
+
+export function removeAdminRosterMember(userId: string) {
+  return apiFetch<{ ok: true; action: string; user_id: string }>("/api/admin/admins", {
+    method: "DELETE",
+    body: JSON.stringify({ user_id: userId }),
+  });
 }
 
 export function fetchApiHealth() {

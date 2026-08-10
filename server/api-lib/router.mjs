@@ -27,6 +27,7 @@ function isModerationRoute(route) {
     route === "user/hidden-content" ||
     route === "user/hidden-content/unhide" ||
     route === "admin/me" ||
+    route === "admin/admins" ||
     route === "admin/reports" ||
     route === "admin/moderation/summary" ||
     route === "admin/ops/summary" ||

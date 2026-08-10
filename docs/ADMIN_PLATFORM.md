@@ -23,6 +23,7 @@ Current frontend entry points:
 - `/admin?section=insights` - operational insights.
 - `/admin?section=analytics` - analytics foundation status.
 - `/admin?section=system` - System/Observability.
+- `/admin?section=admins` - admin roster (`admin_users`) management.
 - `/admin/reports` - moderation reports and video moderation lifecycle.
 - `/admin/waitlist` - waitlist operations.
 - `/admin/api-docs` - Scalar UI over admin OpenAPI (live PostgREST, Admin HTTP contract, Edge skeleton).

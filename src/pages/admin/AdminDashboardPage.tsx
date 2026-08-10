@@ -1,19 +1,27 @@
 import { useCallback, useEffect, useState } from "react";
-import type { ReactNode } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { AdminAuthGate } from "@/features/admin/components/AdminAuthGate";
 import { useModerationAdmin } from "@/features/admin/ModerationAdminProvider";
 import { AdminSystemPage } from "@/features/admin/pages/AdminSystemPage";
 import {
+  addAdminRosterMember,
+  fetchAdminRoster,
   fetchAdminUsers,
   fetchOpsSummary,
   fetchReports,
+  removeAdminRosterMember,
+  updateAdminRosterRole,
   type AdminContentSummaryItem,
   type AdminOpsSummary,
   type AdminReport,
+  type AdminRosterMember,
+  type AdminRosterResponse,
+  type AdminRosterRole,
   type AdminUserSummary,
   type NullableMetric,
   type OpsBreakdownEntry,
+  AdminApiError,
 } from "@/lib/moderationAdminApi";
 import {
   formatAge,
@@ -133,12 +141,7 @@ function AdminDashboardContent() {
       {section === "insights" && <InsightsSection summary={summary} loading={loading} />}
       {section === "analytics" && <ProductAnalyticsConsoleSection />}
       {section === "system" && <AdminSystemPage adminEmail={admin.user?.email ?? "Not signed in"} />}
-      {section === "admins" && (
-        <ComingSoonSection
-          title="Admins"
-          message="Admin management is not implemented in this console yet. Current access still comes from Supabase admin_users and configured fallback emails."
-        />
-      )}
+      {section === "admins" && <AdminsSection />}
     </div>
   );
 }
@@ -979,12 +982,248 @@ function InlineWarnings({ warnings }: { warnings: string[] }) {
   return <p className="admin-muted admin-inline-warning">{warnings.slice(0, 3).join(" / ")}</p>;
 }
 
-function ComingSoonSection({ title, message }: { title: string; message: string }) {
+function AdminsSection() {
+  const [roster, setRoster] = useState<AdminRosterResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<AdminRosterRole>("moderator");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetchAdminRoster();
+      setRoster(response);
+    } catch (err) {
+      setRoster(null);
+      setError(err instanceof AdminApiError ? err.message : "Unable to load admin roster.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    function handleGlobalRefresh() {
+      void load();
+    }
+    window.addEventListener("admin:refresh", handleGlobalRefresh);
+    return () => window.removeEventListener("admin:refresh", handleGlobalRefresh);
+  }, [load]);
+
+  async function handleAdd(event: FormEvent) {
+    event.preventDefault();
+    if (!roster?.can_manage) return;
+    setSaving(true);
+    setNotice(null);
+    setError(null);
+    try {
+      await addAdminRosterMember(email, role);
+      setEmail("");
+      setRole("moderator");
+      setNotice("Admin access updated.");
+      await load();
+    } catch (err) {
+      setError(err instanceof AdminApiError ? err.message : "Unable to add admin.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleRoleChange(member: AdminRosterMember, nextRole: AdminRosterRole) {
+    if (!roster?.can_manage || member.role === nextRole) return;
+    setBusyId(member.user_id);
+    setNotice(null);
+    setError(null);
+    try {
+      await updateAdminRosterRole(member.user_id, nextRole);
+      setNotice(`Updated role for ${member.email || member.user_id}.`);
+      await load();
+    } catch (err) {
+      setError(err instanceof AdminApiError ? err.message : "Unable to update role.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleRemove(member: AdminRosterMember) {
+    if (!roster?.can_manage) return;
+    const label = member.email || member.user_id;
+    if (!window.confirm(`Remove admin access for ${label}?`)) return;
+    setBusyId(member.user_id);
+    setNotice(null);
+    setError(null);
+    try {
+      await removeAdminRosterMember(member.user_id);
+      setNotice(`Removed ${label} from the admin roster.`);
+      await load();
+    } catch (err) {
+      setError(err instanceof AdminApiError ? err.message : "Unable to remove admin.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const admins = roster?.admins || [];
+  const fullAdmins = admins.filter((member) => member.role === "admin").length;
+  const moderators = admins.filter((member) => member.role === "moderator").length;
+
   return (
-    <section className="admin-panel admin-panel--foundation">
-      <PanelHeader kicker="Coming soon" title={title} />
-      <p>{message}</p>
-    </section>
+    <>
+      <MetricGroup
+        title="Admin roster"
+        description="Operators with access through public.admin_users. Full admins can add, demote, or remove members."
+      >
+        <StatCard label="Total admins" value={roster?.total ?? null} loading={loading} tone="violet" />
+        <StatCard label="Full admins" value={fullAdmins} loading={loading} tone="blue" />
+        <StatCard label="Moderators" value={moderators} loading={loading} tone="green" />
+        <StatCard
+          label="Your role"
+          value={roster?.current_role || "Not available"}
+          loading={loading}
+          tone="neutral"
+          hint={roster?.fallback ? "Allowlist fallback" : "admin_users"}
+        />
+      </MetricGroup>
+
+      <section className="admin-panel">
+        <PanelHeader
+          kicker="Directory"
+          title="Authorized operators"
+          meta={roster ? `${roster.total} in roster` : undefined}
+        />
+        {notice ? <p className="admin-muted">{notice}</p> : null}
+        {error ? <InlineError message={error} onRetry={() => void load()} /> : null}
+        {loading ? (
+          <SkeletonList rows={5} />
+        ) : admins.length === 0 ? (
+          <QuietState
+            title="No admin_users rows"
+            message="Bootstrap board accounts or add an existing Auth user by email below."
+          />
+        ) : (
+          <div className="admin-table-wrap" role="region" aria-label="Admin roster">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Operator</th>
+                  <th>Role</th>
+                  <th>Added</th>
+                  <th>Last sign-in</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {admins.map((member) => {
+                  const isYou = member.user_id === roster?.current_user_id;
+                  const busy = busyId === member.user_id;
+                  return (
+                    <tr key={member.user_id}>
+                      <td>
+                        <strong>{member.email || "Email unavailable"}</strong>
+                        <div className="admin-muted">
+                          {member.label || (member.slot ? `Slot ${member.slot}` : shortId(member.user_id))}
+                          {isYou ? " · you" : ""}
+                        </div>
+                      </td>
+                      <td>
+                        {roster?.can_manage ? (
+                          <select
+                            value={member.role}
+                            disabled={busy || isYou}
+                            onChange={(event) => void handleRoleChange(member, event.target.value as AdminRosterRole)}
+                            aria-label={`Role for ${member.email || member.user_id}`}
+                          >
+                            <option value="admin">admin</option>
+                            <option value="moderator">moderator</option>
+                          </select>
+                        ) : (
+                          member.role
+                        )}
+                      </td>
+                      <td>{formatDateTime(member.created_at)}</td>
+                      <td>{member.last_sign_in_at ? formatRelativeTime(member.last_sign_in_at) : "Never"}</td>
+                      <td>
+                        {roster?.can_manage && !isYou ? (
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn--ghost admin-btn--sm"
+                            disabled={busy}
+                            onClick={() => void handleRemove(member)}
+                          >
+                            {busy ? "…" : "Remove"}
+                          </button>
+                        ) : (
+                          <span className="admin-muted">{isYou ? "Current session" : "View only"}</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="admin-panel">
+        <PanelHeader kicker="Access" title="Add operator" />
+        {roster && !roster.can_manage ? (
+          <QuietState
+            title="View only"
+            message="Moderator accounts can see the roster. Full admin role is required to add or remove operators."
+          />
+        ) : (
+          <form className="admin-inline-form" onSubmit={(event) => void handleAdd(event)}>
+            <label className="admin-field">
+              <span>Email</span>
+              <input
+                type="email"
+                required
+                value={email}
+                placeholder="operator@exploreapphq.com"
+                onChange={(event) => setEmail(event.target.value)}
+                disabled={saving || loading}
+              />
+            </label>
+            <label className="admin-field">
+              <span>Role</span>
+              <select value={role} onChange={(event) => setRole(event.target.value as AdminRosterRole)} disabled={saving || loading}>
+                <option value="moderator">moderator</option>
+                <option value="admin">admin</option>
+              </select>
+            </label>
+            <button type="submit" className="admin-btn admin-btn--primary admin-btn--sm" disabled={saving || loading || !email.trim()}>
+              {saving ? "Saving…" : "Add to roster"}
+            </button>
+          </form>
+        )}
+        <p className="admin-muted" style={{ marginTop: "0.75rem" }}>
+          The Auth user must already exist. This console writes `admin_users` only — it does not create passwords.
+        </p>
+      </section>
+
+      {roster?.allowlist_emails?.length ? (
+        <section className="admin-panel">
+          <PanelHeader kicker="Fallback" title="Email allowlist" meta={`${roster.allowlist_emails.length} emails`} />
+          <p className="admin-muted">
+            Temporary `EXPLORE_ADMIN_ALLOWED_EMAILS` fallback. Prefer `admin_users` rows for durable access.
+          </p>
+          <div className="admin-foundation-grid">
+            {roster.allowlist_emails.map((item) => (
+              <span key={item}>{item}</span>
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </>
   );
 }
 
