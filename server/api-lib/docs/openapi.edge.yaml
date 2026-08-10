@@ -1,0 +1,259 @@
+# Synced into exploreapphq — do not edit by hand.
+# Source: https://github.com/AngRodSt/Explore-V2/blob/1c4cc48c86ab1de7ecc68d287530b65f7f9b9fc0/supabase/functions/openapi.edge.yaml
+# Pin: 1c4cc48c86ab1de7ecc68d287530b65f7f9b9fc0
+# Synced-At: 2026-08-10T01:13:48.591Z
+openapi: 3.1.0
+info:
+  title: Explore Edge Functions
+  version: 1.0.0
+  description: |
+    Hand-authored OpenAPI for Supabase Edge Functions in Explore-V2
+    (`supabase/functions`). No Zod generation yet — keep this file next to the
+    Deno handlers and sync into exploreapphq via commit pin.
+
+    Documented surfaces (EXPLORE-326):
+    - `generate-upload-url` — authenticated direct upload bootstrap
+    - `cloudflare-stream-webhook` — Cloudflare Stream processing callback
+servers:
+  - url: https://{project_ref}.supabase.co/functions/v1
+    description: Supabase Edge Functions base URL
+    variables:
+      project_ref:
+        default: ookbeuiavzjhvezvamfu
+        description: Supabase project ref
+tags:
+  - name: Upload
+  - name: Webhooks
+security: []
+paths:
+  /generate-upload-url:
+    post:
+      tags: [Upload]
+      summary: Create Cloudflare Stream direct upload URL
+      description: |
+        Authenticates the caller with a Supabase user JWT, requires a verified
+        email profile, creates a Cloudflare Stream direct-upload URL, and inserts
+        a `videos` row in `processing` state (optionally linking `video_places`).
+      operationId: postGenerateUploadUrl
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateUploadUrlRequest"
+            example:
+              duration_seconds: 30
+              upload_length: 5242880
+              place_ids: ["11111111-1111-1111-1111-111111111111"]
+              lat: 25.7617
+              lng: -80.1918
+              description: Sunset walk
+              tags: [miami, walk]
+      responses:
+        "200":
+          description: Upload URL and video ids
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateUploadUrlResponse"
+        "400":
+          description: Validation error (places/route, duration, size, coordinates)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: Missing or invalid Authorization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "403":
+          description: Email not verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "405":
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
+          description: Cloudflare or database failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+    options:
+      tags: [Upload]
+      summary: CORS preflight
+      operationId: optionsGenerateUploadUrl
+      responses:
+        "204":
+          description: CORS preflight OK
+
+  /cloudflare-stream-webhook:
+    post:
+      tags: [Webhooks]
+      summary: Cloudflare Stream processing webhook
+      description: |
+        Cloudflare POSTs when transcoding finishes. Verifies `Webhook-Signature`
+        (HMAC SHA-256 over `time.body` with `CLOUDFLARE_WEBHOOK_SECRET`), then
+        publishes or soft-deletes the matching `videos` row still in `processing`.
+      operationId: postCloudflareStreamWebhook
+      parameters:
+        - name: Webhook-Signature
+          in: header
+          required: true
+          description: Cloudflare signature header (`time=...,sig1=...`).
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CloudflareStreamWebhookEvent"
+      responses:
+        "200":
+          description: Webhook accepted (may skip if no uid / no matching row)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CloudflareStreamWebhookResponse"
+        "401":
+          description: Invalid signature
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "405":
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
+          description: Misconfigured secret or update failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase user access token (Authorization header forwarded to Auth).
+  schemas:
+    ErrorBody:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+      additionalProperties: true
+    GenerateUploadUrlRequest:
+      type: object
+      required: [duration_seconds, upload_length, lat, lng]
+      properties:
+        duration_seconds:
+          type: number
+          minimum: 5
+          maximum: 60
+          description: Clip duration in seconds (5-60).
+        upload_length:
+          type: number
+          exclusiveMinimum: 0
+          description: File size in bytes for Cloudflare direct upload.
+        place_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: At least one place_id or a route_id is required.
+        route_id:
+          type: [string, "null"]
+          format: uuid
+        description:
+          type: [string, "null"]
+        tags:
+          type: array
+          items:
+            type: string
+        lat:
+          type: number
+          minimum: -90
+          maximum: 90
+        lng:
+          type: number
+          minimum: -180
+          maximum: 180
+      additionalProperties: true
+    GenerateUploadUrlResponse:
+      type: object
+      required: [upload_url, video_id, cloudflare_uid]
+      properties:
+        upload_url:
+          type: string
+          format: uri
+        video_id:
+          type: string
+          format: uuid
+        cloudflare_uid:
+          type: string
+      additionalProperties: false
+    CloudflareStreamWebhookEvent:
+      type: object
+      properties:
+        uid:
+          type: string
+          description: Cloudflare Stream video uid.
+        readyToStream:
+          type: boolean
+        thumbnail:
+          type: string
+          format: uri
+        playback:
+          type: object
+          properties:
+            hls:
+              type: string
+              format: uri
+            dash:
+              type: string
+              format: uri
+          additionalProperties: true
+        status:
+          type: object
+          properties:
+            state:
+              type: string
+            errReasonCode:
+              type: string
+            errReasonText:
+              type: string
+          additionalProperties: true
+      additionalProperties: true
+    CloudflareStreamWebhookResponse:
+      type: object
+      properties:
+        received:
+          type: boolean
+        video_id:
+          type: string
+          format: uuid
+        outcome:
+          type: string
+          description: deleted | no_matching_row | or omitted when published
+        skipped:
+          type: string
+        error:
+          type: string
+      additionalProperties: true

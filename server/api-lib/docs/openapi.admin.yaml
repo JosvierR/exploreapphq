@@ -816,13 +816,13 @@ paths:
   /api/admin/openapi/edge:
     get:
       tags: [Docs]
-      summary: Edge Functions OpenAPI skeleton
+      summary: Synced Explore-V2 Edge OpenAPI 3.1
       operationId: getOpenApiEdge
       security:
         - bearerAuth: []
       responses:
         "200":
-          description: OpenAPI document
+          description: OpenAPI document (commit pin in info.x-explore-source-commit)
           content:
             application/json:
               schema:

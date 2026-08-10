@@ -32,7 +32,7 @@ Local Express (`server/index.ts`) mounts the same handlers for development.
 | `moderation/` | Reports, admin users, ops summary, moderation actions |
 | `analytics/` | `POST /api/events` + admin insights APIs |
 | `system/` | Health, metrics endpoints, board admin bootstrap |
-| `docs/` | Admin-only OpenAPI docs (live PostgREST + `openapi.admin.yaml` + Edge skeleton) for Scalar (`/api/admin/openapi/*`) |
+| `docs/` | Admin-only OpenAPI docs (live PostgREST + `openapi.admin.yaml` + synced Edge OpenAPI) for Scalar (`/api/admin/openapi/*`) |
 | `router.mjs` | Single dispatcher for all `/api/*` routes |
 
 Learn a domain by reading its folder top-down. Prefer importing from domain folders, not from unrelated modules.
@@ -84,6 +84,21 @@ Local Grafana: http://localhost:3002 (`admin` / `admin`).
 
 Never put `SUPABASE_SECRET_KEY` or `METRICS_TOKEN` in `VITE_*` variables.
 
+## C4 level 2 — Edge Functions (Explore-V2)
+
+Mobile / Stream integrations live in the separate repo `AngRodSt/Explore-V2`
+(`supabase/functions`). The admin console documents a **commit-pinned** sync of
+`openapi.edge.yaml` (see `npm run openapi:sync-edge`).
+
+| Function | Method | Auth | Responsibility |
+|----------|--------|------|----------------|
+| `generate-upload-url` | `POST` | Supabase user JWT (+ verified email) | Create Cloudflare Stream direct-upload URL and `videos` row (`processing`) |
+| `cloudflare-stream-webhook` | `POST` | Cloudflare `Webhook-Signature` HMAC | Publish or delete video after Stream transcoding |
+| `cleanup-soft-deleted` | cron/internal | service role | Purge soft-deleted videos / Stream assets |
+| `finalize-account-deletion` | internal | service role | Finish account deletion cleanup |
+
+Admin viewer: `/admin/api-docs` → **Edge Functions** tab (`GET /api/admin/openapi/edge`).
+
 ## Docs map
 
 | Doc | Use when |
@@ -98,7 +113,7 @@ Never put `SUPABASE_SECRET_KEY` or `METRICS_TOKEN` in `VITE_*` variables.
 | `docs/ANALYTICS_EVENTS_API.md` | Events ingestion |
 | `docs/DATA-004_ADMIN_INSIGHTS_DASHBOARD.md` | Admin analytics UI/API |
 
-**Reviewed:** 2026-08-09
+**Reviewed:** 2026-08-10
 
 ## Adding a new API route
 

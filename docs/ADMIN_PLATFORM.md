@@ -34,7 +34,7 @@ Admin-authenticated read-only specs:
 | Method | Path | Surface |
 |--------|------|---------|
 | `GET` | `/api/admin/openapi/postgrest` | Live PostgREST (Swagger 2/OpenAPI → 3.1, short cache) |
-| `GET` | `/api/admin/openapi/edge` | Edge Functions skeleton |
+| `GET` | `/api/admin/openapi/edge` | Synced Explore-V2 Edge OpenAPI (`openapi.edge.yaml`, commit-pinned) |
 | `GET` | `/api/admin/openapi/admin` | Hand-authored Admin HTTP API (`openapi.admin.yaml`) |
 
 Handlers live in `server/api-lib/docs/` and are wired through `server/api-lib/router.mjs` (mirrored in `server/index.ts`). Each route uses `requireAdmin`.
@@ -43,7 +43,9 @@ PostgREST live docs fetch `${SUPABASE_URL}/rest/v1/` with the same `SUPABASE_SEC
 
 Admin HTTP contract (`server/api-lib/docs/openapi.admin.yaml`) is linted with Redocly (`npm run openapi:lint`) and guarded by an anti-drift test that requires 100% coverage of `router.mjs` plus parity with Express mounts (except explicit local-only paths).
 
-**Reviewed:** 2026-08-09
+Edge OpenAPI is authored in Explore-V2 and synced with `npm run openapi:sync-edge -- --commit <sha>` (never a floating branch). The pin is stored in `edgeOpenApi.pin.json` and surfaced in `/admin/api-docs`.
+
+**Reviewed:** 2026-08-10
 
 ## Backend Routing
 

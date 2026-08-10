@@ -106,6 +106,20 @@ function ApiDocsContent() {
     };
   }, [accessToken]);
 
+  const edgePin = useMemo(() => {
+    const edge = sources?.find((source) => source.slug === "edge");
+    const info = edge?.content?.info;
+    if (!info || typeof info !== "object") return null;
+    const record = info as Record<string, unknown>;
+    const short = typeof record["x-explore-source-commit-short"] === "string"
+      ? record["x-explore-source-commit-short"]
+      : "";
+    const full = typeof record["x-explore-source-commit"] === "string" ? record["x-explore-source-commit"] : "";
+    const url = typeof record["x-explore-source-url"] === "string" ? record["x-explore-source-url"] : "";
+    if (!short && !full) return null;
+    return { short: short || full.slice(0, 7), full, url };
+  }, [sources]);
+
   const configuration = useMemo(() => {
     if (!sources?.length) return null;
     return {
@@ -123,10 +137,28 @@ function ApiDocsContent() {
     <div className="admin-api-docs">
       <div className="admin-api-docs__intro">
         <p className="admin-muted">
-          PostgREST is loaded live from Supabase (converted to OpenAPI 3.1). Admin HTTP
-          uses the hand-authored <code>openapi.admin.yaml</code> contract. Edge remains a
-          skeleton until a later phase. Specs are admin-only.
+          PostgREST loads live from Supabase. Admin HTTP uses{" "}
+          <code>openapi.admin.yaml</code>. Edge Functions use the synced Explore-V2
+          contract (<code>openapi.edge.yaml</code>). Specs are admin-only.
         </p>
+        {edgePin && (
+          <p className="admin-muted">
+            Edge OpenAPI pin:{" "}
+            {edgePin.url ? (
+              <a href={edgePin.url} target="_blank" rel="noreferrer">
+                <code>{edgePin.short}</code>
+              </a>
+            ) : (
+              <code>{edgePin.short}</code>
+            )}
+            {edgePin.full && edgePin.full !== edgePin.short ? (
+              <>
+                {" "}
+                (<code>{edgePin.full}</code>)
+              </>
+            ) : null}
+          </p>
+        )}
       </div>
 
       {loading && (

@@ -14,7 +14,7 @@ const SURFACE_META = {
   edge: {
     title: "Explore Edge Functions API",
     description:
-      "Skeleton OpenAPI for Supabase Edge Functions. Paths will be documented in a later phase.",
+      "Fallback skeleton. Production edge surface is the synced Explore-V2 openapi.edge.yaml.",
   },
   admin: {
     title: "Explore Admin HTTP API",

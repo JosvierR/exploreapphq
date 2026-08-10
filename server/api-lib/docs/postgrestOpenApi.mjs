@@ -287,7 +287,7 @@ export function openApiJsonResponse(status, json, headers = {}) {
       "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Request-ID",
       "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
       "Access-Control-Expose-Headers":
-        "X-Request-ID, X-Explore-OpenAPI, X-Explore-OpenAPI-Cache, X-Explore-OpenAPI-Converter",
+        "X-Request-ID, X-Explore-OpenAPI, X-Explore-OpenAPI-Cache, X-Explore-OpenAPI-Converter, X-Explore-Edge-OpenAPI-Commit, X-Explore-Edge-OpenAPI-Commit-Short, X-Explore-Edge-OpenAPI-Repo",
       "X-Explore-OpenAPI": "postgrest",
       ...headers,
     },

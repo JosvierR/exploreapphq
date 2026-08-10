@@ -1,19 +1,33 @@
 # Explore agent notes
 
-## OpenAPI (EXPLORE-325)
+## OpenAPI (EXPLORE-325 / EXPLORE-326)
 
-Hand-authored Admin HTTP contract:
+### Admin HTTP
 
 - Spec: `server/api-lib/docs/openapi.admin.yaml`
 - Served at `GET /api/admin/openapi/admin` (admin auth)
 - Anti-drift: `server/api-lib/docs/openapi.admin.antiDrift.test.mjs` (runs in `npm test`)
 - Lint: `npm run openapi:lint` (Redocly)
 
-Scripts:
+### Edge Functions (cross-repo)
+
+- Source of truth: `AngRodSt/Explore-V2` → `supabase/functions/openapi.edge.yaml`
+- Sync (pin to commit, never a branch tip):
+
+```bash
+npm run openapi:sync-edge -- --commit <sha>
+```
+
+- Vendored copy + pin: `server/api-lib/docs/openapi.edge.yaml` + `edgeOpenApi.pin.json`
+- Served at `GET /api/admin/openapi/edge` (admin auth); commit pin is in
+  `info.x-explore-source-commit*` and response headers `X-Explore-Edge-OpenAPI-Commit*`
+
+### Scripts
 
 ```bash
 npm run openapi:lint
 npm run openapi:preview
+npm run openapi:sync-edge -- --commit <sha>
 ```
 
 Convention: every route dispatched by `server/api-lib/router.mjs` must appear in

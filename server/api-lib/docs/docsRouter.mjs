@@ -3,6 +3,7 @@ import { requestIdFromRequest } from "../http/requestContext.mjs";
 import { requireAdmin } from "../moderation/supabaseModeration.mjs";
 import { errorSummary, logger, requestLogMeta } from "../observability/logger.mjs";
 import { loadAdminOpenApiSpec } from "./adminOpenApiSpec.mjs";
+import { edgeOpenApiPinStatus, loadEdgeOpenApiSpec } from "./edgeOpenApiSpec.mjs";
 import { buildMinimalOpenApiSpec, isOpenApiSurface } from "./minimalSpecs.mjs";
 import {
   fetchLivePostgrestOpenApi,
@@ -60,6 +61,19 @@ export async function dispatchOpenApiDocs(request, route) {
       });
     }
 
+    if (surface === "edge") {
+      const { json, pin } = loadEdgeOpenApiSpec();
+      return openApiJsonResponse(200, json, {
+        "Cache-Control": "private, max-age=60",
+        "X-Explore-OpenAPI": "edge",
+        "X-Explore-OpenAPI-Cache": "synced",
+        "X-Explore-OpenAPI-Converter": "yaml",
+        "X-Explore-Edge-OpenAPI-Commit": String(pin.commit || ""),
+        "X-Explore-Edge-OpenAPI-Commit-Short": String(pin.commit_short || String(pin.commit || "").slice(0, 7)),
+        "X-Explore-Edge-OpenAPI-Repo": String(pin.repo || ""),
+      });
+    }
+
     return jsonResponse(200, buildMinimalOpenApiSpec(surface), {
       "Cache-Control": "no-store",
     });
@@ -67,7 +81,12 @@ export async function dispatchOpenApiDocs(request, route) {
     logger.warn("Admin OpenAPI docs failed", {
       ...requestLogMeta(request, route),
       surface,
-      config: surface === "postgrest" ? postgrestOpenApiConfigStatus() : undefined,
+      config:
+        surface === "postgrest"
+          ? postgrestOpenApiConfigStatus()
+          : surface === "edge"
+            ? edgeOpenApiPinStatus()
+            : undefined,
       error: errorSummary(error),
       code: error?.code,
     });
@@ -78,7 +97,7 @@ export async function dispatchOpenApiDocs(request, route) {
         : status === 403
           ? "Access denied."
           : status === 503
-            ? error?.message || "PostgREST OpenAPI is not configured."
+            ? error?.message || "OpenAPI surface is not configured."
             : status === 502
               ? error?.message || "Failed to load live PostgREST OpenAPI."
               : "Internal server error";
@@ -86,7 +105,12 @@ export async function dispatchOpenApiDocs(request, route) {
       ok: false,
       error: message,
       code: error?.code,
-      config: surface === "postgrest" ? postgrestOpenApiConfigStatus() : undefined,
+      config:
+        surface === "postgrest"
+          ? postgrestOpenApiConfigStatus()
+          : surface === "edge"
+            ? edgeOpenApiPinStatus()
+            : undefined,
       request_id: requestIdFromRequest(request),
     });
   }
