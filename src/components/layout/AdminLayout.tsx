@@ -35,9 +35,9 @@ const operationsItems: NavItem[] = [
 ];
 
 const insightsItems: NavItem[] = [
-  { label: "Product Insights", to: "/admin?section=insights", exactQuery: true },
+  { label: "Insights", to: "/admin?section=insights", exactQuery: true },
   { label: "Analytics Ops", to: "/admin/analytics" },
-  { label: "Business Insights", to: "/admin/analytics/business" },
+  { label: "Business", to: "/admin/analytics/business" },
 ];
 
 const systemItems: NavItem[] = [
@@ -49,107 +49,42 @@ const systemItems: NavItem[] = [
 function routeMeta(pathname: string, search: string) {
   if (pathname === "/admin") {
     const section = new URLSearchParams(search).get("section") || "overview";
-    if (section === "users") {
-      return {
-        title: "Users",
-        description: "Review account growth, recent users, and profile health.",
-      };
-    }
-    if (section === "content") {
-      return {
-        title: "Content operations",
-        description: "Monitor videos, places, routes, and publication state.",
-      };
-    }
-    if (section === "moderation") {
-      return {
-        title: "Moderation home",
-        description: "Keep report workflow separate from public content visibility.",
-      };
-    }
-    if (section === "insights" || section === "analytics") {
-      return {
-        title: "Product insights",
-        description: "Use available operational data and identify analytics gaps.",
-      };
-    }
-    if (section === "system" || section === "admins") {
-      return {
-        title: "System / Observability",
-        description: "Check API, Supabase, request ids, metrics, logs, and admin authorization status.",
-      };
-    }
-
-    return {
-      title: "Explore Admin Console",
-      description: "Operate users, content, moderation, and product health.",
-    };
+    if (section === "users") return { title: "Users", description: "" };
+    if (section === "content") return { title: "Content", description: "" };
+    if (section === "moderation") return { title: "Moderation", description: "" };
+    if (section === "insights" || section === "analytics") return { title: "Insights", description: "" };
+    if (section === "system") return { title: "System", description: "" };
+    if (section === "admins") return { title: "Admins", description: "" };
+    return { title: "Dashboard", description: "" };
   }
 
   if (pathname === "/admin/analytics/business") {
-    return {
-      title: "Business Insights",
-      description: "Growth, funnel, content, search, and investor-readable analytics.",
-    };
+    return { title: "Business Insights", description: "" };
   }
 
   if (pathname === "/admin/analytics") {
-    return {
-      title: "Analytics Ops",
-      description: "Product and ingestion insights from Explore event pipelines.",
-    };
+    return { title: "Analytics Ops", description: "" };
   }
 
   if (pathname.startsWith("/admin/reports")) {
     const params = new URLSearchParams(search);
     const status = params.get("status");
     const visibility = params.get("visibility");
-
-    if (status === "pending") {
-      return {
-        title: "Pending queue",
-        description: "Prioritize unresolved reports and keep global visibility decisions explicit.",
-      };
-    }
-
-    if (status === "reviewed") {
-      return {
-        title: "Reviewed reports",
-        description: "Audit report decisions that did not necessarily change public content visibility.",
-      };
-    }
-
-    if (visibility === "hidden_removed") {
-      return {
-        title: "Removed and hidden content",
-        description: "Inspect reports tied to globally hidden or removed content.",
-      };
-    }
-
-    return {
-      title: "Moderation reports",
-      description: "Review incoming user-submitted reports and take action quickly.",
-    };
+    if (status === "pending") return { title: "Pending", description: "" };
+    if (status === "reviewed") return { title: "Reviewed", description: "" };
+    if (visibility === "hidden_removed") return { title: "Hidden", description: "" };
+    return { title: "Reports", description: "" };
   }
 
   if (pathname.startsWith("/admin/waitlist")) {
-    return {
-      title: "Waitlist",
-      description: "Manage early access operations.",
-    };
+    return { title: "Waitlist", description: "" };
   }
 
   if (pathname.startsWith("/admin/api-docs")) {
-    return {
-      title: "API Docs",
-      description: "Browse OpenAPI specs for PostgREST, Edge Functions, and Admin HTTP APIs.",
-    };
+    return { title: "API Docs", description: "" };
   }
 
-  return {
-    title: "Explore Admin Console",
-    description: "Operate users, content, moderation, and product health.",
-  };
+  return { title: "Admin", description: "" };
 }
 
 function initials(email: string) {
@@ -351,7 +286,6 @@ export function AdminLayout() {
 
           <div className="admin-console__page-title">
             <h1>{meta.title}</h1>
-            <p>{meta.description}</p>
           </div>
 
           <div className="admin-console__topbar-actions">
