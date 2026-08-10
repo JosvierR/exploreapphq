@@ -1,9 +1,9 @@
 {
   "repo": "AngRodSt/Explore-V2",
   "path": "supabase/functions/openapi.edge.yaml",
-  "commit": "1c4cc48c86ab1de7ecc68d287530b65f7f9b9fc0",
-  "commit_short": "1c4cc48",
-  "source_url": "https://github.com/AngRodSt/Explore-V2/blob/1c4cc48c86ab1de7ecc68d287530b65f7f9b9fc0/supabase/functions/openapi.edge.yaml",
-  "raw_api_url": "https://api.github.com/repos/AngRodSt/Explore-V2/contents/supabase/functions/openapi.edge.yaml?ref=1c4cc48c86ab1de7ecc68d287530b65f7f9b9fc0",
-  "synced_at": "2026-08-10T01:13:48.593Z"
+  "commit": "457de42cb0e2b570c265043328372f4573d804c7",
+  "commit_short": "457de42",
+  "source_url": "https://github.com/AngRodSt/Explore-V2/blob/457de42cb0e2b570c265043328372f4573d804c7/supabase/functions/openapi.edge.yaml",
+  "raw_api_url": "https://api.github.com/repos/AngRodSt/Explore-V2/contents/supabase/functions/openapi.edge.yaml?ref=457de42cb0e2b570c265043328372f4573d804c7",
+  "synced_at": "2026-08-10T01:20:31.623Z"
 }

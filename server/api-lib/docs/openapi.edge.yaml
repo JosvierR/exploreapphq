@@ -1,19 +1,19 @@
 # Synced into exploreapphq — do not edit by hand.
-# Source: https://github.com/AngRodSt/Explore-V2/blob/1c4cc48c86ab1de7ecc68d287530b65f7f9b9fc0/supabase/functions/openapi.edge.yaml
-# Pin: 1c4cc48c86ab1de7ecc68d287530b65f7f9b9fc0
-# Synced-At: 2026-08-10T01:13:48.591Z
+# Source: https://github.com/AngRodSt/Explore-V2/blob/457de42cb0e2b570c265043328372f4573d804c7/supabase/functions/openapi.edge.yaml
+# Pin: 457de42cb0e2b570c265043328372f4573d804c7
+# Synced-At: 2026-08-10T01:20:31.604Z
 openapi: 3.1.0
 info:
   title: Explore Edge Functions
   version: 1.0.0
   description: |
     Hand-authored OpenAPI for Supabase Edge Functions in Explore-V2
-    (`supabase/functions`). No Zod generation yet — keep this file next to the
+    (`supabase/functions`). No Zod generation yet ΓÇö keep this file next to the
     Deno handlers and sync into exploreapphq via commit pin.
 
     Documented surfaces (EXPLORE-326):
-    - `generate-upload-url` — authenticated direct upload bootstrap
-    - `cloudflare-stream-webhook` — Cloudflare Stream processing callback
+    - `generate-upload-url` ΓÇö authenticated direct upload bootstrap
+    - `cloudflare-stream-webhook` ΓÇö Cloudflare Stream processing callback
 servers:
   - url: https://{project_ref}.supabase.co/functions/v1
     description: Supabase Edge Functions base URL
