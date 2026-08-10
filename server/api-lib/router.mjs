@@ -43,7 +43,7 @@ function isModerationRoute(route) {
  * - moderation/*  → reports, admin ops, health
  * - analytics/*   → events ingestion + admin insights
  * - system/*      → observability health/metrics + bootstrap
- * - docs/*        → admin OpenAPI skeletons for Scalar
+ * - docs/*        → admin OpenAPI (live PostgREST + openapi.admin.yaml + Edge skeleton)
  * - netlify/*     → waitlist/feedback legacy handlers
  */
 export async function dispatchApi(incomingRequest) {

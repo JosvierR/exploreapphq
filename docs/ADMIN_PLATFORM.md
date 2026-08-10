@@ -25,7 +25,7 @@ Current frontend entry points:
 - `/admin?section=system` - System/Observability.
 - `/admin/reports` - moderation reports and video moderation lifecycle.
 - `/admin/waitlist` - waitlist operations.
-- `/admin/api-docs` - Scalar UI over admin-only OpenAPI skeletons (PostgREST, Edge, Admin HTTP).
+- `/admin/api-docs` - Scalar UI over admin OpenAPI (live PostgREST, Admin HTTP contract, Edge skeleton).
 
 ## Admin OpenAPI (docs)
 
@@ -33,13 +33,17 @@ Admin-authenticated read-only specs:
 
 | Method | Path | Surface |
 |--------|------|---------|
-| `GET` | `/api/admin/openapi/postgrest` | Live PostgREST (Swagger 2/OpenAPI → 3.1, gzip + short cache) |
+| `GET` | `/api/admin/openapi/postgrest` | Live PostgREST (Swagger 2/OpenAPI → 3.1, short cache) |
 | `GET` | `/api/admin/openapi/edge` | Edge Functions skeleton |
-| `GET` | `/api/admin/openapi/admin` | Admin HTTP API skeleton |
+| `GET` | `/api/admin/openapi/admin` | Hand-authored Admin HTTP API (`openapi.admin.yaml`) |
 
 Handlers live in `server/api-lib/docs/` and are wired through `server/api-lib/router.mjs` (mirrored in `server/index.ts`). Each route uses `requireAdmin`.
 
 PostgREST live docs fetch `${SUPABASE_URL}/rest/v1/` with the same `SUPABASE_SECRET_KEY` used by admin analytics/moderation. Supabase rejects publishable/anon keys for that OpenAPI root (`Secret API key required`).
+
+Admin HTTP contract (`server/api-lib/docs/openapi.admin.yaml`) is linted with Redocly (`npm run openapi:lint`) and guarded by an anti-drift test that requires 100% coverage of `router.mjs` plus parity with Express mounts (except explicit local-only paths).
+
+**Reviewed:** 2026-08-09
 
 ## Backend Routing
 

@@ -35,6 +35,10 @@ import { handlePioneersLanding } from "./api-lib/pioneers/pioneersRouter.mjs";
 // @ts-ignore
 import { dispatchOpenApiDocs } from "./api-lib/docs/docsRouter.mjs";
 // @ts-ignore
+import adminBroadcast from "../netlify/functions/admin-broadcast.mjs";
+// @ts-ignore
+import feedbackSubmit from "../netlify/functions/feedback-submit.mjs";
+// @ts-ignore
 import { ensureRequestId, routePath } from "./api-lib/http/requestContext.mjs";
 // @ts-ignore
 import { resolveApiRoute } from "./api-lib/http/resolveApiRoute.mjs";
@@ -292,6 +296,14 @@ app.all("/api/admin/reports/:id", (req, res) => {
 
 app.all("/api/admin/moderation/action", (req, res) => {
   void sendFetchResponse(handleAdminModerationAction, req, res);
+});
+
+app.all("/api/admin/broadcast", (req, res) => {
+  void sendFetchResponse(adminBroadcast, req, res);
+});
+
+app.all("/api/feedback/submit", (req, res) => {
+  void sendFetchResponse(feedbackSubmit, req, res);
 });
 
 /** Public waitlist signup (email only) — used by the Firebase front-end */

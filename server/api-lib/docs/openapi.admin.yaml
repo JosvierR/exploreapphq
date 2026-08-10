@@ -1,0 +1,1194 @@
+openapi: 3.1.0
+info:
+  title: Explore Admin HTTP API
+  version: 1.0.0
+  description: |
+    Hand-authored OpenAPI for the Explore web `/api/*` surface (Vercel `router.mjs`
+    + local Express). PostgREST and Edge Functions are separate Scalar sources.
+
+    `POST /api/events` matches `docs/ANALYTICS_EVENTS_API.md`.
+servers:
+  - url: /
+    description: Same origin (Vercel production or local Vite proxy)
+tags:
+  - name: Health
+  - name: Moderation
+  - name: Analytics
+  - name: Admin Analytics
+  - name: Business Insights
+  - name: System
+  - name: Docs
+  - name: Waitlist
+  - name: Pioneers
+  - name: Feedback
+security: []
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      summary: API health probe
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+
+  /api/reports:
+    post:
+      tags: [Moderation]
+      summary: Submit a content report
+      operationId: postReports
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Report accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/user/hidden-content:
+    get:
+      tags: [Moderation]
+      summary: List content hidden by the current user
+      operationId: getUserHiddenContent
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Hidden content list
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Moderation]
+      summary: Hide content for the current user
+      operationId: postUserHiddenContent
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Content hidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/user/hidden-content/unhide:
+    post:
+      tags: [Moderation]
+      summary: Unhide previously hidden content
+      operationId: postUserHiddenContentUnhide
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Content unhidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/admin/me:
+    get:
+      tags: [Moderation]
+      summary: Current admin identity
+      operationId: getAdminMe
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Admin profile
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/reports:
+    get:
+      tags: [Moderation]
+      summary: List moderation reports
+      operationId: getAdminReports
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Report queue
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/reports/{id}:
+    get:
+      tags: [Moderation]
+      summary: Get a moderation report by id
+      operationId: getAdminReportById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReportId"
+      responses:
+        "200":
+          description: Report detail
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Moderation]
+      summary: Update a moderation report
+      operationId: patchAdminReportById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReportId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Report updated
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/moderation/summary:
+    get:
+      tags: [Moderation]
+      summary: Moderation summary counters
+      operationId: getAdminModerationSummary
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Summary payload
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/ops/summary:
+    get:
+      tags: [Moderation]
+      summary: Ops summary for the admin console
+      operationId: getAdminOpsSummary
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Ops summary
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/users:
+    get:
+      tags: [Moderation]
+      summary: List admin-visible users
+      operationId: getAdminUsers
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User list
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/moderation/action:
+    post:
+      tags: [Moderation]
+      summary: Apply a moderation action
+      operationId: postAdminModerationAction
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Action applied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/events:
+    post:
+      tags: [Analytics]
+      summary: Ingest analytics event batch
+      description: |
+        Mobile/web clients send analytics batches. Contract mirrors
+        `docs/ANALYTICS_EVENTS_API.md`. Optional bearer token; anonymous
+        batches require `anonymous_id`. Max 50 events / 256 KB.
+      operationId: postAnalyticsEvents
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalyticsEventsBatch"
+            example:
+              batch_id: batch-uuid
+              sent_at: "2026-07-02T10:00:00.000Z"
+              events:
+                - event_id: event-uuid
+                  event_name: video_view_start
+                  event_version: 1
+                  anonymous_id: stable-anonymous-id
+                  session_id: session-id
+                  entity_type: video
+                  entity_id: video-id
+                  occurred_at: "2026-07-02T09:59:58.000Z"
+                  platform: ios
+                  app_version: "1.0.0"
+                  build_number: "100"
+                  locale: es-DO
+                  timezone: America/Santo_Domingo
+                  country: DO
+                  properties: {}
+                  context: {}
+      responses:
+        "200":
+          description: Batch processed (may include partial rejects)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsEventsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          description: Payload too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Analytics schema or Supabase not ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/cron/analytics/aggregate:
+    post:
+      tags: [Analytics]
+      summary: Cron trigger for analytics aggregates
+      operationId: postCronAnalyticsAggregate
+      security:
+        - cronSecretAuth: []
+      responses:
+        "200":
+          description: Aggregation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/admin/analytics/overview:
+    get:
+      tags: [Admin Analytics]
+      summary: Analytics overview
+      operationId: getAdminAnalyticsOverview
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Overview + diagnostics
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/analytics/timeseries:
+    get:
+      tags: [Admin Analytics]
+      summary: Analytics timeseries
+      operationId: getAdminAnalyticsTimeseries
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Timeseries rows
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/analytics/top-content:
+    get:
+      tags: [Admin Analytics]
+      summary: Top content insights
+      operationId: getAdminAnalyticsTopContent
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Top content
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/analytics/search:
+    get:
+      tags: [Admin Analytics]
+      summary: Search insights
+      operationId: getAdminAnalyticsSearch
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Search insights
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/analytics/events:
+    get:
+      tags: [Admin Analytics]
+      summary: Explore ingested events
+      operationId: getAdminAnalyticsEvents
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Event explorer page
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/analytics/events/{eventId}:
+    get:
+      tags: [Admin Analytics]
+      summary: Get a single analytics event
+      operationId: getAdminAnalyticsEventById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Event detail
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/admin/analytics/health:
+    get:
+      tags: [Admin Analytics]
+      summary: Analytics ingestion health
+      operationId: getAdminAnalyticsHealth
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Health diagnostics
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/analytics/dead-letters:
+    get:
+      tags: [Admin Analytics]
+      summary: Analytics dead letters
+      operationId: getAdminAnalyticsDeadLetters
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dead-letter rows
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/analytics/aggregate:
+    post:
+      tags: [Admin Analytics]
+      summary: Manually trigger analytics aggregation
+      operationId: postAdminAnalyticsAggregate
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Aggregation result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/analytics/business/overview:
+    get:
+      tags: [Business Insights]
+      summary: Business overview
+      operationId: getBusinessOverview
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Business overview
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/analytics/business/growth:
+    get:
+      tags: [Business Insights]
+      summary: Growth insights
+      operationId: getBusinessGrowth
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Growth insights
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/analytics/business/funnel:
+    get:
+      tags: [Business Insights]
+      summary: Engagement funnel
+      operationId: getBusinessFunnel
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Funnel
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/analytics/business/content:
+    get:
+      tags: [Business Insights]
+      summary: Content performance
+      operationId: getBusinessContent
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Content performance
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/analytics/business/search:
+    get:
+      tags: [Business Insights]
+      summary: Business search insights
+      operationId: getBusinessSearch
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Search insights
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/analytics/business/creators:
+    get:
+      tags: [Business Insights]
+      summary: Creator performance
+      operationId: getBusinessCreators
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Creator performance
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/analytics/business/locations:
+    get:
+      tags: [Business Insights]
+      summary: Location interest
+      operationId: getBusinessLocations
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Location interest
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/analytics/business/investor-snapshot:
+    get:
+      tags: [Business Insights]
+      summary: Investor snapshot
+      operationId: getBusinessInvestorSnapshot
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Investor snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/system/health:
+    get:
+      tags: [System]
+      summary: Admin system health
+      operationId: getAdminSystemHealth
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Health status
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/system/metrics:
+    get:
+      tags: [System]
+      summary: Admin system metrics JSON
+      operationId: getAdminSystemMetrics
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Metrics snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/system/bootstrap-board:
+    post:
+      tags: [System]
+      summary: Bootstrap board admin accounts
+      operationId: postBootstrapBoardAdmins
+      security:
+        - bearerAuth: []
+        - bootstrapSecretAuth: []
+      responses:
+        "200":
+          description: Bootstrap result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/openapi/postgrest:
+    get:
+      tags: [Docs]
+      summary: Live PostgREST OpenAPI 3.1
+      operationId: getOpenApiPostgrest
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: OpenAPI document
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/openapi/edge:
+    get:
+      tags: [Docs]
+      summary: Edge Functions OpenAPI skeleton
+      operationId: getOpenApiEdge
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: OpenAPI document
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/openapi/admin:
+    get:
+      tags: [Docs]
+      summary: This Admin HTTP OpenAPI document
+      operationId: getOpenApiAdmin
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: OpenAPI document
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/metrics:
+    get:
+      tags: [System]
+      summary: Prometheus metrics scrape
+      operationId: getTokenMetrics
+      security:
+        - metricsTokenAuth: []
+      responses:
+        "200":
+          description: Prometheus text exposition
+          content:
+            text/plain:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/waitlist/signup:
+    post:
+      tags: [Waitlist]
+      summary: Public waitlist signup
+      operationId: postWaitlistSignup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                phone:
+                  type: string
+              additionalProperties: false
+      responses:
+        "200":
+          description: Signup result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "400":
+          description: Missing email/phone
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/admin/waitlist:
+    get:
+      tags: [Waitlist]
+      summary: List waitlist entries
+      operationId: getAdminWaitlist
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Waitlist rows + stats
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/waitlist/notify-launch:
+    post:
+      tags: [Waitlist]
+      summary: Email waitlist that the app is ready
+      operationId: postAdminWaitlistNotifyLaunch
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dryRun
+          in: query
+          schema:
+            type: string
+            enum: ["1"]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dryRun:
+                  type: boolean
+              additionalProperties: true
+      responses:
+        "200":
+          description: Send result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/broadcast:
+    post:
+      tags: [Waitlist]
+      summary: Broadcast email/SMS to waitlist
+      operationId: postAdminBroadcast
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Broadcast result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/pioneers/landing:
+    get:
+      tags: [Pioneers]
+      summary: Pioneers landing payload
+      operationId: getPioneersLanding
+      responses:
+        "200":
+          description: Landing content
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /api/feedback/submit:
+    post:
+      tags: [Feedback]
+      summary: Submit public product feedback
+      operationId: postFeedbackSubmit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message, category]
+              properties:
+                message:
+                  type: string
+                category:
+                  type: string
+                  enum: [idea, bug, love, other]
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+              additionalProperties: true
+      responses:
+        "200":
+          description: Feedback accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase user access token (admin routes require admin_users).
+    metricsTokenAuth:
+      type: http
+      scheme: bearer
+      description: METRICS_TOKEN bearer for Prometheus scrapes.
+    cronSecretAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer ANALYTICS_CRON_SECRET (or project cron auth).
+    bootstrapSecretAuth:
+      type: apiKey
+      in: header
+      name: x-admin-bootstrap-secret
+      description: Optional ADMIN_BOOTSTRAP_SECRET for board bootstrap.
+  parameters:
+    ReportId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Access denied
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    OkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        request_id:
+          type: string
+      additionalProperties: true
+    ErrorResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: false
+        error:
+          type: string
+        code:
+          type: string
+        request_id:
+          type: string
+      additionalProperties: true
+    AnalyticsEventsBatch:
+      type: object
+      required: [events]
+      properties:
+        batch_id:
+          type: string
+        sent_at:
+          type: string
+          format: date-time
+        events:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/AnalyticsEvent"
+      additionalProperties: false
+    AnalyticsEvent:
+      type: object
+      required: [event_id, event_name, session_id, occurred_at]
+      properties:
+        event_id:
+          type: string
+        event_name:
+          type: string
+          description: Must be on the server allowlist (see ANALYTICS_EVENTS_API.md).
+        event_version:
+          type: integer
+          minimum: 1
+        anonymous_id:
+          type: string
+          description: Required when no bearer token is present.
+        session_id:
+          type: string
+        entity_type:
+          type: string
+        entity_id:
+          type: string
+        source:
+          type: string
+          enum: [mobile, web, backend, admin]
+        platform:
+          type: string
+          enum: [ios, android, web]
+        app_version:
+          type: string
+        build_number:
+          type: string
+        device_os:
+          type: string
+        locale:
+          type: string
+        timezone:
+          type: string
+        country:
+          type: string
+        region:
+          type: [string, "null"]
+        city:
+          type: [string, "null"]
+        properties:
+          type: object
+          additionalProperties: true
+        context:
+          type: object
+          additionalProperties: true
+        occurred_at:
+          type: string
+          format: date-time
+      additionalProperties: true
+    AnalyticsEventsResponse:
+      type: object
+      required: [ok, request_id, accepted, duplicates, rejected]
+      properties:
+        ok:
+          type: boolean
+        request_id:
+          type: string
+        accepted:
+          type: integer
+        duplicates:
+          type: integer
+        rejected:
+          type: integer
+        warnings:
+          type: array
+          items:
+            type: string
+      additionalProperties: true

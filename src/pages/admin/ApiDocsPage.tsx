@@ -123,8 +123,9 @@ function ApiDocsContent() {
     <div className="admin-api-docs">
       <div className="admin-api-docs__intro">
         <p className="admin-muted">
-          PostgREST is loaded live from Supabase (converted to OpenAPI 3.1). Edge and Admin
-          surfaces are skeletons until later phases. Specs are admin-only.
+          PostgREST is loaded live from Supabase (converted to OpenAPI 3.1). Admin HTTP
+          uses the hand-authored <code>openapi.admin.yaml</code> contract. Edge remains a
+          skeleton until a later phase. Specs are admin-only.
         </p>
       </div>
 
@@ -139,9 +140,8 @@ function ApiDocsContent() {
           <strong>Could not load API docs.</strong>
           <p>{error}</p>
           <p className="admin-muted">
-            PostgREST needs <code>SUPABASE_URL</code> + <code>SUPABASE_ANON_KEY</code> from the{" "}
-            <em>same</em> Supabase project (Dashboard → Settings → API → anon public). Save in Vercel
-            Production and Redeploy.
+            PostgREST needs <code>SUPABASE_URL</code> + <code>SUPABASE_SECRET_KEY</code>{" "}
+            (same server secret as admin analytics). Save in Vercel Production and Redeploy.
           </p>
         </div>
       )}

@@ -2,6 +2,7 @@ import { jsonResponse, optionsResponse } from "../http/responses.mjs";
 import { requestIdFromRequest } from "../http/requestContext.mjs";
 import { requireAdmin } from "../moderation/supabaseModeration.mjs";
 import { errorSummary, logger, requestLogMeta } from "../observability/logger.mjs";
+import { loadAdminOpenApiSpec } from "./adminOpenApiSpec.mjs";
 import { buildMinimalOpenApiSpec, isOpenApiSurface } from "./minimalSpecs.mjs";
 import {
   fetchLivePostgrestOpenApi,
@@ -46,6 +47,16 @@ export async function dispatchOpenApiDocs(request, route) {
         "Cache-Control": "private, max-age=60",
         "X-Explore-OpenAPI-Cache": cache,
         "X-Explore-OpenAPI-Converter": converter || "unknown",
+      });
+    }
+
+    if (surface === "admin") {
+      const { json } = loadAdminOpenApiSpec();
+      return openApiJsonResponse(200, json, {
+        "Cache-Control": "private, max-age=60",
+        "X-Explore-OpenAPI": "admin",
+        "X-Explore-OpenAPI-Cache": "file",
+        "X-Explore-OpenAPI-Converter": "yaml",
       });
     }
 

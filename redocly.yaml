@@ -1,0 +1,16 @@
+# Redocly / Spectral lint for hand-authored Admin HTTP OpenAPI (EXPLORE-325).
+apis:
+  explore-admin:
+    root: server/api-lib/docs/openapi.admin.yaml
+
+extends:
+  - recommended
+
+rules:
+  # Hand-authored ops surface documents primary methods; many Express mounts are app.all.
+  operation-operationId: error
+  no-unused-components: warn
+  info-license: off
+  info-contact: off
+  tag-description: off
+  operation-4xx-response: off

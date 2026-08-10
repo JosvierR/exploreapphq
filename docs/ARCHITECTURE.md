@@ -32,7 +32,7 @@ Local Express (`server/index.ts`) mounts the same handlers for development.
 | `moderation/` | Reports, admin users, ops summary, moderation actions |
 | `analytics/` | `POST /api/events` + admin insights APIs |
 | `system/` | Health, metrics endpoints, board admin bootstrap |
-| `docs/` | Admin-only OpenAPI docs (live PostgREST + skeletons) for Scalar (`/api/admin/openapi/*`) |
+| `docs/` | Admin-only OpenAPI docs (live PostgREST + `openapi.admin.yaml` + Edge skeleton) for Scalar (`/api/admin/openapi/*`) |
 | `router.mjs` | Single dispatcher for all `/api/*` routes |
 
 Learn a domain by reading its folder top-down. Prefer importing from domain folders, not from unrelated modules.
@@ -98,13 +98,14 @@ Never put `SUPABASE_SECRET_KEY` or `METRICS_TOKEN` in `VITE_*` variables.
 | `docs/ANALYTICS_EVENTS_API.md` | Events ingestion |
 | `docs/DATA-004_ADMIN_INSIGHTS_DASHBOARD.md` | Admin analytics UI/API |
 
-**Reviewed:** 2026-08-08
+**Reviewed:** 2026-08-09
 
 ## Adding a new API route
 
 1. Put handler code in the correct domain folder under `server/api-lib/`.
 2. Wire it in `server/api-lib/router.mjs`.
 3. Mirror the route in `server/index.ts` for local Express.
-4. Do **not** add new files under `api/` (Hobby function limit).
-5. Add admin-only auth with `requireAdmin` when the route is admin.
-6. Emit metrics/logs with `recordApiRequest` (automatic via router) and domain-specific counters when useful.
+4. Document the path in `server/api-lib/docs/openapi.admin.yaml` and keep anti-drift green (`npm test` + `npm run openapi:lint`).
+5. Do **not** add new files under `api/` (Hobby function limit).
+6. Add admin-only auth with `requireAdmin` when the route is admin.
+7. Emit metrics/logs with `recordApiRequest` (automatic via router) and domain-specific counters when useful.

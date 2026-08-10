@@ -11,7 +11,9 @@
     "build:api": "tsc -p tsconfig.server.json",
     "preview": "vite preview",
     "lint": "tsc -b --noEmit",
-    "test": "tsx src/lib/analyticsDisplay.test.ts && tsx src/features/admin/observability/adminMetricsFormat.test.ts && node src/features/pioneers/api/pioneersApi.test.mjs && node server/api-lib/pioneers/pioneersService.test.mjs && node server/api-lib/analytics/analyticsRouter.source.test.mjs && node server/api-lib/analytics/analyticsAdminApi.test.mjs && node server/api-lib/analytics/analyticsOperationsService.test.mjs && node server/api-lib/analytics/businessInsightsService.test.mjs && node --test server/api-lib/docs/docsRouter.source.test.mjs server/api-lib/docs/postgrestOpenApi.test.mjs",
+    "test": "tsx src/lib/analyticsDisplay.test.ts && tsx src/features/admin/observability/adminMetricsFormat.test.ts && node src/features/pioneers/api/pioneersApi.test.mjs && node server/api-lib/pioneers/pioneersService.test.mjs && node server/api-lib/analytics/analyticsRouter.source.test.mjs && node server/api-lib/analytics/analyticsAdminApi.test.mjs && node server/api-lib/analytics/analyticsOperationsService.test.mjs && node server/api-lib/analytics/businessInsightsService.test.mjs && node --test server/api-lib/docs/docsRouter.source.test.mjs server/api-lib/docs/postgrestOpenApi.test.mjs server/api-lib/docs/openapi.admin.antiDrift.test.mjs",
+    "openapi:lint": "redocly lint server/api-lib/docs/openapi.admin.yaml",
+    "openapi:preview": "redocly preview-docs server/api-lib/docs/openapi.admin.yaml",
     "obs:up": "docker compose -f observability/docker-compose.observability.yml up -d",
     "obs:down": "docker compose -f observability/docker-compose.observability.yml down",
     "obs:logs": "docker compose -f observability/docker-compose.observability.yml logs -f grafana prometheus loki",
@@ -53,9 +55,11 @@
     "recharts": "^3.9.2",
     "swagger2openapi": "^7.0.8",
     "tailwind-merge": "^3.6.0",
-    "ws": "^8.21.0"
+    "ws": "^8.21.0",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
+    "@redocly/cli": "^1.34.18",
     "@tailwindcss/vite": "^4.3.2",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",

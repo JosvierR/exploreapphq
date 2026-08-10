@@ -19,7 +19,7 @@ const SURFACE_META = {
   admin: {
     title: "Explore Admin HTTP API",
     description:
-      "Skeleton OpenAPI for admin-only `/api/admin/*` routes. Paths will be documented in a later phase.",
+      "Fallback skeleton. Production admin surface is served from openapi.admin.yaml.",
   },
 };
 

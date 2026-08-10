@@ -68,6 +68,7 @@ npm run dev:all      # both
 npm run build        # production web build
 npm run lint
 npm test
+npm run openapi:lint
 npm run obs:up       # Prometheus + Grafana + Loki
 npm run obs:down
 ```
@@ -80,6 +81,7 @@ npm run obs:down
 | `/admin/analytics` | Product + ingestion insights |
 | `/admin/reports` | Moderation queue |
 | `/admin/waitlist` | Waitlist + broadcast |
+| `/admin/api-docs` | Scalar OpenAPI (PostgREST live + Admin HTTP contract) |
 
 Auth: Supabase admin accounts (`admin_users` table).
 
