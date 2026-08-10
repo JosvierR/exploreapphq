@@ -57,6 +57,15 @@ type LocationData = Awaited<ReturnType<typeof getBusinessLocations>>;
 type InvestorData = Awaited<ReturnType<typeof getInvestorSnapshot>>;
 type ContentTab = "videos" | "places" | "routes" | "profiles";
 type QualityStatus = "Healthy" | "Needs data" | "Warning";
+type DecisionPriority = "critical" | "high" | "opportunity" | "monitor";
+
+type DecisionItem = {
+  priority: DecisionPriority;
+  title: string;
+  evidence: string;
+  action: string;
+  owner: string;
+};
 
 type SectionState<T> = {
   data: T | null;
@@ -169,6 +178,42 @@ function buildSearchInsight(total: number, rate: number) {
   if (rate <= 10) return `Search quality is healthy: ${rate}% of searches returned no results.`;
   if (rate <= 25) return `${rate}% of searches returned no results; watch the leading fingerprints.`;
   return `Search needs attention: ${rate}% of searches returned no results.`;
+}
+
+function DecisionBrief({ items, confidence }: { items: DecisionItem[]; confidence: number }) {
+  const confidenceLabel = confidence >= 80 ? "High confidence" : confidence >= 55 ? "Medium confidence" : "Limited confidence";
+  return (
+    <section className="admin-decision-brief" aria-labelledby="decision-brief-title">
+      <header className="admin-decision-brief__header">
+        <div>
+          <p>Decision brief</p>
+          <h2 id="decision-brief-title">What the business should do next</h2>
+          <span>Priorities are generated from the selected period and filters, not lifetime totals.</span>
+        </div>
+        <div className="admin-decision-confidence" title="Share of decision-critical data checks currently healthy">
+          <span>Data confidence</span>
+          <strong>{confidence}%</strong>
+          <small>{confidenceLabel}</small>
+        </div>
+      </header>
+      <div className="admin-decision-grid">
+        {items.map((item, index) => (
+          <article className={`admin-decision-card admin-decision-card--${item.priority}`} key={`${item.priority}-${item.title}`}>
+            <div className="admin-decision-card__rank">{String(index + 1).padStart(2, "0")}</div>
+            <div className="admin-decision-card__body">
+              <div className="admin-decision-card__topline">
+                <span>{item.priority === "critical" ? "Act now" : item.priority === "high" ? "High priority" : item.priority === "opportunity" ? "Opportunity" : "Monitor"}</span>
+                <small>{item.owner}</small>
+              </div>
+              <h3>{item.title}</h3>
+              <p>{item.evidence}</p>
+              <div><strong>Next move</strong><span>{item.action}</span></div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function AdminBusinessInsightsContent() {
@@ -342,6 +387,74 @@ function AdminBusinessInsightsContent() {
     [summary, warningCodes],
   );
 
+  const decisionItems = useMemo<DecisionItem[]>(() => {
+    const sessionDelta = deltas.active_sessions?.percent;
+    const activeDelta = deltas.active_users_estimate?.percent;
+    const largestFunnelDrop = funnelData.length > 1
+      ? funnelData.slice(1).reduce((best, item) => item.dropoff > best.dropoff ? item : best)
+      : null;
+    const decisions: DecisionItem[] = [];
+
+    if (numberValue(summary.dead_letters_total) > 0) {
+      decisions.push({
+        priority: "critical",
+        title: "Restore analytics reliability",
+        evidence: `${formatNumber(summary.dead_letters_total)} events were rejected in this period, which can distort every downstream metric.`,
+        action: "Inspect rejection reasons in Analytics Ops, fix the leading payload issue, then re-check this brief.",
+        owner: "Data / Engineering",
+      });
+    }
+    if (typeof sessionDelta === "number" && sessionDelta < -10) {
+      decisions.push({
+        priority: "high",
+        title: "Investigate the usage decline",
+        evidence: `Sessions fell ${Math.abs(sessionDelta)}% versus the previous ${comparisonLabel}; active-user movement is ${activeDelta == null ? "not yet available" : `${activeDelta}%`}.`,
+        action: "Segment by platform and source, validate release health, and identify the first day the decline accelerated.",
+        owner: "Product / Growth",
+      });
+    }
+    if (largestFunnelDrop && largestFunnelDrop.dropoff >= 25) {
+      const stepIndex = funnelData.findIndex((item) => item.key === largestFunnelDrop.key);
+      decisions.push({
+        priority: "high",
+        title: `Fix conversion into ${largestFunnelDrop.label.toLowerCase()}`,
+        evidence: `${largestFunnelDrop.dropoff}% of the journey drops between ${funnelData[stepIndex - 1]?.label || "the prior step"} and ${largestFunnelDrop.label}.`,
+        action: "Review this transition, remove friction, and define an experiment with the step conversion as its primary KPI.",
+        owner: "Product",
+      });
+    }
+    if (searchTotal > 0 && noResultRate > 20) {
+      decisions.push({
+        priority: noResultRate > 35 ? "high" : "opportunity",
+        title: "Close the search supply gap",
+        evidence: `${formatPercent(noResultRate)} of ${formatNumber(searchTotal)} searches returned no results.`,
+        action: "Use the leading privacy-safe fingerprints to prioritize missing places, routes, or content categories.",
+        owner: "Content / Supply",
+      });
+    }
+    if (marketChartData.length > 0) {
+      decisions.push({
+        priority: "opportunity",
+        title: `Deepen the ${marketChartData[0].label} market`,
+        evidence: `${marketChartData[0].label} leads tracked activity with ${formatNumber(marketChartData[0].value)} events in the selected period.`,
+        action: "Compare its engagement and content supply against the next two markets before allocating local growth spend.",
+        owner: "Growth",
+      });
+    }
+    if (!decisions.length || decisions.length < 3) {
+      decisions.push({
+        priority: typeof sessionDelta === "number" && sessionDelta > 10 ? "opportunity" : "monitor",
+        title: typeof sessionDelta === "number" && sessionDelta > 10 ? "Turn momentum into retention" : "Establish a stable decision baseline",
+        evidence: typeof sessionDelta === "number" ? `Sessions moved ${sessionDelta}% versus the previous ${comparisonLabel}.` : "The comparison period needs more complete activity before a growth call is reliable.",
+        action: typeof sessionDelta === "number" && sessionDelta > 10 ? "Identify the channel and cohort driving growth, then measure whether they return next period." : "Keep instrumentation stable and revisit after a complete comparison window.",
+        owner: "Leadership",
+      });
+    }
+    return decisions.slice(0, 4);
+  }, [comparisonLabel, deltas, funnelData, marketChartData, noResultRate, searchTotal, summary]);
+
+  const dataConfidence = Math.round((qualityItems.filter((item) => item.status === "Healthy").length / qualityItems.length) * 100);
+
   async function copyInvestorSnapshot() {
     const text = investor.data?.copy_text;
     if (!text) return;
@@ -408,6 +521,8 @@ function AdminBusinessInsightsContent() {
         </div>
       </div>
       {copyMessage && <p className="admin-copy-feedback" role="status">{copyMessage}</p>}
+
+      <DecisionBrief items={decisionItems} confidence={dataConfidence} />
 
       <ExecutiveSection
         kicker="Pulse"
