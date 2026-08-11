@@ -1319,6 +1319,243 @@
   }
 }
 
+.admin-bi-toolbar {
+  flex-wrap: wrap;
+}
+
+.admin-bi-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  margin: 0.15rem 0 0.35rem;
+}
+
+.admin-bi-breadcrumb button {
+  border: 0;
+  background: transparent;
+  color: var(--admin-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 0.15rem 0.35rem;
+  border-radius: 8px;
+}
+
+.admin-bi-breadcrumb button:not(.is-current)::after {
+  content: "/";
+  margin-left: 0.35rem;
+  color: var(--admin-border-soft);
+}
+
+.admin-bi-breadcrumb button.is-current {
+  color: var(--admin-text);
+  font-weight: 600;
+  background: var(--admin-surface);
+}
+
+.admin-bi-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.admin-bi-kpi {
+  border: 1px solid var(--admin-border-soft);
+  border-radius: var(--admin-radius-lg, 18px);
+  background: var(--admin-surface);
+  padding: 0.9rem 1rem;
+  min-height: 7.5rem;
+}
+
+.admin-bi-kpi > span {
+  display: block;
+  color: var(--admin-muted);
+  font-size: 0.72rem;
+  font-weight: 560;
+}
+
+.admin-bi-kpi > strong {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 1.55rem;
+  letter-spacing: -0.03em;
+}
+
+.admin-bi-delta {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+}
+
+.admin-bi-delta--up { color: #1f7a3f; }
+.admin-bi-delta--down { color: #b42318; }
+.admin-bi-delta--flat { color: var(--admin-muted); }
+
+.admin-bi-empty-metric {
+  margin-top: 0.45rem;
+}
+
+.admin-bi-empty-metric strong {
+  display: block;
+  font-size: 0.92rem;
+}
+
+.admin-bi-empty-metric span {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.admin-bi-funnel {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.admin-bi-funnel li {
+  display: grid;
+  grid-template-columns: 6rem 1fr auto;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: 14px;
+  background: var(--admin-surface);
+}
+
+.admin-bi-funnel strong {
+  font-size: 1.1rem;
+}
+
+.admin-bi-funnel small {
+  color: var(--admin-muted);
+}
+
+.admin-bi-market-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.admin-bi-peak__grid {
+  display: grid;
+  grid-template-columns: 5.5rem repeat(7, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+.admin-bi-peak__head,
+.admin-bi-peak__label,
+.admin-bi-peak__corner {
+  font-size: 0.68rem;
+  color: var(--admin-muted);
+  text-align: center;
+  padding: 0.25rem;
+}
+
+.admin-bi-peak__label {
+  text-align: left;
+  text-transform: capitalize;
+}
+
+.admin-bi-peak__cell {
+  min-height: 2.2rem;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 0.68rem;
+  color: #0b1f33;
+}
+
+.admin-bi-movers {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.admin-bi-movers li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.86rem;
+}
+
+.admin-bi-quality {
+  color: var(--admin-muted);
+}
+
+.admin-bi-note {
+  margin-top: 0.65rem;
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+}
+
+.admin-bi-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(26rem, 100vw);
+  height: 100vh;
+  z-index: 40;
+  background: var(--admin-surface);
+  border-left: 1px solid var(--admin-border-soft);
+  box-shadow: -12px 0 40px rgba(15, 23, 42, 0.08);
+  padding: 1.1rem 1.2rem 1.5rem;
+  overflow: auto;
+}
+
+.admin-bi-drawer header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: start;
+  margin-bottom: 1rem;
+}
+
+.admin-bi-drawer header p {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admin-bi-drawer header h3 {
+  margin: 0.25rem 0 0;
+}
+
+.admin-bi-drawer dl {
+  margin: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.admin-bi-drawer dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--admin-border-soft);
+  font-size: 0.84rem;
+}
+
+.admin-bi-drawer dt {
+  color: var(--admin-muted);
+}
+
+@media (max-width: 1100px) {
+  .admin-bi-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .admin-console *,
   .admin-console *::before,

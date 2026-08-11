@@ -23,6 +23,7 @@ export function extractRouterApiPaths() {
   const router = readRepoFile("server/api-lib/router.mjs");
   const moderation = readRepoFile("server/api-lib/moderation/moderationRouter.mjs");
   const analytics = readRepoFile("server/api-lib/analytics/analyticsAdminApi.mjs");
+  const businessIntel = readRepoFile("server/api-lib/analytics/businessIntelligenceApi.mjs");
   const docs = readRepoFile("server/api-lib/docs/docsRouter.mjs");
 
   /** @type {Set<string>} */
@@ -47,6 +48,16 @@ export function extractRouterApiPaths() {
   }
   if (analytics.includes('route.startsWith("admin/analytics/events/")')) {
     routes.add("admin/analytics/events/{eventId}");
+  }
+
+  // Business intelligence handler map keys.
+  for (const match of businessIntel.matchAll(/^\s*"((?:admin\/business\/)[^"]+)"\s*:/gm)) {
+    const key = match[1];
+    if (key.includes(":") || key.endsWith("/")) continue;
+    routes.add(key);
+  }
+  if (router.includes('route.startsWith("admin/business/")')) {
+    // Prefix catch-all expanded via businessIntelligenceApi map above.
   }
 
   // OpenAPI surfaces (docs router + OPENAPI_SURFACES).
@@ -103,6 +114,10 @@ export function extractExpressApiPaths() {
   const businessSegments = extractStringArray(source, "businessAnalyticsSegments");
   for (const segment of businessSegments) {
     paths.add(`/api/admin/analytics/business/${segment}`);
+  }
+  const businessIntelSegments = extractStringArray(source, "businessIntelligenceSegments");
+  for (const segment of businessIntelSegments) {
+    paths.add(`/api/admin/business/${segment}`);
   }
   const openApiSurfaces = extractStringArray(source, "openApiSurfaces");
   for (const surface of openApiSurfaces) {

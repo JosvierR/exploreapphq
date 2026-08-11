@@ -8,6 +8,8 @@ import {
   handleCronAnalyticsAggregate,
 } from "./api-lib/analytics/analyticsAdminApi.mjs";
 // @ts-ignore
+import { dispatchBusinessIntelligenceApi } from "./api-lib/analytics/businessIntelligenceApi.mjs";
+// @ts-ignore
 import { handleEvents } from "./api-lib/analytics/analyticsRouter.mjs";
 // @ts-ignore
 import {
@@ -254,6 +256,31 @@ for (const segment of businessAnalyticsSegments) {
   app.all(`/api/admin/analytics/business/${segment}`, (req, res) => {
     void sendFetchResponse(
       (request) => dispatchAdminAnalyticsApi(request, `admin/analytics/business/${segment}`),
+      req,
+      res,
+    );
+  });
+}
+
+const businessIntelligenceSegments = [
+  "dashboard",
+  "overview",
+  "geography",
+  "markets",
+  "places",
+  "routes",
+  "categories",
+  "timeseries",
+  "funnel",
+  "searches",
+  "opportunities",
+  "content-attribution",
+] as const;
+
+for (const segment of businessIntelligenceSegments) {
+  app.all(`/api/admin/business/${segment}`, (req, res) => {
+    void sendFetchResponse(
+      (request) => dispatchBusinessIntelligenceApi(request, `admin/business/${segment}`),
       req,
       res,
     );

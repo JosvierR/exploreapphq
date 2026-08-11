@@ -5,6 +5,7 @@ import adminBroadcast from "../../netlify/functions/admin-broadcast.mjs";
 import feedbackSubmit from "../../netlify/functions/feedback-submit.mjs";
 import { handleEvents } from "./analytics/analyticsRouter.mjs";
 import { dispatchAdminAnalyticsApi, handleCronAnalyticsAggregate } from "./analytics/analyticsAdminApi.mjs";
+import { dispatchBusinessIntelligenceApi } from "./analytics/businessIntelligenceApi.mjs";
 import { resolveApiRoute } from "./http/resolveApiRoute.mjs";
 import { ensureRequestId, responseHeadersWithRequestId, routePath } from "./http/requestContext.mjs";
 import { jsonResponse, optionsResponse } from "./http/responses.mjs";
@@ -65,6 +66,8 @@ export async function dispatchApi(incomingRequest) {
       response = await handleCronAnalyticsAggregate(request);
     } else if (route === "admin/analytics/overview" || route.startsWith("admin/analytics/")) {
       response = await dispatchAdminAnalyticsApi(request, route);
+    } else if (route.startsWith("admin/business/")) {
+      response = await dispatchBusinessIntelligenceApi(request, route);
     } else if (route === "admin/system/health") {
       response = await handleAdminSystemHealth(request);
     } else if (route === "admin/system/metrics") {

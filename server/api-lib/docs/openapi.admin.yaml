@@ -16,6 +16,7 @@ tags:
   - name: Analytics
   - name: Admin Analytics
   - name: Business Insights
+  - name: Business Intelligence
   - name: System
   - name: Docs
   - name: Waitlist
@@ -837,6 +838,246 @@ paths:
       responses:
         "200":
           description: Investor snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/business/dashboard:
+    get:
+      tags: [Business Intelligence]
+      summary: Full business intelligence dashboard snapshot
+      operationId: getBusinessIntelligenceDashboard
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/business/overview:
+    get:
+      tags: [Business Intelligence]
+      summary: Business intelligence KPI overview
+      operationId: getBusinessIntelligenceOverview
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: KPI overview
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/business/geography:
+    get:
+      tags: [Business Intelligence]
+      summary: Geographic hierarchy children for current filter
+      operationId: getBusinessIntelligenceGeography
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Geography children
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/business/markets:
+    get:
+      tags: [Business Intelligence]
+      summary: Market rollup alias of geography
+      operationId: getBusinessIntelligenceMarkets
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Markets
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/business/places:
+    get:
+      tags: [Business Intelligence]
+      summary: Name-enriched place rankings
+      operationId: getBusinessIntelligencePlaces
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Places
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/business/routes:
+    get:
+      tags: [Business Intelligence]
+      summary: Name-enriched route rankings
+      operationId: getBusinessIntelligenceRoutes
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Routes
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/business/categories:
+    get:
+      tags: [Business Intelligence]
+      summary: Demand by category
+      operationId: getBusinessIntelligenceCategories
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Categories
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/business/timeseries:
+    get:
+      tags: [Business Intelligence]
+      summary: Demand timeseries
+      operationId: getBusinessIntelligenceTimeseries
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Timeseries
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/business/funnel:
+    get:
+      tags: [Business Intelligence]
+      summary: Discovery-to-action commercial funnel
+      operationId: getBusinessIntelligenceFunnel
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Funnel
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/business/searches:
+    get:
+      tags: [Business Intelligence]
+      summary: Privacy-safe search demand
+      operationId: getBusinessIntelligenceSearches
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Searches
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/business/opportunities:
+    get:
+      tags: [Business Intelligence]
+      summary: Market opportunity cards and audience signals
+      operationId: getBusinessIntelligenceOpportunities
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Opportunities
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/business/content-attribution:
+    get:
+      tags: [Business Intelligence]
+      summary: Content driving place/route demand
+      operationId: getBusinessIntelligenceContentAttribution
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Content attribution
           content:
             application/json:
               schema:

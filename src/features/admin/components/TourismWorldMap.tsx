@@ -4,14 +4,26 @@ import type { LatLngExpression } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { formatNumber } from "@/lib/analyticsDisplay";
 
-export type TourismMarketPoint = {
-  country: string;
+export type DemandMapChild = {
+  key: string;
+  label: string;
+  level: string;
   events: number;
+  users: number;
   sessions: number;
+  place_views: number;
+  route_views: number;
+  intent: number;
+  saves: number;
+  searches: number;
+  metric: number;
+  share_pct: number | null;
+  lat?: number | null;
+  lng?: number | null;
 };
 
-/** Approximate country centroids as [lat, lng] for Leaflet markers. */
-const COUNTRY_LAT_LNG: Record<string, [number, number]> = {
+/** Approximate centroids as [lat, lng]. Keys: ISO country or `COUNTRY:region|city`. */
+const GEO_LAT_LNG: Record<string, [number, number]> = {
   US: [39.8, -98.5],
   CA: [56.1, -106.3],
   MX: [23.6, -102.5],
@@ -29,9 +41,6 @@ const COUNTRY_LAT_LNG: Record<string, [number, number]> = {
   CR: [9.7, -84.1],
   PA: [8.5, -80.8],
   GT: [15.8, -90.2],
-  HN: [14.1, -86.2],
-  NI: [12.9, -85.2],
-  SV: [13.8, -88.9],
   GB: [52.4, -1.2],
   IE: [53.1, -8.2],
   FR: [46.2, 2.2],
@@ -76,50 +85,73 @@ const COUNTRY_LAT_LNG: Record<string, [number, number]> = {
   SG: [1.4, 103.8],
   AU: [-25.3, 133.8],
   NZ: [-40.9, 174.9],
+  "DO:Santiago": [19.45, -70.7],
+  "DO:Santo Domingo": [18.49, -69.93],
+  "DO:Puerto Plata": [19.79, -70.69],
+  "DO:La Altagracia": [18.58, -68.7],
+  "DO:La Vega": [19.22, -70.53],
+  "US:Florida": [27.8, -81.7],
+  "US:California": [36.8, -119.4],
+  "US:New York": [43.0, -75.5],
+  "US:Florida:Miami": [25.76, -80.19],
+  "US:Florida:Wynwood": [25.8, -80.2],
 };
 
-type MappedMarket = TourismMarketPoint & {
-  position: LatLngExpression;
-  radius: number;
-  opacity: number;
-};
-
-export function resolveMarketMarkers(countries: TourismMarketPoint[]): {
-  markers: MappedMarket[];
-  missing: string[];
-} {
-  const maxEvents = Math.max(1, ...countries.map((item) => item.events));
-  const markers: MappedMarket[] = [];
-  const missing: string[] = [];
-
-  for (const item of countries) {
-    const coords = COUNTRY_LAT_LNG[item.country.toUpperCase()];
-    if (!coords) {
-      missing.push(item.country);
-      continue;
-    }
-    const intensity = item.events / maxEvents;
-    markers.push({
-      ...item,
-      position: coords,
-      radius: 8 + intensity * 28,
-      opacity: 0.35 + intensity * 0.55,
-    });
+function resolvePosition(child: DemandMapChild, parentCountry: string | null): [number, number] | null {
+  if (child.lat != null && child.lng != null && Number.isFinite(child.lat) && Number.isFinite(child.lng)) {
+    return [child.lat, child.lng];
   }
-
-  return { markers, missing };
+  const key = child.key.toUpperCase();
+  if (child.level === "country" && GEO_LAT_LNG[key]) return GEO_LAT_LNG[key];
+  if (parentCountry) {
+    const compound = `${parentCountry.toUpperCase()}:${child.key}`;
+    if (GEO_LAT_LNG[compound]) return GEO_LAT_LNG[compound];
+    const nested = Object.entries(GEO_LAT_LNG).find(
+      ([entry]) => entry.endsWith(`:${child.key}`) && entry.startsWith(`${parentCountry.toUpperCase()}:`),
+    );
+    if (nested) return nested[1];
+  }
+  if (GEO_LAT_LNG[key]) return GEO_LAT_LNG[key];
+  return null;
 }
 
-export function TourismWorldMap({ countries }: { countries: TourismMarketPoint[] }) {
-  const { markers, missing } = useMemo(() => resolveMarketMarkers(countries), [countries]);
+export function TourismWorldMap({
+  zones,
+  parentCountry,
+  onSelect,
+}: {
+  zones: DemandMapChild[];
+  parentCountry?: string | null;
+  onSelect: (child: DemandMapChild) => void;
+}) {
+  const maxMetric = Math.max(1, ...zones.map((item) => item.metric));
+  const markers = useMemo(() => {
+    const mapped = [];
+    const missing: string[] = [];
+    for (const child of zones) {
+      const position = resolvePosition(child, parentCountry || null);
+      if (!position) {
+        missing.push(child.label);
+        continue;
+      }
+      const intensity = child.metric / maxMetric;
+      mapped.push({
+        child,
+        position: position as LatLngExpression,
+        radius: 8 + intensity * 30,
+        opacity: 0.35 + intensity * 0.55,
+      });
+    }
+    return { mapped, missing };
+  }, [zones, parentCountry, maxMetric]);
 
   const center = useMemo<LatLngExpression>(() => {
-    if (!markers.length) return [20, 0];
-    const top = [...markers].sort((a, b) => b.events - a.events)[0];
-    return top.position;
-  }, [markers]);
+    if (markers.mapped.length) return markers.mapped[0].position;
+    if (parentCountry && GEO_LAT_LNG[parentCountry.toUpperCase()]) return GEO_LAT_LNG[parentCountry.toUpperCase()];
+    return [20, 0];
+  }, [markers.mapped, parentCountry]);
 
-  const zoom = markers.length === 1 ? 5 : markers.some((item) => item.country === "DO" && item.events > 100) ? 3 : 2;
+  const zoom = parentCountry ? (zones.some((item) => item.level === "city") ? 8 : 6) : 2;
 
   return (
     <>
@@ -128,7 +160,7 @@ export function TourismWorldMap({ countries }: { countries: TourismMarketPoint[]
         center={center}
         zoom={zoom}
         minZoom={2}
-        maxZoom={8}
+        maxZoom={12}
         scrollWheelZoom={false}
         worldCopyJump
         attributionControl
@@ -137,9 +169,9 @@ export function TourismWorldMap({ countries }: { countries: TourismMarketPoint[]
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         />
-        {markers.map((marker) => (
+        {markers.mapped.map((marker) => (
           <CircleMarker
-            key={marker.country}
+            key={marker.child.key}
             center={marker.position}
             radius={marker.radius}
             pathOptions={{
@@ -148,16 +180,25 @@ export function TourismWorldMap({ countries }: { countries: TourismMarketPoint[]
               fillColor: "#0071e3",
               fillOpacity: marker.opacity,
             }}
+            eventHandlers={{
+              click: () => onSelect(marker.child),
+            }}
           >
             <Tooltip direction="top" offset={[0, -4]} opacity={1}>
-              <strong>{marker.country}</strong>
-              {` · ${formatNumber(marker.events)} events · ${formatNumber(marker.sessions)} sessions`}
+              <strong>{marker.child.label}</strong>
+              {` · ${formatNumber(marker.child.metric)} metric · ${formatNumber(marker.child.events)} events`}
             </Tooltip>
             <Popup>
               <div className="admin-tourism-map__popup">
-                <strong>{marker.country}</strong>
-                <span>{formatNumber(marker.events)} events</span>
-                <span>{formatNumber(marker.sessions)} sessions</span>
+                <strong>{marker.child.label}</strong>
+                <span>{formatNumber(marker.child.events)} events</span>
+                <span>{formatNumber(marker.child.users)} active users</span>
+                <span>{formatNumber(marker.child.place_views)} place views</span>
+                <span>{formatNumber(marker.child.route_views)} route views</span>
+                <span>{formatNumber(marker.child.intent)} high-intent actions</span>
+                <button type="button" className="admin-btn admin-btn--secondary admin-btn--sm" onClick={() => onSelect(marker.child)}>
+                  View {marker.child.label} →
+                </button>
               </div>
             </Popup>
           </CircleMarker>
@@ -167,9 +208,9 @@ export function TourismWorldMap({ countries }: { countries: TourismMarketPoint[]
         <span>Low activity</span>
         <span className="admin-tourism-map__legend-bar" aria-hidden="true" />
         <span>High activity</span>
-        {missing.length ? (
+        {markers.missing.length ? (
           <small>
-            {missing.length} market{missing.length === 1 ? "" : "s"} without map pin ({missing.join(", ")})
+            {markers.missing.length} zone{markers.missing.length === 1 ? "" : "s"} without map pin (selectable in list)
           </small>
         ) : null}
       </div>

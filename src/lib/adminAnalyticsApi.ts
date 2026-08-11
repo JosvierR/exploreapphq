@@ -489,3 +489,123 @@ export function getInvestorSnapshot(params: BusinessParams = {}) {
     copy_text: string;
   }>("/api/admin/analytics/business/investor-snapshot", params);
 }
+
+export type BusinessIntelRange = "7d" | "30d" | "90d" | "12m";
+export type BusinessIntelCompare = "previous" | "previous_year" | "none";
+export type BusinessIntelMapMetric = "activity" | "users" | "place_views" | "route_views" | "intent" | "saves" | "searches";
+
+export type BusinessIntelParams = {
+  range?: BusinessIntelRange;
+  date_from?: string;
+  date_to?: string;
+  compare?: BusinessIntelCompare;
+  country?: string | null;
+  region?: string | null;
+  city?: string | null;
+  neighborhood?: string | null;
+  category?: string | null;
+  granularity?: "daily" | "weekly" | "monthly";
+  map_metric?: BusinessIntelMapMetric;
+  signal?: AbortSignal;
+};
+
+function businessIntelQuery(params: BusinessIntelParams = {}) {
+  const search = new URLSearchParams();
+  if (params.date_from && params.date_to) {
+    search.set("date_from", params.date_from);
+    search.set("date_to", params.date_to);
+  } else if (params.range) {
+    search.set("range", params.range);
+  } else {
+    search.set("range", "30d");
+  }
+  if (params.compare) search.set("compare", params.compare);
+  if (params.country) search.set("country", params.country);
+  if (params.region) search.set("region", params.region);
+  if (params.city) search.set("city", params.city);
+  if (params.neighborhood) search.set("neighborhood", params.neighborhood);
+  if (params.category) search.set("category", params.category);
+  if (params.granularity) search.set("granularity", params.granularity);
+  if (params.map_metric) search.set("map_metric", params.map_metric);
+  return search.toString();
+}
+
+export type BusinessIntelDashboard = {
+  request_id: string;
+  range: { start: string; end: string; preset: string };
+  filters: Record<string, unknown>;
+  comparison: {
+    mode: string;
+    previous_period: { start: string; end: string } | null;
+    deltas: Record<string, { current: number; previous: number; absolute: number; percent: number | null; label?: string | null }>;
+  } | null;
+  kpis: Record<string, number | null>;
+  kpi_definitions: Record<string, string>;
+  geography: {
+    level: string;
+    child_level: string;
+    child_label: string;
+    region_terminology: string;
+    breadcrumb: Array<{ level: string; key: string | null; label: string }>;
+    children: Array<{
+      key: string;
+      label: string;
+      level: string;
+      events: number;
+      users: number;
+      sessions: number;
+      place_views: number;
+      route_views: number;
+      intent: number;
+      saves: number;
+      searches: number;
+      metric: number;
+      share_pct: number | null;
+      lat?: number | null;
+      lng?: number | null;
+    }>;
+    map_metric: string;
+    missing_child_geo?: boolean;
+  };
+  funnel: Array<{ key: string; label: string; count: number; dropoff_pct: number; conversion_from_previous: number | null }>;
+  timeseries: Array<Record<string, number | string>>;
+  peak_demand: {
+    available: boolean;
+    weekdays: string[];
+    dayparts: string[];
+    matrix: Record<string, number[]>;
+    by_hour: number[];
+    tracked_events: number;
+  };
+  categories: Array<{ category: string; count: number; share_pct: number }>;
+  places: Array<Record<string, unknown>>;
+  routes: Array<Record<string, unknown>>;
+  searches: {
+    available: boolean;
+    summary: Record<string, number | null>;
+    top_searches: Array<{ query_hash: string; label: string; count: number; display_query?: string | null; text_visible?: boolean }>;
+    low_supply: Array<Record<string, unknown>>;
+    click_entity_types?: Array<{ value: string; count: number }>;
+    privacy_note?: string;
+  };
+  content_attribution: {
+    available: boolean;
+    items: Array<Record<string, unknown>>;
+    note?: string;
+  };
+  opportunities: {
+    cards: Array<{ type: string; title: string; evidence: string; opportunity: string; confidence: string }>;
+    insufficient_data: boolean;
+    message: string | null;
+  };
+  business_signals: Record<string, unknown>;
+  movers: { rising: Array<{ type: string; label: string; trend_pct: number }>; declining: Array<{ type: string; label: string; trend_pct: number }> };
+  traveler_origins: { available: boolean; markets: Array<{ country: string; label: string; events: number; share_pct: number }>; note?: string };
+  warnings?: BusinessWarning[];
+};
+
+export function getBusinessIntelligenceDashboard(params: BusinessIntelParams = {}) {
+  return analyticsFetch<BusinessIntelDashboard>(`/api/admin/business/dashboard?${businessIntelQuery(params)}`, {
+    signal: params.signal,
+  });
+}

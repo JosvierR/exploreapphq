@@ -19,6 +19,7 @@ declare module "*.mjs" {
   export const handleAdminAnalyticsOverview: (request: Request) => Promise<Response>;
   export const handleCronAnalyticsAggregate: (request: Request) => Promise<Response>;
   export const dispatchAdminAnalyticsApi: (request: Request, route: string) => Promise<Response>;
+  export const dispatchBusinessIntelligenceApi: (request: Request, route: string) => Promise<Response>;
   export const handleAdminMe: (request: Request) => Promise<Response>;
   export const handleAdminModerationAction: (request: Request) => Promise<Response>;
   export const handleAdminModerationSummary: (request: Request) => Promise<Response>;
