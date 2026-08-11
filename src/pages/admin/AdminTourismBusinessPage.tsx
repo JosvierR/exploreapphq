@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { AdminAuthGate } from "@/features/admin/components/AdminAuthGate";
 import { AdminDataTable, AdminPageShell, EmptyState, ErrorState } from "@/features/admin/components/AdminPrimitives";
@@ -25,6 +25,10 @@ import {
 } from "@/lib/analyticsDisplay";
 import { AdminApiError } from "@/lib/moderationAdminApi";
 
+const TourismWorldMap = lazy(() =>
+  import("@/features/admin/components/TourismWorldMap").then((mod) => ({ default: mod.TourismWorldMap })),
+);
+
 type OverviewData = Awaited<ReturnType<typeof getBusinessOverview>>;
 type ContentData = Awaited<ReturnType<typeof getBusinessContent>>;
 type LocationData = Awaited<ReturnType<typeof getBusinessLocations>>;
@@ -39,72 +43,6 @@ type SectionState<T> = {
 };
 
 const RANGES: BusinessRangePreset[] = ["24h", "7d", "30d", "90d"];
-
-/** Approximate country centroids (lon, lat) for equirectangular heatmap bubbles. */
-const COUNTRY_CENTROIDS: Record<string, [number, number]> = {
-  US: [-98.5, 39.8],
-  CA: [-106.3, 56.1],
-  MX: [-102.5, 23.6],
-  BR: [-51.9, -14.2],
-  AR: [-63.6, -38.4],
-  CL: [-71.5, -35.7],
-  CO: [-74.3, 4.6],
-  PE: [-75.0, -9.2],
-  VE: [-66.6, 6.4],
-  DO: [-70.2, 18.7],
-  PR: [-66.5, 18.2],
-  CU: [-77.8, 21.5],
-  JM: [-77.3, 18.1],
-  HT: [-72.3, 18.9],
-  CR: [-84.1, 9.7],
-  PA: [-80.8, 8.5],
-  GT: [-90.2, 15.8],
-  HN: [-86.2, 14.1],
-  NI: [-85.2, 12.9],
-  SV: [-88.9, 13.8],
-  GB: [-1.2, 52.4],
-  IE: [-8.2, 53.1],
-  FR: [2.2, 46.2],
-  ES: [-3.7, 40.5],
-  PT: [-8.2, 39.4],
-  DE: [10.5, 51.2],
-  IT: [12.6, 41.9],
-  NL: [5.3, 52.1],
-  BE: [4.5, 50.5],
-  CH: [8.2, 46.8],
-  AT: [14.6, 47.5],
-  PL: [19.1, 52.1],
-  SE: [18.6, 60.1],
-  NO: [8.5, 60.5],
-  DK: [9.5, 56.3],
-  FI: [25.7, 61.9],
-  GR: [21.8, 39.1],
-  TR: [35.2, 39.0],
-  RU: [105.3, 61.5],
-  UA: [31.2, 48.4],
-  EG: [30.8, 26.8],
-  MA: [-7.1, 31.8],
-  ZA: [25.1, -29.0],
-  NG: [8.7, 9.1],
-  KE: [37.9, 0.0],
-  AE: [53.8, 23.4],
-  SA: [45.1, 23.9],
-  IL: [34.9, 31.0],
-  IN: [78.9, 20.6],
-  PK: [69.3, 30.4],
-  BD: [90.4, 23.7],
-  CN: [104.2, 35.9],
-  JP: [138.3, 36.2],
-  KR: [127.8, 35.9],
-  TH: [100.9, 15.9],
-  VN: [108.3, 14.1],
-  ID: [113.9, -0.8],
-  MY: [101.9, 4.2],
-  PH: [121.8, 12.9],
-  SG: [103.8, 1.4],
-  AU: [133.8, -25.3],
-  NZ: [174.9, -40.9],
-};
 
 function initialSectionState<T>(): SectionState<T> {
   return { data: null, loading: true, error: null, requestId: null, warnings: [] };
@@ -122,16 +60,6 @@ function numberValue(value: unknown) {
 function formatRate(value: unknown) {
   if (value == null || typeof value !== "number" || Number.isNaN(value)) return "—";
   return formatPercent(value);
-}
-
-function projectCountry(code: string): { x: number; y: number } | null {
-  const point = COUNTRY_CENTROIDS[code.toUpperCase()];
-  if (!point) return null;
-  const [lon, lat] = point;
-  return {
-    x: ((lon + 180) / 360) * 1000,
-    y: ((90 - lat) / 180) * 500,
-  };
 }
 
 function ExecutiveSection({
@@ -190,21 +118,6 @@ function GlobalHeatmap({
   countries: Array<{ country: string; events: number; sessions: number }>;
   loading: boolean;
 }) {
-  const maxEvents = Math.max(1, ...countries.map((item) => item.events));
-  const bubbles = countries
-    .map((item) => {
-      const projected = projectCountry(item.country);
-      if (!projected) return null;
-      const intensity = item.events / maxEvents;
-      return {
-        ...item,
-        ...projected,
-        radius: 8 + intensity * 28,
-        opacity: 0.22 + intensity * 0.55,
-      };
-    })
-    .filter((item): item is NonNullable<typeof item> => Boolean(item));
-
   return (
     <div className="admin-tourism-map">
       {loading ? (
@@ -215,59 +128,9 @@ function GlobalHeatmap({
           message="Country heat appears when analytics events include country (or locale-derived market). Generate place/route activity with geo metadata, then refresh."
         />
       ) : (
-        <>
-          <svg className="admin-tourism-map__svg" viewBox="0 0 1000 500" role="img" aria-label="Global tourism activity heatmap">
-            <defs>
-              <radialGradient id="tourismHeatGlow" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="var(--admin-accent, #0071e3)" stopOpacity="0.9" />
-                <stop offset="100%" stopColor="var(--admin-accent, #0071e3)" stopOpacity="0" />
-              </radialGradient>
-              <linearGradient id="tourismOcean" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#dce8f4" />
-                <stop offset="55%" stopColor="#e8eef5" />
-                <stop offset="100%" stopColor="#d4dde8" />
-              </linearGradient>
-            </defs>
-            <rect width="1000" height="500" fill="url(#tourismOcean)" rx="18" />
-            {/* Soft continent silhouettes — atmospheric, not cartographic precision */}
-            <g fill="#c5d0dc" opacity="0.55">
-              <ellipse cx="220" cy="180" rx="120" ry="80" />
-              <ellipse cx="280" cy="290" rx="70" ry="110" />
-              <ellipse cx="480" cy="160" rx="90" ry="70" />
-              <ellipse cx="520" cy="240" rx="55" ry="90" />
-              <ellipse cx="620" cy="280" rx="70" ry="95" />
-              <ellipse cx="740" cy="200" rx="110" ry="75" />
-              <ellipse cx="820" cy="320" rx="90" ry="60" />
-            </g>
-            <g>
-              {bubbles.map((bubble) => (
-                <g key={bubble.country}>
-                  <circle cx={bubble.x} cy={bubble.y} r={bubble.radius * 1.6} fill="url(#tourismHeatGlow)" opacity={bubble.opacity * 0.7} />
-                  <circle
-                    cx={bubble.x}
-                    cy={bubble.y}
-                    r={bubble.radius}
-                    fill="var(--admin-accent, #0071e3)"
-                    opacity={bubble.opacity}
-                    stroke="#fff"
-                    strokeWidth="1.5"
-                  />
-                  <title>{`${bubble.country}: ${bubble.events} events · ${bubble.sessions} sessions`}</title>
-                </g>
-              ))}
-            </g>
-          </svg>
-          <div className="admin-tourism-map__legend">
-            <span>Low activity</span>
-            <span className="admin-tourism-map__legend-bar" aria-hidden="true" />
-            <span>High activity</span>
-            {bubbles.length < countries.length ? (
-              <small>
-                {countries.length - bubbles.length} market{countries.length - bubbles.length === 1 ? "" : "s"} without map pin
-              </small>
-            ) : null}
-          </div>
-        </>
+        <Suspense fallback={<div className="admin-tourism-map__loading" aria-label="Loading map" />}>
+          <TourismWorldMap key={countries.map((item) => `${item.country}:${item.events}`).join("|")} countries={countries} />
+        </Suspense>
       )}
     </div>
   );
