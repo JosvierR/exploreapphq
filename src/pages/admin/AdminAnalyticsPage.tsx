@@ -430,6 +430,9 @@ function AdminAnalyticsContent() {
       compactHeader
       actions={
         <div className="admin-page-header__actions admin-toolbar">
+          <Link className="admin-btn admin-btn--ghost admin-btn--sm" to="/admin/analytics/data">
+            Data
+          </Link>
           <Link className="admin-btn admin-btn--ghost admin-btn--sm" to="/admin/analytics/business">
             Business
           </Link>

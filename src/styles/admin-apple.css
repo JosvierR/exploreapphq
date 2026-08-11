@@ -1189,6 +1189,108 @@
   }
 }
 
+/* Tourism Business — global heat + partner cards */
+.admin-tourism-heat-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.admin-tourism-map {
+  border: 1px solid var(--admin-border-soft);
+  border-radius: var(--admin-radius-lg, 18px);
+  background: var(--admin-surface);
+  padding: 0.75rem;
+  overflow: hidden;
+}
+
+.admin-tourism-map__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 14px;
+}
+
+.admin-tourism-map__loading {
+  min-height: 280px;
+  border-radius: 14px;
+  background: linear-gradient(110deg, #e8eef5 25%, #f4f7fb 40%, #e8eef5 55%);
+  background-size: 200% 100%;
+  animation: admin-shimmer 1.4s ease infinite;
+}
+
+.admin-tourism-map__legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.65rem;
+  color: var(--admin-muted);
+  font-size: 0.72rem;
+}
+
+.admin-tourism-map__legend-bar {
+  width: 72px;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(0, 113, 227, 0.18), rgba(0, 113, 227, 0.92));
+}
+
+.admin-tourism-map__legend small {
+  width: 100%;
+  opacity: 0.85;
+}
+
+.admin-tourism-opportunities {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.admin-tourism-opportunity {
+  border: 1px solid var(--admin-border-soft);
+  border-radius: var(--admin-radius-lg, 18px);
+  background: var(--admin-surface);
+  padding: 1rem 1.05rem 1.1rem;
+}
+
+.admin-tourism-opportunity p {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 0.68rem;
+  font-weight: 560;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-tourism-opportunity h3 {
+  margin: 0.45rem 0 0.35rem;
+  font-size: 1.02rem;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.admin-tourism-opportunity span {
+  color: var(--admin-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.admin-tourism-inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+@media (max-width: 1100px) {
+  .admin-tourism-heat-grid,
+  .admin-tourism-opportunities,
+  .admin-tourism-inventory-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .admin-console *,
   .admin-console *::before,

@@ -509,14 +509,19 @@ function AdminBusinessInsightsContent() {
 
   return (
     <AdminPageShell
-      eyebrow="Business Insights"
-      title="Business Command Center"
-      description="Know what moved, where users drop, and what deserves action in under 30 seconds."
+      eyebrow="Data"
+      title="App Data Command Center"
+      description="Product analytics from Explore app events — usage, funnels, content, and quality."
       compactHeader
       actions={
-        <Link className="admin-btn admin-btn--ghost admin-btn--sm" to="/admin/analytics">
-          Analytics Ops
-        </Link>
+        <>
+          <Link className="admin-btn admin-btn--ghost admin-btn--sm" to="/admin/analytics">
+            Analytics Ops
+          </Link>
+          <Link className="admin-btn admin-btn--secondary admin-btn--sm" to="/admin/analytics/business">
+            Tourism Business
+          </Link>
+        </>
       }
     >
       <div className="admin-command-strip">

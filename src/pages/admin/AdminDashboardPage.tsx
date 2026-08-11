@@ -213,8 +213,8 @@ function OverviewSection({
           <h3>{statusTitle}</h3>
           <p>{statusCopy}</p>
           <div className="admin-overview-hero__actions">
-            <Link className="admin-btn admin-btn--primary admin-btn--sm" to="/admin/analytics/business">
-              Business Insights
+            <Link className="admin-btn admin-btn--primary admin-btn--sm" to="/admin/analytics/data">
+              App Data
             </Link>
             <Link className="admin-btn admin-btn--ghost admin-btn--sm" to="/admin/reports?status=pending&sort=priority">
               Moderation queue
@@ -612,8 +612,11 @@ function ProductAnalyticsPanel({ showOpsLinks = false }: { showOpsLinks?: boolea
           <Link className="admin-btn admin-btn--secondary admin-btn--sm" to="/admin/analytics">
             Open Analytics Ops
           </Link>
+          <Link className="admin-btn admin-btn--ghost admin-btn--sm" to="/admin/analytics/data">
+            App Data
+          </Link>
           <Link className="admin-btn admin-btn--ghost admin-btn--sm" to="/admin/analytics/business">
-            Business Insights
+            Tourism Business
           </Link>
           {showOpsLinks ? (
             <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm" onClick={() => void reload()} disabled={loading}>

@@ -16,6 +16,7 @@ import { DeepLinkFallbackPage } from "@/pages/marketing/DeepLinkFallbackPage";
 import { AdminDashboardPage } from "@/pages/admin/AdminDashboardPage";
 import { AdminAnalyticsPage } from "@/pages/admin/AdminAnalyticsPage";
 import { AdminBusinessInsightsPage } from "@/pages/admin/AdminBusinessInsightsPage";
+import { AdminTourismBusinessPage } from "@/pages/admin/AdminTourismBusinessPage";
 import { ReportsAdminPage } from "@/pages/admin/ReportsAdminPage";
 import { WaitlistAdminPage } from "@/pages/admin/WaitlistAdminPage";
 
@@ -70,7 +71,8 @@ export const router = createBrowserRouter([
         children: [
           { path: "/admin", element: <AdminDashboardPage /> },
           { path: "/admin/analytics", element: <AdminAnalyticsPage /> },
-          { path: "/admin/analytics/business", element: <AdminBusinessInsightsPage /> },
+          { path: "/admin/analytics/data", element: <AdminBusinessInsightsPage /> },
+          { path: "/admin/analytics/business", element: <AdminTourismBusinessPage /> },
           { path: "/admin/reports", element: <ReportsAdminPage /> },
           { path: "/admin/waitlist", element: <WaitlistAdminPage /> },
           {

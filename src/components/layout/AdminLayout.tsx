@@ -37,6 +37,7 @@ const operationsItems: NavItem[] = [
 const insightsItems: NavItem[] = [
   { label: "Insights", to: "/admin?section=insights", exactQuery: true },
   { label: "Analytics Ops", to: "/admin/analytics" },
+  { label: "Data", to: "/admin/analytics/data" },
   { label: "Business", to: "/admin/analytics/business" },
 ];
 
@@ -58,8 +59,12 @@ function routeMeta(pathname: string, search: string) {
     return { title: "Dashboard", description: "" };
   }
 
+  if (pathname === "/admin/analytics/data") {
+    return { title: "Data", description: "" };
+  }
+
   if (pathname === "/admin/analytics/business") {
-    return { title: "Business Insights", description: "" };
+    return { title: "Business", description: "" };
   }
 
   if (pathname === "/admin/analytics") {
