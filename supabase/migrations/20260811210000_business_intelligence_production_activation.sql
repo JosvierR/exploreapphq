@@ -36,6 +36,7 @@ create table if not exists public.business_category_mappings (
 insert into public.business_category_mappings(legacy_key, category_id, canonical_name, parent_category_id) values
   ('restaurant', 'restaurant', 'Restaurant', 'food-dining'),
   ('restaurants', 'restaurant', 'Restaurant', 'food-dining'),
+  ('gastronomy', 'food-dining', 'Food & Dining', null),
   ('food', 'food-dining', 'Food & Dining', null),
   ('food places', 'food-dining', 'Food & Dining', null),
   ('food_places', 'food-dining', 'Food & Dining', null),
@@ -45,10 +46,21 @@ insert into public.business_category_mappings(legacy_key, category_id, canonical
   ('bar', 'bar', 'Bar', 'food-dining'),
   ('attraction', 'attractions', 'Attractions', null),
   ('attractions', 'attractions', 'Attractions', null),
+  ('history', 'history', 'History', 'attractions'),
+  ('culture', 'culture', 'Culture', 'attractions'),
   ('outdoor', 'outdoor', 'Outdoor', null),
+  ('nature', 'nature', 'Nature', 'outdoor'),
+  ('beach', 'beach', 'Beach', 'outdoor'),
+  ('hiking', 'hiking', 'Hiking', 'outdoor'),
+  ('adventure', 'adventure', 'Adventure', 'outdoor'),
+  ('urban', 'urban', 'Urban', null),
   ('nightlife', 'nightlife', 'Nightlife', null),
   ('shopping', 'shopping', 'Shopping', null),
   ('sports', 'sports', 'Sports', null),
+  ('wellness', 'wellness', 'Wellness', null),
+  ('family', 'family', 'Family', null),
+  ('events', 'events', 'Events', null),
+  ('other', 'other', 'Other', null),
   ('hotel', 'lodging', 'Lodging', null),
   ('lodging', 'lodging', 'Lodging', null),
   ('experience', 'experiences', 'Experiences', null),
@@ -68,6 +80,11 @@ insert into public.dim_categories(category_id, name, parent_category_id) values
   ('sports', 'Sports', null),
   ('lodging', 'Lodging', null),
   ('experiences', 'Experiences', null),
+  ('urban', 'Urban', null),
+  ('wellness', 'Wellness', null),
+  ('family', 'Family', null),
+  ('events', 'Events', null),
+  ('other', 'Other', null),
   ('uncategorized', 'Uncategorized', null)
 on conflict (category_id) do update set name = excluded.name;
 
@@ -183,7 +200,24 @@ as $$
     when 'CA' then 'Canada'
     when 'IT' then 'Italy'
     when 'GB' then 'United Kingdom'
+    when 'IN' then 'India'
     else coalesce(nullif(trim(input), ''), 'Unknown')
+  end;
+$$;
+
+create or replace function public.business_region_name(country_code text, input text)
+returns text
+language sql
+immutable
+as $$
+  select case upper(coalesce(country_code, '') || '-' || coalesce(trim(input), ''))
+    when 'DO-01' then 'Distrito Nacional'
+    when 'DO-13' then 'La Vega'
+    when 'DO-25' then 'Santiago'
+    when 'US-FL' then 'Florida'
+    when 'US-WA' then 'Washington'
+    when 'IN-CG' then 'Chhattisgarh'
+    else nullif(trim(input), '')
   end;
 $$;
 
@@ -319,7 +353,7 @@ as $$
 declare
   source_row record;
   payload jsonb;
-  source_id text;
+  source_entity_id text;
   display_name text;
   canonical_name text;
   raw_category text;
@@ -342,12 +376,55 @@ declare
   routes_count bigint := 0;
   geo_count bigint := 0;
 begin
+  -- Seed the canonical hierarchy from coarse event geography before resolving
+  -- catalog entities. This does not rewrite immutable analytics_events rows.
+  if to_regclass('public.analytics_events') is not null then
+    for source_row in
+      select distinct
+        nullif(trim(e.country), '') as country,
+        nullif(trim(e.region), '') as region,
+        nullif(trim(e.city), '') as city,
+        public.business_json_text(e.properties || e.context, array['neighborhood', 'area', 'district', 'barrio']) as area,
+        nullif(trim(e.timezone), '') as timezone
+      from public.analytics_events e
+      where nullif(trim(e.country), '') is not null
+         or nullif(trim(e.region), '') is not null
+         or nullif(trim(e.city), '') is not null
+    loop
+      raw_country := source_row.country;
+      country_code := public.business_country_code(raw_country);
+      raw_region := source_row.region;
+      raw_city := source_row.city;
+      raw_area := source_row.area;
+      timezone_name := source_row.timezone;
+
+      country_id := case when raw_country is null then null else public.ensure_business_geo_entity(
+        public.business_country_name(raw_country, country_code), 'country', country_code, null, timezone_name
+      ) end;
+      region_id := case when raw_region is null then null else public.ensure_business_geo_entity(
+        public.business_region_name(country_code, raw_region), 'admin_level_1', country_code, country_id, timezone_name
+      ) end;
+      city_id := case when raw_city is null then null else public.ensure_business_geo_entity(
+        raw_city, 'city', country_code, coalesce(region_id, country_id), timezone_name
+      ) end;
+      area_id := case when raw_area is null then null else public.ensure_business_geo_entity(
+        raw_area, 'area', country_code, coalesce(city_id, region_id, country_id), timezone_name
+      ) end;
+    end loop;
+  end if;
+
   if to_regclass('public.places') is not null then
-    for source_row in execute 'select to_jsonb(p) as payload from public.places p' loop
+    for source_row in execute $query$
+      select to_jsonb(p) || jsonb_build_object(
+        'geo_lat', case when p.location is null then null else st_y(p.location::geometry) end,
+        'geo_lng', case when p.location is null then null else st_x(p.location::geometry) end
+      ) as payload
+      from public.places p
+    $query$ loop
       payload := source_row.payload;
-      source_id := public.business_json_text(payload, array['id', 'place_id']);
+      source_entity_id := public.business_json_text(payload, array['id', 'place_id']);
       display_name := public.business_json_text(payload, array['place_name', 'name', 'title']);
-      if source_id is null then continue; end if;
+      if source_entity_id is null then continue; end if;
 
       canonical_name := public.business_canonical_label(display_name);
       raw_country := public.business_json_text(payload, array['country', 'country_code']);
@@ -357,11 +434,27 @@ begin
       raw_area := public.business_json_text(payload, array['neighborhood', 'neighbourhood', 'area', 'district', 'barrio']);
       timezone_name := public.business_json_text(payload, array['timezone', 'time_zone']);
 
+      if raw_country is null then
+        select e.country, e.region, e.city,
+          public.business_json_text(e.properties || e.context, array['neighborhood', 'area', 'district', 'barrio']),
+          e.timezone
+        into raw_country, raw_region, raw_city, raw_area, timezone_name
+        from public.analytics_events e
+        where e.entity_type = 'place' and e.entity_id = source_entity_id
+          and (e.country is not null or e.region is not null or e.city is not null)
+        group by e.country, e.region, e.city,
+          public.business_json_text(e.properties || e.context, array['neighborhood', 'area', 'district', 'barrio']),
+          e.timezone
+        order by count(*) desc, max(e.received_at) desc
+        limit 1;
+      end if;
+      country_code := public.business_country_code(raw_country);
+
       country_id := case when raw_country is null then null else public.ensure_business_geo_entity(
         public.business_country_name(raw_country, country_code), 'country', country_code, null, timezone_name
       ) end;
       region_id := case when raw_region is null then null else public.ensure_business_geo_entity(
-        raw_region, 'admin_level_1', country_code, country_id, timezone_name
+        public.business_region_name(country_code, raw_region), 'admin_level_1', country_code, country_id, timezone_name
       ) end;
       city_id := case when raw_city is null then null else public.ensure_business_geo_entity(
         raw_city, 'city', country_code, coalesce(region_id, country_id), timezone_name
@@ -391,7 +484,7 @@ begin
         place_id, place_name, canonical_name, category_id, geo_id,
         is_analytics_eligible, latitude, longitude, metadata, valid_to, updated_at
       ) values (
-        source_id, coalesce(display_name, 'Unknown place'), canonical_name, resolved_category_id, resolved_geo_id,
+        source_entity_id, coalesce(display_name, 'Unknown place'), canonical_name, resolved_category_id, resolved_geo_id,
         eligible,
         public.business_try_numeric(public.business_json_text(payload, array['latitude', 'lat', 'geo_lat'])),
         public.business_try_numeric(public.business_json_text(payload, array['longitude', 'lng', 'lon', 'geo_lng'])),
@@ -426,9 +519,9 @@ begin
   if to_regclass('public.routes') is not null then
     for source_row in execute 'select to_jsonb(r) as payload from public.routes r' loop
       payload := source_row.payload;
-      source_id := public.business_json_text(payload, array['id', 'route_id']);
+      source_entity_id := public.business_json_text(payload, array['id', 'route_id']);
       display_name := public.business_json_text(payload, array['route_name', 'name', 'title']);
-      if source_id is null then continue; end if;
+      if source_entity_id is null then continue; end if;
 
       canonical_name := public.business_canonical_label(display_name);
       raw_country := public.business_json_text(payload, array['country', 'country_code']);
@@ -436,11 +529,22 @@ begin
       raw_region := public.business_json_text(payload, array['region', 'state', 'province']);
       raw_city := public.business_json_text(payload, array['city', 'locality', 'municipality']);
       timezone_name := public.business_json_text(payload, array['timezone', 'time_zone']);
+      if raw_country is null then
+        select e.country, e.region, e.city, e.timezone
+        into raw_country, raw_region, raw_city, timezone_name
+        from public.analytics_events e
+        where e.entity_type = 'route' and e.entity_id = source_entity_id
+          and (e.country is not null or e.region is not null or e.city is not null)
+        group by e.country, e.region, e.city, e.timezone
+        order by count(*) desc, max(e.received_at) desc
+        limit 1;
+      end if;
+      country_code := public.business_country_code(raw_country);
       country_id := case when raw_country is null then null else public.ensure_business_geo_entity(
         public.business_country_name(raw_country, country_code), 'country', country_code, null, timezone_name
       ) end;
       region_id := case when raw_region is null then null else public.ensure_business_geo_entity(
-        raw_region, 'admin_level_1', country_code, country_id, timezone_name
+        public.business_region_name(country_code, raw_region), 'admin_level_1', country_code, country_id, timezone_name
       ) end;
       city_id := case when raw_city is null then null else public.ensure_business_geo_entity(
         raw_city, 'city', country_code, coalesce(region_id, country_id), timezone_name
@@ -464,7 +568,7 @@ begin
         route_id, route_name, canonical_name, category_id, geo_id, creator_id,
         stop_count, status, is_analytics_eligible, metadata, valid_to, updated_at
       ) values (
-        source_id, coalesce(display_name, 'Unknown route'), canonical_name, resolved_category_id, resolved_geo_id,
+        source_entity_id, coalesce(display_name, 'Unknown route'), canonical_name, resolved_category_id, resolved_geo_id,
         public.business_json_text(payload, array['creator_id', 'user_id', 'owner_id']),
         coalesce(
           public.business_try_numeric(public.business_json_text(payload, array['stop_count', 'stops_count', 'places_count']))::integer,
@@ -588,7 +692,7 @@ where e.analytics_eligible = true
 union all
 select
   d.event_id,
-  d.received_at,
+  d.created_at,
   upper(coalesce(nullif(d.reason, ''), 'INVALID_EVENT')) as reason,
   'dead_letter'::text as source
 from public.analytics_event_dead_letters d;
@@ -639,12 +743,19 @@ set search_path = public, extensions
 as $$
   select jsonb_build_object(
     'places_total', (select count(*) from public.dim_places),
+    'routes_total', (select count(*) from public.dim_routes),
+    'geo_entities_total', (select count(*) from public.geo_entities),
     'places_with_country_pct', (select case when count(*) = 0 then 100 else round(100.0 * count(*) filter (where nullif(metadata ->> 'raw_country', '') is not null) / count(*), 1) end from public.dim_places),
     'places_with_region_pct', (select case when count(*) = 0 then 100 else round(100.0 * count(*) filter (where nullif(metadata ->> 'raw_region', '') is not null) / count(*), 1) end from public.dim_places),
     'places_with_city_pct', (select case when count(*) = 0 then 100 else round(100.0 * count(*) filter (where nullif(metadata ->> 'raw_city', '') is not null) / count(*), 1) end from public.dim_places),
+    'places_with_coordinates_pct', (select case when count(*) = 0 then 100 else round(100.0 * count(*) filter (where latitude is not null and longitude is not null) / count(*), 1) end from public.dim_places),
+    'canonical_category_coverage_pct', (select case when count(*) = 0 then 100 else round(100.0 * count(*) filter (where category_id is not null and category_id <> 'uncategorized') / count(*), 1) end from public.dim_places),
     'place_resolution_pct', (select case when count(*) = 0 then 100 else round(100.0 * count(*) filter (where is_analytics_eligible and place_name <> 'Unknown place') / count(*), 1) end from public.dim_places),
     'route_resolution_pct', (select case when count(*) = 0 then 100 else round(100.0 * count(*) filter (where is_analytics_eligible and route_name <> 'Unknown route') / count(*), 1) end from public.dim_routes),
+    'unknown_places', (select count(*) from public.dim_places where not is_analytics_eligible or place_name = 'Unknown place'),
+    'unknown_routes', (select count(*) from public.dim_routes where not is_analytics_eligible or route_name = 'Unknown route'),
     'events_total', (select count(*) from public.analytics_events),
+    'last_event', (select max(received_at) from public.analytics_events),
     'valid_events', (select count(*) from public.analytics_normalized_events),
     'rejected_events', (select count(*) from public.analytics_rejected_events),
     'events_with_geo_pct', (select case when count(*) = 0 then 100 else round(100.0 * count(*) filter (where geo_id is not null) / count(*), 1) end from public.analytics_normalized_events),
@@ -652,6 +763,21 @@ as $$
     'invalid_hierarchy', (select count(*) from public.geo_entities child left join public.geo_entities parent on parent.id = child.parent_geo_id where child.parent_geo_id is not null and (parent.id is null or parent.country_code <> child.country_code)),
     'duplicate_geo_entities', (select count(*) from (select country_code, type, canonical_name, parent_geo_id from public.geo_entities group by 1,2,3,4 having count(*) > 1) duplicate_groups),
     'possible_duplicate_places', (select count(*) from public.business_duplicate_place_candidates),
+    'facts_generated', (select count(*) from (
+      select day from public.fact_place_daily union all select day from public.fact_route_daily
+      union all select day from public.fact_market_daily union all select day from public.fact_search_daily
+      union all select day from public.fact_content_attribution union all select day from public.fact_business_daily
+    ) facts),
+    'historical_coverage', (select jsonb_build_object('from', min(day), 'to', max(day)) from (
+      select day from public.fact_place_daily union all select day from public.fact_route_daily
+      union all select day from public.fact_market_daily union all select day from public.fact_search_daily
+      union all select day from public.fact_content_attribution union all select day from public.fact_business_daily
+    ) facts),
+    'latest_data_as_of', (select max(updated_at) from (
+      select updated_at from public.fact_place_daily union all select updated_at from public.fact_route_daily
+      union all select updated_at from public.fact_market_daily union all select updated_at from public.fact_search_daily
+      union all select updated_at from public.fact_content_attribution union all select updated_at from public.fact_business_daily
+    ) facts),
     'last_aggregation', (select job_finished_at from public.business_aggregation_runs where status = 'succeeded' order by job_finished_at desc nulls last limit 1),
     'aggregation_failures', (select count(*) from public.business_aggregation_runs where status = 'failed' and job_started_at >= now() - interval '7 days')
   );
@@ -754,55 +880,159 @@ as $$
   with expected_relations(name) as (values
     ('business_accounts'), ('business_members'), ('business_locations'), ('business_claims'),
     ('business_entitlements'), ('business_market_access'), ('business_saved_views'), ('business_alerts'),
+    ('business_category_mappings'), ('business_metric_definitions'), ('analytics_event_taxonomy'),
     ('geo_entities'), ('analytics_events'), ('analytics_raw_events'), ('analytics_valid_events'),
     ('analytics_normalized_events'), ('analytics_rejected_events'), ('dim_geo'), ('dim_places'),
     ('dim_routes'), ('dim_categories'), ('fact_market_daily'), ('fact_place_daily'),
-    ('fact_route_daily'), ('fact_business_daily'), ('fact_search_daily'), ('business_aggregation_runs'),
-    ('business_backfill_runs')
+    ('fact_route_daily'), ('fact_business_daily'), ('fact_search_daily'), ('fact_content_attribution'),
+    ('business_aggregation_runs'), ('business_backfill_runs')
   ),
   relation_status as (
     select name, to_regclass('public.' || name) is not null as present from expected_relations
   ),
+  expected_columns(relation_name, column_name) as (values
+    ('analytics_events', 'source_type'), ('analytics_events', 'source_id'),
+    ('analytics_events', 'geo_id'), ('analytics_events', 'analytics_eligible'),
+    ('analytics_events', 'analytics_exclusion_reason'), ('business_accounts', 'bi_v2_enabled'),
+    ('dim_places', 'canonical_name'), ('dim_places', 'latitude'), ('dim_places', 'longitude'),
+    ('dim_routes', 'canonical_name'), ('dim_routes', 'stop_count'),
+    ('business_aggregation_runs', 'events_processed'), ('business_backfill_runs', 'facts_generated')
+  ),
+  column_status as (
+    select relation_name || '.' || column_name as name,
+      exists (
+        select 1 from information_schema.columns c
+        where c.table_schema = 'public'
+          and c.table_name = expected.relation_name
+          and c.column_name = expected.column_name
+      ) as present
+    from expected_columns expected
+  ),
   expected_functions(name) as (values
-    ('aggregate_business_intelligence_for_day'), ('backfill_business_dimensions'),
-    ('run_business_intelligence_aggregation'), ('business_intelligence_quality_report'),
-    ('business_geo_descendant_ids'), ('verify_business_intelligence_schema')
+    ('admin_product_analytics_snapshot'), ('aggregate_business_intelligence_for_day'),
+    ('backfill_business_dimensions'), ('run_business_intelligence_aggregation'),
+    ('business_intelligence_quality_report'), ('business_geo_descendant_ids'),
+    ('verify_business_intelligence_schema'), ('is_business_member')
   ),
   function_status as (
-    select expected.name, exists(select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = expected.name) as present
+    select expected.name,
+      exists(select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = expected.name) as present
     from expected_functions expected
+  ),
+  security_definer_status as (
+    select expected.name,
+      exists (
+        select 1
+        from pg_proc p
+        where p.pronamespace = 'public'::regnamespace
+          and p.proname = expected.name
+          and p.prosecdef
+          and pg_get_userbyid(p.proowner) = 'postgres'
+      ) as enabled
+    from (values
+      ('admin_product_analytics_snapshot'), ('sync_business_plan_entitlements'),
+      ('aggregate_business_intelligence_for_day'), ('backfill_business_dimensions'),
+      ('run_business_intelligence_aggregation'), ('business_intelligence_quality_report'),
+      ('business_geo_descendant_ids'), ('verify_business_intelligence_schema'), ('is_business_member')
+    ) expected(name)
   ),
   required_indexes(name) as (values
     ('geo_entities_canonical_hierarchy_uidx'), ('analytics_events_geo_received_idx'),
-    ('analytics_events_entity_received_eligible_idx'), ('fact_market_daily_geo_day_idx'),
-    ('fact_place_daily_place_day_idx'), ('fact_route_daily_route_day_idx'),
-    ('fact_business_daily_business_day_idx'), ('business_aggregation_runs_started_idx')
+    ('analytics_events_entity_received_eligible_idx'), ('analytics_events_source_attribution_idx'),
+    ('fact_market_daily_geo_day_idx'), ('fact_place_daily_place_day_idx'),
+    ('fact_route_daily_route_day_idx'), ('fact_business_daily_business_day_idx'),
+    ('fact_search_daily_day_geo_query_uidx'), ('business_aggregation_runs_started_idx')
   ),
   index_status as (
     select required.name, to_regclass('public.' || required.name) is not null as present from required_indexes required
   ),
+  expected_foreign_keys(relation_name, referenced_relation) as (values
+    ('business_members', 'business_accounts'), ('business_locations', 'business_accounts'),
+    ('business_locations', 'geo_entities'), ('business_entitlements', 'business_accounts'),
+    ('business_market_access', 'business_accounts'), ('business_market_access', 'geo_entities'),
+    ('dim_places', 'geo_entities'), ('dim_routes', 'geo_entities'),
+    ('fact_business_daily', 'business_accounts'), ('fact_business_daily', 'business_locations')
+  ),
+  foreign_key_status as (
+    select relation_name || '->' || referenced_relation as name,
+      exists (
+        select 1 from pg_constraint c
+        where c.contype = 'f'
+          and c.conrelid = to_regclass('public.' || expected.relation_name)
+          and c.confrelid = to_regclass('public.' || expected.referenced_relation)
+      ) as present
+    from expected_foreign_keys expected
+  ),
+  expected_rls(name) as (values
+    ('business_accounts'), ('business_members'), ('business_locations'), ('business_claims'),
+    ('business_entitlements'), ('business_market_access'), ('business_saved_views'),
+    ('business_intelligence_signals'), ('business_category_mappings'), ('business_backfill_runs'),
+    ('fact_market_daily'), ('fact_place_daily'), ('fact_route_daily'),
+    ('fact_business_daily'), ('fact_search_daily'), ('fact_content_attribution')
+  ),
   rls_status as (
-    select relname as name, relrowsecurity as enabled
-    from pg_class
-    where relnamespace = 'public'::regnamespace
-      and relname in ('business_accounts', 'business_members', 'business_locations', 'business_entitlements',
-        'fact_market_daily', 'fact_place_daily', 'fact_route_daily', 'fact_business_daily', 'fact_search_daily')
+    select expected.name, coalesce(c.relrowsecurity, false) as enabled
+    from expected_rls expected
+    left join pg_class c on c.relnamespace = 'public'::regnamespace and c.relname = expected.name
+  ),
+  permission_status(name, passed) as (values
+    ('snapshot_service_role', coalesce(has_function_privilege('service_role', to_regprocedure('public.admin_product_analytics_snapshot()'), 'execute'), false)),
+    ('snapshot_not_anon', not coalesce(has_function_privilege('anon', to_regprocedure('public.admin_product_analytics_snapshot()'), 'execute'), false)),
+    ('snapshot_not_authenticated', not coalesce(has_function_privilege('authenticated', to_regprocedure('public.admin_product_analytics_snapshot()'), 'execute'), false)),
+    ('aggregate_service_role', coalesce(has_function_privilege('service_role', to_regprocedure('public.aggregate_business_intelligence_for_day(date)'), 'execute'), false)),
+    ('aggregate_not_anon', not coalesce(has_function_privilege('anon', to_regprocedure('public.aggregate_business_intelligence_for_day(date)'), 'execute'), false)),
+    ('aggregate_not_authenticated', not coalesce(has_function_privilege('authenticated', to_regprocedure('public.aggregate_business_intelligence_for_day(date)'), 'execute'), false)),
+    ('geo_resolver_service_role', coalesce(has_function_privilege('service_role', to_regprocedure('public.resolve_business_event_geo_id(uuid,text,text,text,text,text,jsonb)'), 'execute'), false)),
+    ('geo_resolver_not_authenticated', not coalesce(has_function_privilege('authenticated', to_regprocedure('public.resolve_business_event_geo_id(uuid,text,text,text,text,text,jsonb)'), 'execute'), false)),
+    ('geo_resolver_not_anon', not coalesce(has_function_privilege('anon', to_regprocedure('public.resolve_business_event_geo_id(uuid,text,text,text,text,text,jsonb)'), 'execute'), false)),
+    ('facts_not_authenticated', not coalesce(has_table_privilege('authenticated', to_regclass('public.fact_place_daily'), 'select'), false)),
+    ('facts_not_anon', not coalesce(has_table_privilege('anon', to_regclass('public.fact_place_daily'), 'select'), false))
+  ),
+  configuration_status(name, passed) as (values
+    ('external_accounts_default_disabled', coalesce((
+      select pg_get_expr(d.adbin, d.adrelid) = 'false'
+      from pg_attrdef d
+      join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum
+      where d.adrelid = to_regclass('public.business_accounts') and a.attname = 'bi_v2_enabled'
+    ), false)),
+    ('internal_account_enabled', exists(
+      select 1 from public.business_accounts
+      where id = '00000000-0000-4000-8000-00000000b102' and type = 'internal' and bi_v2_enabled
+    )),
+    ('entitlement_catalog_seeded', (select count(distinct entitlement) >= 6 from public.business_plan_features)),
+    ('metric_dictionary_seeded', (select count(*) >= 10 from public.business_metric_definitions)),
+    ('event_taxonomy_seeded', (select count(*) >= 10 from public.analytics_event_taxonomy))
   )
   select jsonb_build_object(
     'ok', not exists(select 1 from relation_status where not present)
+      and not exists(select 1 from column_status where not present)
       and not exists(select 1 from function_status where not present)
+      and not exists(select 1 from security_definer_status where not enabled)
       and not exists(select 1 from index_status where not present)
-      and not exists(select 1 from rls_status where not enabled),
+      and not exists(select 1 from foreign_key_status where not present)
+      and not exists(select 1 from rls_status where not enabled)
+      and not exists(select 1 from permission_status where not passed)
+      and not exists(select 1 from configuration_status where not passed),
     'relations', (select jsonb_object_agg(name, present) from relation_status),
+    'columns', (select jsonb_object_agg(name, present) from column_status),
     'functions', (select jsonb_object_agg(name, present) from function_status),
+    'security_definer', (select jsonb_object_agg(name, enabled) from security_definer_status),
     'indexes', (select jsonb_object_agg(name, present) from index_status),
+    'foreign_keys', (select jsonb_object_agg(name, present) from foreign_key_status),
     'rls', (select jsonb_object_agg(name, enabled) from rls_status),
+    'permissions', (select jsonb_object_agg(name, passed) from permission_status),
+    'configuration', (select jsonb_object_agg(name, passed) from configuration_status),
     'missing', (
       select coalesce(jsonb_agg(item), '[]'::jsonb) from (
         select 'relation:' || name as item from relation_status where not present
+        union all select 'column:' || name from column_status where not present
         union all select 'function:' || name from function_status where not present
+        union all select 'security_definer:' || name from security_definer_status where not enabled
         union all select 'index:' || name from index_status where not present
+        union all select 'foreign_key:' || name from foreign_key_status where not present
         union all select 'rls:' || name from rls_status where not enabled
+        union all select 'permission:' || name from permission_status where not passed
+        union all select 'configuration:' || name from configuration_status where not passed
       ) missing_items
     )
   );
@@ -821,13 +1051,19 @@ alter table public.business_category_mappings enable row level security;
 alter table public.business_backfill_runs enable row level security;
 
 grant execute on function public.backfill_business_dimensions() to service_role;
-grant execute on function public.resolve_business_event_geo_id(uuid, text, text, text, text, text, jsonb) to authenticated, service_role;
+grant execute on function public.resolve_business_event_geo_id(uuid, text, text, text, text, text, jsonb) to service_role;
 grant execute on function public.run_business_intelligence_aggregation(date, text, text) to service_role;
 grant execute on function public.business_geo_descendant_ids(uuid) to service_role;
 grant execute on function public.business_intelligence_quality_report() to service_role;
 grant execute on function public.verify_business_intelligence_schema() to service_role;
 grant select on public.analytics_rejected_events, public.business_duplicate_place_candidates, public.business_alerts to service_role;
 
+revoke all on table public.business_category_mappings, public.business_backfill_runs
+  from public, anon, authenticated;
+grant select, insert, update, delete on table public.business_category_mappings, public.business_backfill_runs
+  to service_role;
+
+revoke all on function public.resolve_business_event_geo_id(uuid, text, text, text, text, text, jsonb) from public, anon, authenticated;
 revoke all on function public.ensure_business_geo_entity(text, text, text, uuid, text) from public, anon, authenticated;
 revoke all on function public.backfill_business_dimensions() from public, anon, authenticated;
 revoke all on function public.run_business_intelligence_aggregation(date, text, text) from public, anon, authenticated;

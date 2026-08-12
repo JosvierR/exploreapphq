@@ -196,6 +196,9 @@ begin
 end;
 $$;
 
+revoke all on function public.sync_business_plan_entitlements(uuid) from public, anon, authenticated;
+grant execute on function public.sync_business_plan_entitlements(uuid) to service_role;
+
 create or replace function public.business_account_plan_entitlements_trigger()
 returns trigger
 language plpgsql
@@ -207,6 +210,8 @@ begin
   return new;
 end;
 $$;
+
+revoke all on function public.business_account_plan_entitlements_trigger() from public, anon, authenticated;
 
 drop trigger if exists business_account_plan_entitlements on public.business_accounts;
 create trigger business_account_plan_entitlements
@@ -238,6 +243,7 @@ as $$
   );
 $$;
 
+revoke all on function public.is_business_member(uuid, text[]) from public, anon;
 grant execute on function public.is_business_member(uuid, text[]) to authenticated;
 
 alter table if exists public.analytics_events
@@ -334,8 +340,10 @@ from public.analytics_valid_events e
 left join public.analytics_event_name_mappings m
   on m.original_event_name = e.event_name and m.status = 'active';
 
+revoke all on public.analytics_raw_events, public.analytics_valid_events, public.analytics_normalized_events
+  from public, anon, authenticated;
 grant select on public.analytics_raw_events, public.analytics_valid_events, public.analytics_normalized_events
-  to authenticated, service_role;
+  to service_role;
 
 create table if not exists public.business_metric_definitions (
   metric_key text not null,
@@ -610,7 +618,7 @@ begin
   select
     target_day,
     entity_id,
-    geo_id,
+    min(geo_id::text)::uuid,
     count(*) filter (where event_name = 'place_impression'),
     count(*) filter (where event_name in ('place_view', 'content_view')),
     count(distinct coalesce(user_id::text, nullif(anonymous_id, ''))) filter (where event_name in ('place_view', 'content_view')),
@@ -632,7 +640,7 @@ begin
   select
     target_day,
     entity_id,
-    (array_agg(geo_id) filter (where geo_id is not null))[1],
+    min(geo_id::text)::uuid,
     count(*) filter (where event_name = 'route_impression'),
     count(*) filter (where event_name in ('route_view', 'content_view')),
     count(distinct coalesce(user_id::text, nullif(anonymous_id, ''))) filter (where event_name in ('route_view', 'content_view')),
@@ -720,6 +728,7 @@ end;
 $$;
 
 alter function public.aggregate_business_intelligence_for_day(date) owner to postgres;
+revoke all on function public.aggregate_business_intelligence_for_day(date) from public, anon, authenticated;
 grant execute on function public.aggregate_business_intelligence_for_day(date) to service_role;
 
 alter table public.geo_entities enable row level security;
@@ -792,3 +801,40 @@ with check (requested_by = auth.uid());
 drop policy if exists "authenticated read eligible geo" on public.geo_entities;
 create policy "authenticated read eligible geo" on public.geo_entities for select to authenticated
 using (is_analytics_eligible = true);
+
+-- Explicit table grants make the RLS boundary auditable instead of relying on
+-- project-wide default privileges. Analytical facts remain server-only.
+revoke all on table
+  public.geo_entities, public.business_accounts, public.business_members,
+  public.business_locations, public.business_claims, public.business_plan_features,
+  public.business_entitlements, public.business_saved_views, public.business_market_access,
+  public.business_intelligence_signals, public.analytics_event_name_mappings,
+  public.business_metric_definitions, public.analytics_event_taxonomy,
+  public.dim_geo, public.dim_places, public.dim_routes, public.dim_categories,
+  public.dim_businesses, public.dim_content, public.dim_sources, public.dim_date,
+  public.fact_place_daily, public.fact_route_daily, public.fact_market_daily,
+  public.fact_search_daily, public.fact_content_attribution, public.fact_business_daily,
+  public.business_aggregation_runs
+from public, anon, authenticated;
+
+grant select on table
+  public.geo_entities, public.business_accounts, public.business_members,
+  public.business_locations, public.business_entitlements, public.business_market_access,
+  public.business_intelligence_signals
+to authenticated;
+grant select, insert, update, delete on table public.business_saved_views to authenticated;
+grant select, insert on table public.business_claims to authenticated;
+
+grant select, insert, update, delete on table
+  public.geo_entities, public.business_accounts, public.business_members,
+  public.business_locations, public.business_claims, public.business_plan_features,
+  public.business_entitlements, public.business_saved_views, public.business_market_access,
+  public.business_intelligence_signals, public.analytics_event_name_mappings,
+  public.business_metric_definitions, public.analytics_event_taxonomy,
+  public.dim_geo, public.dim_places, public.dim_routes, public.dim_categories,
+  public.dim_businesses, public.dim_content, public.dim_sources, public.dim_date,
+  public.fact_place_daily, public.fact_route_daily, public.fact_market_daily,
+  public.fact_search_daily, public.fact_content_attribution, public.fact_business_daily,
+  public.business_aggregation_runs
+to service_role;
+grant usage, select on sequence public.fact_search_daily_id_seq to service_role;

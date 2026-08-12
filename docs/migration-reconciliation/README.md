@@ -43,7 +43,7 @@ For the two statement-recovered files, the manifest records
 
 - `20260701120000` is canonically `moderation_visibility_lifecycle`; the conflicting local analytics file is retired.
 - `20260704160000` is canonically `place_photos_position`; the conflicting local safe-delete file is retired.
-- `AFFINITY_FORWARD_REQUIRED = NO`. PostgreSQL accepts `DELETE FROM table;`. The live function is owned by `postgres`, is `SECURITY DEFINER`, has `search_path=public, extensions`, and is invoked only through server-side service-role callers. Adding `WHERE TRUE` would be a lint/style-only function replacement with no runtime or security benefit.
+- `AFFINITY_FORWARD_REQUIRED = YES` (corrected 2026-08-12). Even with `SECURITY DEFINER` / `postgres` ownership, PostgREST `service_role` callers still hit SQLSTATE `21000` (`DELETE requires a WHERE clause`) on bare affinity deletes. Forward `20260812160000_fix_aggregate_affinity_safe_deletes.sql` patches both affinity deletes to `WHERE TRUE`.
 - `AUTHENTICATED_GRANT_REQUIRED = NO`. The canonical analytics migration revokes aggregate execution from `authenticated` and grants it to `service_role`. All repository aggregation callers—the Admin operation, cron, and backfill—use a server-side service-role client. Restoring the legacy browser-capable grant would unnecessarily broaden privileges.
 
 ## Shared migration ownership

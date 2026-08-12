@@ -8,16 +8,21 @@ Mobile clients send analytics batches to the web backend. Mobile must not insert
 
 The backend validates, enriches, redacts, rate limits, optionally authenticates, and inserts into `public.analytics_events` with server-side Supabase credentials.
 
-## Schema Setup (required once)
+## Schema setup
 
-Apply the migration before calling `POST /api/events` in production:
+Supabase Production is shared by Explore Mobile and Explore Web. Do not paste
+repository-specific historical migrations into SQL Editor. Before applying any
+forward migration:
 
-1. Open [Supabase SQL Editor](https://supabase.com/dashboard/project/ookbeuiavzjhvezvamfu/sql/new) for the Explore project.
-2. Paste and run `supabase/migrations/20260701120000_analytics_events.sql`.
-3. Paste and run `supabase/migrations/20260702120000_analytics_events_data001_compat.sql`.
-4. Paste and run aggregation migrations through `20260704160000_analytics_aggregate_safe_deletes.sql` (daily rollups).
-5. Paste and run `supabase/migrations/20260810120000_admin_product_analytics_snapshot.sql` (DAU/WAU/impressions/CTR/route starts RPC).
-6. Paste and run `supabase/migrations/20260811150000_business_intelligence_v2.sql` (Business/geography model, eligibility view, taxonomy, facts, and Business aggregation RPC).
+1. Run `npm run verify:shared-migration-history`.
+2. Confirm `npx.cmd supabase migration list --linked` has no remote-only history.
+3. Confirm `npx.cmd supabase db push --linked --dry-run` contains only reviewed forward migrations.
+4. Apply through the linked migration workflow after the release gates pass.
+
+The canonical analytics foundation is `20260702123902_analytics_foundation.sql`.
+The production forward set adds `20260810120000_admin_product_analytics_snapshot.sql`,
+`20260811150000_business_intelligence_v2.sql`, and
+`20260811210000_business_intelligence_production_activation.sql`.
 
 Without these tables, ingestion returns `503` with `"Analytics schema not installed."`.
 Other Supabase readiness problems return a safe error code, for example

@@ -77,6 +77,10 @@ function writeManifest() {
       "20260810120000_admin_product_analytics_snapshot.sql",
       "20260811150000_business_intelligence_v2.sql",
       "20260811210000_business_intelligence_production_activation.sql",
+      "20260812140000_business_metric_dictionary_expand.sql",
+      "20260812150000_fix_backfill_dimensions_canonical_ambiguity.sql",
+      "20260812160000_fix_aggregate_affinity_safe_deletes.sql",
+      "20260812170000_map_place_route_click_to_views.sql",
     ],
   };
 

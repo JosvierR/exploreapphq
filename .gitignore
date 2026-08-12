@@ -25,4 +25,9 @@ vercel.env
 
 
 .tmp/
+supabase/.temp/
+
+# Separate local service checkout. It has its own dependencies and secrets and
+# must never be scanned, modified, or committed by this web repository.
+ai-gateway/
 

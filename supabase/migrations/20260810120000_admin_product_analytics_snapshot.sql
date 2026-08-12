@@ -88,5 +88,5 @@ $function$;
 
 alter function public.admin_product_analytics_snapshot() owner to postgres;
 alter function public.admin_product_analytics_snapshot() security definer;
+revoke all on function public.admin_product_analytics_snapshot() from public, anon, authenticated;
 grant execute on function public.admin_product_analytics_snapshot() to service_role;
-grant execute on function public.admin_product_analytics_snapshot() to authenticated;

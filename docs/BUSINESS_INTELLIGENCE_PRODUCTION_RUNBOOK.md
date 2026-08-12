@@ -1,23 +1,47 @@
 # Business Intelligence v2 production runbook
 
+## Production status (2026-08-12)
+
+Project: `ookbeuiavzjhvezvamfu`
+
+| Gate | State |
+|---|---|
+| Canonical migration baseline | 76 |
+| Intentional production forwards | 7 (`20260810120000` … `20260812170000`) |
+| Shared migration history | PASS (`npm run verify:shared-migration-history`) |
+| Business schema | PASS (`npm run verify:business-schema`) |
+| Controlled backfill `2026-08-08`→`2026-08-11` | PASS + idempotent |
+| Historical backfill `2026-07-02`→`2026-08-11` | PASS |
+| External Business accounts | NOT globally enabled; only `Explore Internal Business` has `bi_v2_enabled=true` |
+| Daily aggregation | Vercel cron `15 5 * * *` → `/api/cron/analytics/aggregate` (four-day late-event window) |
+
+### Production forwards
+
+1. `20260810120000_admin_product_analytics_snapshot.sql`
+2. `20260811150000_business_intelligence_v2.sql`
+3. `20260811210000_business_intelligence_production_activation.sql` (dead-letter timestamp: `created_at`)
+4. `20260812140000_business_metric_dictionary_expand.sql`
+5. `20260812150000_fix_backfill_dimensions_canonical_ambiguity.sql`
+6. `20260812160000_fix_aggregate_affinity_safe_deletes.sql` (affinity `DELETE … WHERE TRUE`)
+7. `20260812170000_map_place_route_click_to_views.sql` (`place_click`/`route_click` → view metrics)
+
+Do **not** run migration repair or re-apply already-recorded versions.
+
 ## Release gate
 
-Business Intelligence v2 is not client-ready until both migrations, the historical backfill, real-data QA, and performance validation have completed. External accounts remain blocked by `business_accounts.bi_v2_enabled = false`; Admin continues using the same core with global scope.
+Infrastructure is production-ready when schema, history, backfill, security, API, Admin, and scheduler gates pass. External customer enablement still requires per-account `bi_v2_enabled`, membership, entitlements, and market/location authorization. Admin continues using the same core with global scope.
 
 ## Safe deployment order
 
 1. Confirm the target project and take a database backup/PITR checkpoint.
-2. Apply `20260811150000_business_intelligence_v2.sql` in staging.
-3. Apply `20260811210000_business_intelligence_production_activation.sql` in staging.
-4. Run `npm run verify:business-schema` with staging server credentials.
-5. Run dimension backfill and a short date window twice; verify identical facts.
-6. Run the golden dataset and complete repository suite.
-7. Repeat the two migrations in production.
-8. Run the production schema verifier before any backfill.
-9. Backfill dimensions, then historical facts in bounded windows.
-10. Validate selected countries, cities, places, and routes against normalized-event counts.
-11. Deploy the API/Admin build and let the Vercel cron recompute today through `today - 3 days`.
-12. Enable `bi_v2_enabled` only for `Explore Internal Business`; enable external accounts after QA and latency budgets pass.
+2. Dry-run then apply only intentional forward migrations with `npx supabase db push --linked`.
+3. Run `npm run verify:shared-migration-history` and `npm run verify:business-schema`.
+4. Controlled backfill window twice; verify identical facts.
+5. Full historical backfill from `MIN(occurred_at)::date` through the last complete UTC day.
+6. Run the golden dataset and complete repository suite (`npm test`, lint, OpenAPI, build).
+7. Deploy API/Admin via `main` → Vercel Production.
+8. Confirm cron auth + four-day recomputation.
+9. Keep external accounts gated until QA and latency budgets pass; Admin/internal may remain enabled.
 
 Before production verification, the developer must materialize the production
 environment from their own terminal (outside a restricted agent session):
@@ -25,7 +49,7 @@ environment from their own terminal (outside a restricted agent session):
 ```bash
 npm run env:from-prod
 npm run verify:business-schema
-npm run business:backfill -- --from=2026-01-01 --to=2026-08-11
+npm run business:backfill -- --from=<REAL_MIN_DAY> --to=<LAST_COMPLETE_DAY>
 ```
 
 Vercel can return `[SENSITIVE]` instead of decrypted values in agent or
