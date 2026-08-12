@@ -825,7 +825,16 @@
 .admin-stat-card--purple {
   background: var(--admin-surface) !important;
   border-color: var(--admin-border-soft) !important;
+  border-left-width: 3px !important;
 }
+
+.admin-stat-card--warning { border-left-color: var(--admin-warning) !important; }
+.admin-stat-card--blue { border-left-color: var(--admin-blue) !important; }
+.admin-stat-card--violet,
+.admin-stat-card--purple { border-left-color: var(--admin-violet) !important; }
+.admin-stat-card--green { border-left-color: var(--admin-green) !important; }
+.admin-stat-card--danger { border-left-color: var(--admin-red) !important; }
+.admin-stat-card--slate { border-left-color: var(--admin-border) !important; }
 
 /* —— Segmented control / tabs —— */
 .admin-segmented,
@@ -927,6 +936,29 @@
   font-size: 0.8rem;
   font-weight: 500;
   padding: 0.3rem 0.65rem;
+}
+
+/* —— Native selects — flat, minimal chevron (no OS default arrow) —— */
+.admin-console select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  padding-right: 1.9rem !important;
+  cursor: pointer;
+}
+
+.admin-console select:focus {
+  outline: none;
+  border-color: var(--admin-blue);
+  box-shadow: 0 0 0 3px var(--admin-blue-soft);
+}
+
+.admin-console select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .admin-inline-field {
