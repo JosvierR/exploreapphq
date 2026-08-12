@@ -155,24 +155,6 @@ function SidebarToggleIcon() {
   );
 }
 
-function SearchIcon() {
-  return (
-    <svg
-      className="admin-console__search-icon"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="11" cy="11" r="6.5" />
-      <path d="M20 20l-4.3-4.3" />
-    </svg>
-  );
-}
-
 function BellIcon() {
   return (
     <Icon>
@@ -505,11 +487,6 @@ export function AdminLayout() {
 
           <div className="admin-console__page-title">
             <h1>{meta.title}</h1>
-          </div>
-
-          <div className="admin-console__search">
-            <SearchIcon />
-            <input type="search" placeholder="Search…" aria-label="Search admin" />
           </div>
 
           <div className="admin-console__topbar-actions">
