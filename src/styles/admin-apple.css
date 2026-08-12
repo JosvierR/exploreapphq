@@ -388,56 +388,6 @@
   display: none;
 }
 
-/* —— Topbar search —— */
-.admin-console__search {
-  position: relative;
-  display: flex;
-  align-items: center;
-  flex: 1 1 320px;
-  max-width: 360px;
-  min-width: 0;
-  margin-left: 0.25rem;
-}
-
-.admin-console__search-icon {
-  position: absolute;
-  left: 0.7rem;
-  width: 15px;
-  height: 15px;
-  color: var(--admin-muted-2);
-  pointer-events: none;
-}
-
-.admin-console__search input {
-  width: 100%;
-  height: 34px;
-  padding: 0 0.75rem 0 2.15rem;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius-sm);
-  background: var(--admin-surface-soft);
-  color: var(--admin-ink);
-  font: inherit;
-  font-size: 0.82rem;
-  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
-}
-
-.admin-console__search input::placeholder {
-  color: var(--admin-muted-2);
-}
-
-.admin-console__search input:focus {
-  outline: none;
-  border-color: var(--admin-blue);
-  background: var(--admin-surface);
-  box-shadow: 0 0 0 3px var(--admin-blue-soft);
-}
-
-@media (max-width: 1100px) {
-  .admin-console__search {
-    display: none;
-  }
-}
-
 .admin-console__topbar-actions {
   display: flex;
   align-items: center;
@@ -649,7 +599,24 @@
 
 .admin-section-stack {
   display: grid;
-  gap: 1.25rem;
+  gap: 1.75rem;
+}
+
+/* Components carry their own margin-bottom for standalone use; inside the
+   grid stack that would double up with `gap`, so neutralize it here. */
+.admin-section-stack > .admin-segmented,
+.admin-section-stack > .admin-segmented-control,
+.admin-section-stack > .admin-report-tabs,
+.admin-section-stack > .admin-content-tabs,
+.admin-section-stack > .admin-quick-filters,
+.admin-section-stack > .admin-toolbar,
+.admin-section-stack > .admin-filter-bar,
+.admin-section-stack > .admin-reports-toolbar,
+.admin-section-stack > .admin-lifecycle-banner,
+.admin-section-stack > .admin-metric-group,
+.admin-section-stack > .admin-executive-section,
+.admin-section-stack > .admin-command-strip {
+  margin-bottom: 0;
 }
 
 .admin-eyebrow {
@@ -751,8 +718,8 @@
 .admin-overview-kpis,
 .admin-executive-kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fit, minmax(208px, 1fr));
+  gap: 1rem;
   margin-bottom: 0.15rem;
 }
 
