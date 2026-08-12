@@ -9,6 +9,7 @@ function runVercel(args, options = {}) {
   const result = spawnSync(executable, ["vercel", ...args], {
     cwd: process.cwd(),
     encoding: "utf8",
+    shell: process.platform === "win32",
     windowsHide: true,
     maxBuffer: 5_000_000,
     timeout: 15 * 60 * 1_000,
@@ -64,9 +65,17 @@ async function main() {
   const secret = randomBytes(48).toString("base64url");
 
   console.log(JSON.stringify({ event: "cron_secret_configuration_started" }));
-  runVercel(["env", "add", "CRON_SECRET", "production", "--force", "--sensitive", "--yes"], {
-    input: `${secret}\n`,
-  });
+  runVercel([
+    "env",
+    "add",
+    "CRON_SECRET",
+    "production",
+    "--force",
+    "--sensitive",
+    "--yes",
+    "--value",
+    secret,
+  ]);
   console.log(JSON.stringify({ event: "cron_secret_configured", sensitive: true }));
 
   const redeployOutput = runVercel(["redeploy", deployment, "--target", "production"]);
