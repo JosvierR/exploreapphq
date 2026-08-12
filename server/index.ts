@@ -8,7 +8,7 @@ import {
   handleCronAnalyticsAggregate,
 } from "./api-lib/analytics/analyticsAdminApi.mjs";
 // @ts-ignore
-import { dispatchBusinessIntelligenceApi } from "./api-lib/analytics/businessIntelligenceApi.mjs";
+import { dispatchBusinessIntelligenceApi, dispatchBusinessV1Api } from "./api-lib/analytics/businessIntelligenceApi.mjs";
 // @ts-ignore
 import { handleEvents } from "./api-lib/analytics/analyticsRouter.mjs";
 // @ts-ignore
@@ -275,6 +275,16 @@ const businessIntelligenceSegments = [
   "searches",
   "opportunities",
   "content-attribution",
+  "executive-summary",
+  "compare",
+  "demand",
+  "audience",
+  "time",
+  "insights",
+  "benchmarks",
+  "mobile-overview",
+  "definitions",
+  "health",
 ] as const;
 
 for (const segment of businessIntelligenceSegments) {
@@ -286,6 +296,43 @@ for (const segment of businessIntelligenceSegments) {
     );
   });
 }
+
+const businessV1Segments = [
+  "overview",
+  "executive-summary",
+  "mobile-overview",
+  "geography",
+  "markets",
+  "compare",
+  "demand",
+  "categories",
+  "searches",
+  "unmet-demand",
+  "places",
+  "routes",
+  "audience",
+  "time",
+  "content-attribution",
+  "funnel",
+  "opportunities",
+  "insights",
+  "benchmarks",
+  "definitions",
+] as const;
+
+for (const segment of businessV1Segments) {
+  app.all(`/api/business/v1/${segment}`, (req, res) => {
+    void sendFetchResponse((request) => dispatchBusinessV1Api(request, `business/v1/${segment}`), req, res);
+  });
+}
+
+app.all("/api/business/v1/places/:id", (req, res) => {
+  void sendFetchResponse((request) => dispatchBusinessV1Api(request, `business/v1/places/${req.params.id}`), req, res);
+});
+
+app.all("/api/business/v1/routes/:id", (req, res) => {
+  void sendFetchResponse((request) => dispatchBusinessV1Api(request, `business/v1/routes/${req.params.id}`), req, res);
+});
 
 app.all("/api/cron/analytics/aggregate", (req, res) => {
   void sendFetchResponse(handleCronAnalyticsAggregate, req, res);

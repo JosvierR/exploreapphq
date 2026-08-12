@@ -6,6 +6,7 @@ import { requestIdFromRequest } from "../http/requestContext.mjs";
 import { requireAdmin } from "../moderation/supabaseModeration.mjs";
 import { logger, requestLogMeta } from "../observability/logger.mjs";
 import { incrementCounter, observeTimer, recordSupabaseError } from "../observability/metrics.mjs";
+import { EVENT_TAXONOMY } from "./businessAnalyticsCore.mjs";
 
 const ANALYTICS_EVENTS_TABLE = "analytics_events";
 const ANALYTICS_DEAD_LETTERS_TABLE = "analytics_event_dead_letters";
@@ -33,6 +34,8 @@ const ANALYTICS_EVENTS_COLUMNS = [
   "entity_type",
   "entity_id",
   "source",
+  "source_type",
+  "source_id",
   "platform",
   "app_version",
   "build_number",
@@ -42,6 +45,9 @@ const ANALYTICS_EVENTS_COLUMNS = [
   "country",
   "region",
   "city",
+  "geo_id",
+  "analytics_eligible",
+  "analytics_exclusion_reason",
   "properties",
   "context",
   "occurred_at",
@@ -55,6 +61,7 @@ const EVENT_NAMES = new Set([
   "session_end",
   "screen_view",
   "search_submitted",
+  "search_performed",
   "search_result_clicked",
   "search_no_results",
   "video_impression",
@@ -71,22 +78,32 @@ const EVENT_NAMES = new Set([
   "video_share",
   "video_open_places_routes",
   "place_impression",
+  "place_view",
   "place_click",
   "place_save",
   "place_unsave",
   "place_open_map",
+  "place_map_open",
   "place_get_directions",
   "place_share",
   "place_call",
   "place_website_click",
   "route_impression",
+  "route_view",
   "route_click",
   "route_save",
   "route_unsave",
   "route_start",
   "route_step_view",
+  "route_stop_view",
   "route_complete",
   "route_share",
+  "content_impression",
+  "content_view",
+  "content_save",
+  "content_share",
+  "share",
+  "rating_submit",
   "profile_view",
   "follow_user",
   "unfollow_user",
@@ -100,9 +117,11 @@ const EVENT_NAMES = new Set([
   "error_boundary_shown",
 ]);
 
-const ENTITY_TYPES = new Set(["video", "place", "route", "profile", "user", "search", "screen", "notification", "system", null]);
+const ENTITY_TYPES = new Set(["video", "content", "post", "place", "route", "profile", "user", "search", "screen", "notification", "business", "system", null]);
 const PLATFORMS = new Set(["ios", "android", "web", "server", null]);
 const ANALYTICS_SOURCES = new Set(["mobile", "web", "backend", "admin"]);
+const ATTRIBUTION_SOURCE_TYPES = new Set(["search", "map", "feed", "video", "post", "content", "route", "creator", "recommendation", "profile", "direct_link", null]);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SENSITIVE_KEY_RE =
   /(token|secret|password|authorization|refresh[_-]?token|access[_-]?token|service[_-]?role|api[_-]?key|email|user[_-]?id)/i;
 const LOCATION_KEYS = new Set(["lat", "lng", "latitude", "longitude", "coordinates"]);
@@ -482,6 +501,7 @@ export function validateAnalyticsEventRow(row) {
     return { valid: false, reason: "event_version is invalid" };
   }
   if (!ANALYTICS_SOURCES.has(row.source)) return { valid: false, reason: "invalid_source" };
+  if (!ATTRIBUTION_SOURCE_TYPES.has(row.source_type ?? null)) return { valid: false, reason: "source_type is invalid" };
   if (!ENTITY_TYPES.has(row.entity_type ?? null)) return { valid: false, reason: "entity_type is invalid" };
   if (!PLATFORMS.has(row.platform ?? null)) return { valid: false, reason: "platform is invalid" };
   if (!isPlainObject(row.properties)) return { valid: false, reason: "properties must be a JSON object" };
@@ -640,6 +660,80 @@ export function countryFromLocale(locale) {
   return match ? match[1].toUpperCase() : null;
 }
 
+function normalizeTimezone(value) {
+  const timezone = cleanString(value, 80);
+  if (!timezone) return null;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format(new Date(0));
+    return timezone;
+  } catch {
+    return null;
+  }
+}
+
+function taxonomyContractIssue(eventName, entityId, properties) {
+  const contract = EVENT_TAXONOMY[eventName];
+  if (!contract) return null;
+  for (const required of contract.required_properties || []) {
+    if (required === "entity_id") {
+      if (!entityId) return "entity_id is required for this event";
+      continue;
+    }
+    if (required === "query_hash") {
+      if (!(properties.query_hash || properties.query_normalized || properties.normalized_query)) {
+        return "query_hash or query_normalized is required for this event";
+      }
+      continue;
+    }
+    if (required === "results_count") {
+      if (properties.results_count == null && properties.result_count == null) {
+        return "results_count is required for this event";
+      }
+      continue;
+    }
+    if (required === "stop_id") {
+      if (!(properties.stop_id || properties.place_id)) return "stop_id is required for this event";
+      continue;
+    }
+    if (required === "stop_index") {
+      if (properties.stop_index == null && properties.step_index == null) return "stop_index is required for this event";
+      continue;
+    }
+    if (properties[required] == null) return `${required} is required for this event`;
+  }
+  return null;
+}
+
+function analyticsEligibility(request, source, properties, context) {
+  const userAgent = headerValue(request?.headers, "user-agent").toLowerCase();
+  if (source === "admin") return { eligible: false, reason: "admin_generated" };
+  if (/\b(bot|crawler|spider|headless|selenium|playwright|puppeteer)\b/.test(userAgent)) {
+    return { eligible: false, reason: "automated_traffic" };
+  }
+  if ([properties?.is_test, context?.is_test, context?.qa_session].some((value) => value === true || value === "true")) {
+    return { eligible: false, reason: "test_or_qa" };
+  }
+  return { eligible: true, reason: null };
+}
+
+function normalizeSearchProperties(eventName, properties) {
+  if (!["search_performed", "search_submitted", "search_result_clicked", "search_no_results"].includes(eventName)) {
+    return properties;
+  }
+  const next = { ...properties };
+  const raw = next.query_normalized || next.normalized_query || next.query || next.search_query || next.raw_query || next.q;
+  if (raw && String(raw).trim()) {
+    const normalized = String(raw).trim().toLocaleLowerCase().replace(/\s+/g, " ").slice(0, 80);
+    next.query_normalized = normalized;
+    next.query_hash = next.query_hash || hashValue(normalized);
+  }
+  delete next.query;
+  delete next.search_query;
+  delete next.raw_query;
+  delete next.q;
+  return next;
+}
+
 export function normalizeAnalyticsEvent(event, { userId = null, request = null } = {}) {
   if (!isPlainObject(event)) return { rejected: reject("event must be a JSON object", event, userId), warnings: [] };
 
@@ -651,6 +745,10 @@ export function normalizeAnalyticsEvent(event, { userId = null, request = null }
   const entityType = normalizeOptionalEnum(event.entity_type, ENTITY_TYPES);
   const platform = normalizeOptionalEnum(event.platform, PLATFORMS);
   const source = normalizeAnalyticsSource(event.source, platform);
+  const sourceType = normalizeOptionalEnum(event.source_type, ATTRIBUTION_SOURCE_TYPES);
+  const sourceId = cleanString(event.source_id, MAX_ID_LENGTH);
+  const geoId = cleanString(event.geo_id, 80);
+  const timezone = normalizeTimezone(event.timezone);
 
   if (!eventId) return { rejected: reject("event_id is required", event, userId), warnings: [] };
   if (!eventName) return { rejected: reject("event_name is required", event, userId), warnings: [] };
@@ -661,6 +759,9 @@ export function normalizeAnalyticsEvent(event, { userId = null, request = null }
   if (event.entity_type && !entityType) return { rejected: reject("entity_type is invalid", event, userId), warnings: [] };
   if (event.platform && !platform) return { rejected: reject("platform is invalid", event, userId), warnings: [] };
   if (!source) return { rejected: reject("invalid_source", event, userId), warnings: [] };
+  if (event.source_type && !sourceType) return { rejected: reject("source_type is invalid", event, userId), warnings: [] };
+  if (geoId && !UUID_RE.test(geoId)) return { rejected: reject("geo_id must be a UUID", event, userId), warnings: [] };
+  if (event.timezone && !timezone) return { rejected: reject("timezone must be a valid IANA timezone", event, userId), warnings: [] };
 
   const properties = sanitizeRootObject(event.properties, "properties");
   if (properties.rejected) {
@@ -673,8 +774,13 @@ export function normalizeAnalyticsEvent(event, { userId = null, request = null }
   }
 
   const eventVersion = Number.isInteger(event.event_version) && event.event_version > 0 ? event.event_version : 1;
+  const entityId = cleanString(event.entity_id, MAX_ID_LENGTH);
+  const normalizedProperties = normalizeSearchProperties(eventName, properties.value);
+  const contractIssue = taxonomyContractIssue(eventName, entityId, normalizedProperties);
+  if (contractIssue) return { rejected: reject(contractIssue, event, userId), warnings: [] };
   const locale = cleanString(event.locale, 40);
   const requestGeo = resolveRequestMarketGeo(request, { locale });
+  const eligibility = analyticsEligibility(request, source, normalizedProperties, context.value);
   const row = {
     event_id: eventId,
     event_name: eventName,
@@ -683,18 +789,23 @@ export function normalizeAnalyticsEvent(event, { userId = null, request = null }
     anonymous_id: anonymousId,
     session_id: sessionId,
     entity_type: entityType,
-    entity_id: cleanString(event.entity_id, MAX_ID_LENGTH),
+    entity_id: entityId,
     source,
+    source_type: sourceType,
+    source_id: sourceId,
     platform,
     app_version: cleanString(event.app_version, 80),
     build_number: cleanString(event.build_number, 80),
     device_os: cleanString(event.device_os, 80),
     locale,
-    timezone: cleanString(event.timezone, 80),
+    timezone,
     country: cleanString(event.country, 2)?.toUpperCase() || requestGeo.country || null,
     region: cleanString(event.region, 120) || requestGeo.region || null,
     city: cleanString(event.city, 120),
-    properties: properties.value,
+    geo_id: geoId,
+    analytics_eligible: eligibility.eligible,
+    analytics_exclusion_reason: eligibility.reason,
+    properties: normalizedProperties,
     context: context.value,
     occurred_at: occurredAt,
   };
@@ -709,6 +820,17 @@ export function normalizeAnalyticsEvent(event, { userId = null, request = null }
 
 function validateEvent(event, context) {
   return normalizeAnalyticsEvent(event, context);
+}
+
+function markAbnormalBatchRows(rows) {
+  const seen = new Map();
+  return rows.map((row) => {
+    const signature = [row.user_id || row.anonymous_id, row.session_id, row.event_name, row.entity_type, row.entity_id].join(":");
+    const count = (seen.get(signature) || 0) + 1;
+    seen.set(signature, count);
+    if (count <= 20 || !row.analytics_eligible) return row;
+    return { ...row, analytics_eligible: false, analytics_exclusion_reason: "impossible_batch_frequency" };
+  });
 }
 
 async function authContext(request, supabase) {
@@ -894,7 +1016,8 @@ export async function handleEvents(request) {
       }
     }
 
-    const inserted = await insertEvents(supabase, rows, { request, requestId });
+    const qualityCheckedRows = markAbnormalBatchRows(rows);
+    const inserted = await insertEvents(supabase, qualityCheckedRows, { request, requestId });
     const durationMs = Date.now() - started;
 
     incrementCounter("explore_analytics_events_accepted_total", { authenticated: String(auth.authenticated) }, inserted.accepted);

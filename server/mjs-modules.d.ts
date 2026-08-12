@@ -11,7 +11,7 @@ declare module "*.mjs" {
     text: string;
   };
 
-  const defaultExport: unknown;
+  const defaultExport: (request: Request) => Promise<Response>;
   export default defaultExport;
 
   export const buildAppLaunchEmail: (email: string, links: EmailLinks) => EmailTemplate;
@@ -20,6 +20,7 @@ declare module "*.mjs" {
   export const handleCronAnalyticsAggregate: (request: Request) => Promise<Response>;
   export const dispatchAdminAnalyticsApi: (request: Request, route: string) => Promise<Response>;
   export const dispatchBusinessIntelligenceApi: (request: Request, route: string) => Promise<Response>;
+  export const dispatchBusinessV1Api: (request: Request, route: string) => Promise<Response>;
   export const handleAdminMe: (request: Request) => Promise<Response>;
   export const handleAdminModerationAction: (request: Request) => Promise<Response>;
   export const handleAdminModerationSummary: (request: Request) => Promise<Response>;

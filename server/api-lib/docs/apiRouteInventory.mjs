@@ -56,6 +56,13 @@ export function extractRouterApiPaths() {
     if (key.includes(":") || key.endsWith("/")) continue;
     routes.add(key);
   }
+  for (const match of businessIntel.matchAll(/^\s*"((?:business\/v1\/)[^"]+)"\s*:/gm)) {
+    const key = match[1];
+    if (key.includes(":")) continue;
+    routes.add(key);
+  }
+  if (businessIntel.includes("business\\/v1\\/places\\/([^/]+)")) routes.add("business/v1/places/{id}");
+  if (businessIntel.includes("business\\/v1\\/routes\\/([^/]+)")) routes.add("business/v1/routes/{id}");
   if (router.includes('route.startsWith("admin/business/")')) {
     // Prefix catch-all expanded via businessIntelligenceApi map above.
   }
@@ -119,6 +126,10 @@ export function extractExpressApiPaths() {
   for (const segment of businessIntelSegments) {
     paths.add(`/api/admin/business/${segment}`);
   }
+  const businessV1Segments = extractStringArray(source, "businessV1Segments");
+  for (const segment of businessV1Segments) {
+    paths.add(`/api/business/v1/${segment}`);
+  }
   const openApiSurfaces = extractStringArray(source, "openApiSurfaces");
   for (const surface of openApiSurfaces) {
     paths.add(`/api/admin/openapi/${surface}`);
@@ -131,6 +142,8 @@ export function extractExpressApiPaths() {
   if (source.includes("/api/admin/reports/:id")) {
     paths.add("/api/admin/reports/{id}");
   }
+  if (source.includes("/api/business/v1/places/:id")) paths.add("/api/business/v1/places/{id}");
+  if (source.includes("/api/business/v1/routes/:id")) paths.add("/api/business/v1/routes/{id}");
 
   return [...paths].sort();
 }

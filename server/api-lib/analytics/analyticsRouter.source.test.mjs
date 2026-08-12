@@ -114,3 +114,44 @@ const enriched = normalizeAnalyticsEvent(buildEvent({ event_id: "test-geo-enrich
 assert.equal(enriched.row.country, "DO");
 assert.equal(enriched.row.region, "SD");
 assert.equal(enriched.row.city, null);
+
+const search = normalizeAnalyticsEvent(
+  buildEvent({
+    event_id: "test-search-contract",
+    event_name: "search_performed",
+    entity_type: "search",
+    entity_id: "search-1",
+    properties: { search_query: "  Vegan   Breakfast ", results_count: 4 },
+  }),
+);
+assert.equal(search.rejected, undefined);
+assert.equal(search.row.properties.query_normalized, "vegan breakfast");
+assert.ok(search.row.properties.query_hash);
+assert.equal(search.row.properties.search_query, undefined);
+
+const canonicalPlace = normalizeAnalyticsEvent(
+  buildEvent({
+    event_id: "test-place-view-contract",
+    event_name: "place_view",
+    entity_type: "place",
+    entity_id: "place-1",
+    source_type: "search",
+    source_id: "search-1",
+    timezone: "America/Santo_Domingo",
+  }),
+);
+assert.equal(canonicalPlace.rejected, undefined);
+assert.equal(canonicalPlace.row.source_type, "search");
+assert.equal(canonicalPlace.row.analytics_eligible, true);
+
+const botPlace = normalizeAnalyticsEvent(
+  buildEvent({
+    event_id: "test-bot-event",
+    event_name: "place_view",
+    entity_type: "place",
+    entity_id: "place-1",
+  }),
+  { request: { headers: { get(name) { return name === "user-agent" ? "ExampleBot crawler" : ""; } } } },
+);
+assert.equal(botPlace.row.analytics_eligible, false);
+assert.equal(botPlace.row.analytics_exclusion_reason, "automated_traffic");

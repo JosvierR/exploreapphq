@@ -17,6 +17,10 @@ export type DemandMapChild = {
   saves: number;
   searches: number;
   metric: number;
+  demand_index?: number | null;
+  supply_index?: number | null;
+  opportunity_score?: number | null;
+  growth_pct?: number | null;
   share_pct: number | null;
   lat?: number | null;
   lng?: number | null;
@@ -124,7 +128,9 @@ export function TourismWorldMap({
   parentCountry?: string | null;
   onSelect: (child: DemandMapChild) => void;
 }) {
-  const maxMetric = Math.max(1, ...zones.map((item) => item.metric));
+  const metricValues = zones.map((item) => item.metric).filter(Number.isFinite);
+  const minMetric = metricValues.length ? Math.min(...metricValues) : 0;
+  const maxMetric = metricValues.length ? Math.max(...metricValues) : 1;
   const markers = useMemo(() => {
     const mapped = [];
     const missing: string[] = [];
@@ -134,7 +140,7 @@ export function TourismWorldMap({
         missing.push(child.label);
         continue;
       }
-      const intensity = child.metric / maxMetric;
+      const intensity = maxMetric === minMetric ? 0.6 : Math.max(0, Math.min(1, (child.metric - minMetric) / (maxMetric - minMetric)));
       mapped.push({
         child,
         position: position as LatLngExpression,
@@ -143,7 +149,7 @@ export function TourismWorldMap({
       });
     }
     return { mapped, missing };
-  }, [zones, parentCountry, maxMetric]);
+  }, [zones, parentCountry, maxMetric, minMetric]);
 
   const center = useMemo<LatLngExpression>(() => {
     if (markers.mapped.length) return markers.mapped[0].position;
@@ -196,8 +202,10 @@ export function TourismWorldMap({
                 <span>{formatNumber(marker.child.place_views)} place views</span>
                 <span>{formatNumber(marker.child.route_views)} route views</span>
                 <span>{formatNumber(marker.child.intent)} high-intent actions</span>
+                {marker.child.growth_pct != null ? <span>Demand growth {marker.child.growth_pct > 0 ? "+" : ""}{marker.child.growth_pct}%</span> : null}
+                {marker.child.opportunity_score != null ? <span>Opportunity score {marker.child.opportunity_score}/100</span> : null}
                 <button type="button" className="admin-btn admin-btn--secondary admin-btn--sm" onClick={() => onSelect(marker.child)}>
-                  View {marker.child.label} →
+                  Analyze {marker.child.label} →
                 </button>
               </div>
             </Popup>
@@ -205,9 +213,9 @@ export function TourismWorldMap({
         ))}
       </MapContainer>
       <div className="admin-tourism-map__legend">
-        <span>Low activity</span>
+        <span>Lower</span>
         <span className="admin-tourism-map__legend-bar" aria-hidden="true" />
-        <span>High activity</span>
+        <span>Higher selected metric</span>
         {markers.missing.length ? (
           <small>
             {markers.missing.length} zone{markers.missing.length === 1 ? "" : "s"} without map pin (selectable in list)
