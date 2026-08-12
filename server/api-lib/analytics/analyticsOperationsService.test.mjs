@@ -193,6 +193,16 @@ assert.doesNotThrow(
     ),
   "valid x-cron-secret accepted",
 );
+process.env.CRON_SECRET = "vercel-cron-secret-test";
+assert.doesNotThrow(
+  () =>
+    assertAnalyticsCronAuthorized(
+      new Request("https://example.com/api/cron/analytics/aggregate", {
+        headers: { authorization: "Bearer vercel-cron-secret-test" },
+      }),
+    ),
+  "Vercel CRON_SECRET bearer is accepted even while the manual analytics secret remains configured",
+);
 
 // Cron path uses service-role client after secret auth (no admin session).
 assert.equal(
@@ -204,6 +214,7 @@ assert.equal(
 );
 const adminApiSource = (await import("node:fs")).readFileSync(new URL("./analyticsAdminApi.mjs", import.meta.url), "utf8");
 assert.match(adminApiSource, /assertAnalyticsCronAuthorized\(request\)/, "cron uses secret auth");
+assert.match(adminApiSource, /trigger === "cron" \? new Set\(\["GET", "POST"\]\)/, "cron accepts Vercel's GET method");
 assert.match(adminApiSource, /createServiceClient\(\)/, "cron uses service-role client");
 assert.match(adminApiSource, /client: "service_role"/, "cron logs service_role client");
 assert.doesNotMatch(adminApiSource, /requireAdminContext\(request\);\s*supabase = admin\.supabase/, "cron does not use admin session client for RPC");

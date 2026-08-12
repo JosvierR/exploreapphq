@@ -747,6 +747,12 @@ export type BusinessIntelDashboard = {
     missing_geography: number;
     validity_view_active: boolean;
     geo_coverage_pct?: number | null;
+    destination_geo_coverage_pct?: number | null;
+    traveler_origin_coverage_pct?: number | null;
+    places_with_country_pct?: number | null;
+    places_with_region_pct?: number | null;
+    places_with_city_pct?: number | null;
+    routes_with_market_pct?: number | null;
     place_resolution_pct?: number | null;
     route_resolution_pct?: number | null;
     rejected_events?: number | null;

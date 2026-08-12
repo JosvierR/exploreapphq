@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { classifySupabaseAnalyticsError, serializeErrorForLog } from "./analyticsRouter.mjs";
 import { makeAnalyticsWarning } from "./analyticsAdminShapes.mjs";
 
@@ -665,12 +666,22 @@ export async function getAnalyticsIngestionHealth(supabase, context = {}) {
 }
 
 export function getAnalyticsCronSecret() {
-  return (process.env.ANALYTICS_CRON_SECRET || process.env.CRON_SECRET || "").trim();
+  return (process.env.CRON_SECRET || process.env.ANALYTICS_CRON_SECRET || "").trim();
+}
+
+export function getAnalyticsCronSecrets() {
+  return [...new Set([process.env.CRON_SECRET, process.env.ANALYTICS_CRON_SECRET].map((value) => String(value || "").trim()).filter(Boolean))];
+}
+
+function secretMatches(candidate, configured) {
+  const candidateBuffer = Buffer.from(candidate);
+  const configuredBuffer = Buffer.from(configured);
+  return candidateBuffer.length === configuredBuffer.length && timingSafeEqual(candidateBuffer, configuredBuffer);
 }
 
 export function assertAnalyticsCronAuthorized(request) {
-  const configured = getAnalyticsCronSecret();
-  if (!configured) {
+  const configured = getAnalyticsCronSecrets();
+  if (!configured.length) {
     throw new AnalyticsOperationsError(503, "Analytics cron is not configured.", {
       code: "analytics_cron_not_configured",
     });
@@ -682,7 +693,7 @@ export function assertAnalyticsCronAuthorized(request) {
     ? authHeader.slice("bearer ".length).trim()
     : "";
 
-  if (headerSecret !== configured && bearerSecret !== configured) {
+  if (!configured.some((secret) => secretMatches(headerSecret, secret) || secretMatches(bearerSecret, secret))) {
     throw new AnalyticsOperationsError(401, "Authentication required.", {
       code: "analytics_cron_unauthorized",
     });

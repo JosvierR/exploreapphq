@@ -64,16 +64,20 @@ Bodies:
 
 ### Cron endpoint
 
-`POST /api/cron/analytics/aggregate`
+Vercel schedule: `GET /api/cron/analytics/aggregate`.
+
+Authorized manual invocation: `POST /api/cron/analytics/aggregate`.
 
 Protected by:
 
-- `X-Cron-Secret: $ANALYTICS_CRON_SECRET`, or
-- `Authorization: Bearer $ANALYTICS_CRON_SECRET` (Vercel Cron style)
+- `Authorization: Bearer $CRON_SECRET` for Vercel Cron, or
+- `X-Cron-Secret: $ANALYTICS_CRON_SECRET` / `Authorization: Bearer $ANALYTICS_CRON_SECRET` for an authorized manual run
 
-Also accepts `CRON_SECRET` as fallback env name.
+Both configured secret values are accepted during rotation; `CRON_SECRET` is the
+required Vercel Cron variable name.
 
-Default action when body is empty: aggregate **yesterday + today**.
+Default action when the request body is empty: aggregate UTC **D-3, D-2, D-1,
+and D** for late arrivals.
 
 If secret is not configured:
 
@@ -89,8 +93,8 @@ If secret is not configured:
 
 | Variable | Purpose |
 |----------|---------|
-| `ANALYTICS_CRON_SECRET` | Protects cron aggregation endpoint |
-| `CRON_SECRET` | Optional fallback used by Vercel Cron bearer auth |
+| `CRON_SECRET` | Protects the scheduled Vercel Cron bearer request |
+| `ANALYTICS_CRON_SECRET` | Optional separate secret for authorized manual runs and rotation |
 | `SUPABASE_SECRET_KEY` / `SUPABASE_SERVICE_ROLE_KEY` | Server-side inserts/reads |
 | `VITE_SUPABASE_URL` / `SUPABASE_URL` | Project URL |
 
@@ -352,12 +356,12 @@ select public.aggregate_analytics_events_for_day(current_date);
 4. Re-test cron:
 
 ```powershell
-Invoke-RestMethod -Method Post `
+Invoke-RestMethod -Method Get `
   -Uri "https://www.exploreapphq.com/api/cron/analytics/aggregate" `
-  -Headers @{ "X-Cron-Secret" = $secret }
+  -Headers @{ "Authorization" = "Bearer $secret" }
 ```
 
-The API tries parameter names `target_day`, `day`, `p_day`, `p_target_day`, and `d`.
+The API calls the canonical RPC argument `target_day` exactly.
 Vercel logs include safe failure codes and redacted Supabase error fields for `request_id`.
 
 ## Rollback plan
