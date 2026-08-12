@@ -46,12 +46,21 @@ export function KpiTrendCard({
   sparkline?: Array<Record<string, unknown>>;
 }) {
   const trend = trendDetails(delta, inverseTrend);
+  const iconToneClass =
+    trend.tone === "positive" ? " admin-kpi-card__icon--green" : trend.tone === "negative" ? " admin-kpi-card__icon--red" : "";
 
   return (
     <article className={`admin-kpi-card admin-kpi-card--${trend.tone}`}>
+      <div className="admin-kpi-card__top">
+        <span className={`admin-kpi-card__icon${iconToneClass}`} aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 19V11M11 19V5M18 19v-6" />
+          </svg>
+        </span>
+        {sparkline && <Sparkline data={sparkline} dataKey={metricKey} tone={trend.tone} />}
+      </div>
       <div className="admin-kpi-card__topline">
         <span>{metricLabel(metricKey)}</span>
-        {sparkline && <Sparkline data={sparkline} dataKey={metricKey} tone={trend.tone} />}
       </div>
       {loading ? (
         <span className="admin-skeleton admin-skeleton--number" aria-label="Loading" />

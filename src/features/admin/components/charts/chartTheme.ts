@@ -2,15 +2,15 @@ import type { CSSProperties } from "react";
 import { formatCompact, formatNumber } from "@/lib/analyticsDisplay";
 
 export const chartColors = {
-  primary: "#0071e3",
-  secondary: "#5ac8fa",
-  positive: "#248a3d",
-  warning: "#b25000",
-  negative: "#d70015",
-  slate: "#8e8e93",
-  ink: "#1d1d1f",
-  muted: "#6e6e73",
-  grid: "rgba(0, 0, 0, 0.055)",
+  primary: "#3b82f6",
+  secondary: "#38bdf8",
+  positive: "#16a34a",
+  warning: "#d97706",
+  negative: "#dc2626",
+  slate: "#94a3b8",
+  ink: "#0f172a",
+  muted: "#64748b",
+  grid: "#f1f5f9",
   surface: "#ffffff",
 } as const;
 
@@ -20,24 +20,24 @@ export const chartPalette = [
   chartColors.positive,
   chartColors.warning,
   chartColors.slate,
-  "#af52de",
+  "#7c3aed",
 ] as const;
 
 export const chartAxisStyle = {
   fill: chartColors.muted,
   fontSize: 11,
   fontWeight: 500,
-  letterSpacing: -0.2,
+  letterSpacing: -0.1,
 } as const;
 
 export const chartTooltipStyle: CSSProperties = {
-  border: `1px solid ${chartColors.grid}`,
-  borderRadius: 12,
-  background: "rgba(255,255,255,0.96)",
-  boxShadow: "0 8px 28px rgba(0,0,0,0.08)",
+  border: `1px solid #e2e8f0`,
+  borderRadius: 8,
+  background: "#ffffff",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
   color: chartColors.ink,
   fontSize: 12,
-  letterSpacing: "-0.01em",
+  letterSpacing: "-0.005em",
   padding: "8px 10px",
 };
 
