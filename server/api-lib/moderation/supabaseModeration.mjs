@@ -106,6 +106,15 @@ export async function handleHealth(request) {
   const supabaseUrlConfigured = Boolean(getSupabaseUrl());
   const publishableKeyConfigured = Boolean(getSupabasePublishableKey());
   const secretKeyConfigured = Boolean(getSupabaseSecretKey());
+  let businessSchemaStatus = secretKeyConfigured && supabaseUrlConfigured ? "checking" : "configuration_missing";
+  if (businessSchemaStatus === "checking") {
+    try {
+      const { data, error } = await createServiceClient().rpc("verify_business_intelligence_schema");
+      businessSchemaStatus = error ? "migration_required" : data?.ok ? "ready" : "incomplete";
+    } catch {
+      businessSchemaStatus = "unavailable";
+    }
+  }
 
   return jsonResponse(200, {
     ok: true,
@@ -119,6 +128,7 @@ export async function handleHealth(request) {
       supabase_url_configured: supabaseUrlConfigured,
       supabase_publishable_configured: publishableKeyConfigured,
       supabase_service_configured: secretKeyConfigured,
+      business_intelligence_schema: businessSchemaStatus,
       admin_routes: "ok",
     },
     supabaseUrlConfigured,
@@ -155,7 +165,7 @@ function getBearerToken(request) {
   return header.slice("Bearer ".length).trim();
 }
 
-async function requireUser(request) {
+export async function requireUser(request) {
   const token = getBearerToken(request);
   if (!token) {
     throw new HttpError(401, "A valid Supabase user token is required.");

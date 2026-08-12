@@ -106,12 +106,13 @@ export function resolveAggregationInput(body = {}) {
   if (body?.preset != null) return resolveAggregationPreset(body.preset);
   if (body?.day != null) return [parseAnalyticsDay(body.day)];
 
-  // Default for cron: yesterday + today
+  // Default for cron: recompute a four-day sliding window so late arrivals are included.
   const today = utcDayString();
-  return [addUtcDays(today, -1), today];
+  return [addUtcDays(today, -3), addUtcDays(today, -2), addUtcDays(today, -1), today];
 }
 
 const AGGREGATION_RPC_NAME = "aggregate_analytics_events_for_day";
+const BUSINESS_AGGREGATION_RPC_NAME = "run_business_intelligence_aggregation";
 // Exact DATA-001 argument name. Do not send { day }.
 const AGGREGATION_PARAM_NAME = "target_day";
 
@@ -241,6 +242,83 @@ export async function runAnalyticsAggregationWindow(supabase, days, context = {}
         duration_ms: item.duration_ms,
       })),
     warnings: [],
+  };
+}
+
+export async function runBusinessAggregationForDay(supabase, day, context = {}) {
+  const started = Date.now();
+  const safeDay = parseAnalyticsDay(day);
+  const operation = BUSINESS_AGGREGATION_RPC_NAME;
+  try {
+    const { data, error } = await supabase.rpc(BUSINESS_AGGREGATION_RPC_NAME, {
+      target_day: safeDay,
+      run_trigger: context.trigger || "cron",
+      run_request_id: context.requestId || null,
+    });
+    if (!error && data?.ok !== false) {
+      return {
+        day: safeDay,
+        ok: true,
+        message: "Business aggregation completed",
+        duration_ms: Date.now() - started,
+        operation,
+        result: data || null,
+      };
+    }
+    const failure = error || { code: data?.code || "business_aggregation_failed", message: "Business aggregation failed" };
+    return {
+      day: safeDay,
+      ok: false,
+      code: publicAggregationCode(failure),
+      message: publicAggregationMessage(publicAggregationCode(failure)),
+      duration_ms: Date.now() - started,
+      operation,
+      error: safeRpcErrorFields(failure),
+    };
+  } catch (error) {
+    const code = publicAggregationCode(error);
+    return {
+      day: safeDay,
+      ok: false,
+      code,
+      message: publicAggregationMessage(code),
+      duration_ms: Date.now() - started,
+      operation,
+      error: safeRpcErrorFields(error),
+    };
+  }
+}
+
+export async function runCompleteAnalyticsAggregationWindow(supabase, days, context = {}) {
+  const base = await runAnalyticsAggregationWindow(supabase, days, context);
+  const businessResults = [];
+  for (const dayResult of base.days) {
+    if (!dayResult.ok) continue;
+    businessResults.push(await runBusinessAggregationForDay(supabase, dayResult.day, context));
+  }
+  const businessFailures = businessResults.filter((item) => !item.ok);
+  return {
+    ok: base.ok && businessFailures.length === 0,
+    days: base.days.map((item) => {
+      const business = businessResults.find((candidate) => candidate.day === item.day);
+      return {
+        ...item,
+        business_ok: business ? business.ok : false,
+        business_message: business?.message || (item.ok ? "Business aggregation was not run" : "Base aggregation failed"),
+      };
+    }),
+    failures: [
+      ...base.failures,
+      ...businessFailures.map((item) => ({
+        day: item.day,
+        code: item.code,
+        message: item.message,
+        operation: item.operation,
+        error: item.error || null,
+        duration_ms: item.duration_ms,
+      })),
+    ],
+    warnings: base.warnings,
   };
 }
 

@@ -9,6 +9,8 @@ import {
   resolveAggregationPreset,
   runAnalyticsAggregationForDay,
   runAnalyticsAggregationWindow,
+  runBusinessAggregationForDay,
+  runCompleteAnalyticsAggregationWindow,
 } from "./analyticsOperationsService.mjs";
 
 function todayUtc() {
@@ -32,7 +34,11 @@ assert.throws(() => resolveAggregationPreset("last_30_days"), AnalyticsOperation
 
 assert.deepEqual(resolveAggregationInput({ day: todayUtc() }), [todayUtc()], "day input");
 assert.deepEqual(resolveAggregationInput({ preset: "today" }), [todayUtc()], "preset input");
-assert.deepEqual(resolveAggregationInput({}), [addUtcDays(todayUtc(), -1), todayUtc()], "default cron window");
+assert.deepEqual(
+  resolveAggregationInput({}),
+  [addUtcDays(todayUtc(), -3), addUtcDays(todayUtc(), -2), addUtcDays(todayUtc(), -1), todayUtc()],
+  "default cron recomputes the late-arrival window",
+);
 assert.throws(
   () => resolveAggregationInput({ day: todayUtc(), preset: "today" }),
   AnalyticsOperationsError,
@@ -138,6 +144,29 @@ await assert.rejects(
   (error) => error instanceof AnalyticsOperationsError && error.code === "analytics_window_too_large",
   "window larger than 7 days rejected",
 );
+
+const completeCalls = [];
+const completeClient = {
+  async rpc(name, args) {
+    completeCalls.push({ name, args });
+    if (name === "run_business_intelligence_aggregation") {
+      return { data: { ok: true, records_generated: 4 }, error: null };
+    }
+    return { data: null, error: null };
+  },
+};
+const businessDay = await runBusinessAggregationForDay(completeClient, todayUtc(), { trigger: "cron", requestId: "req-bi" });
+assert.equal(businessDay.ok, true, "Business aggregation wrapper succeeds");
+assert.deepEqual(completeCalls.at(-1), {
+  name: "run_business_intelligence_aggregation",
+  args: { target_day: todayUtc(), run_trigger: "cron", run_request_id: "req-bi" },
+});
+const completeWindow = await runCompleteAnalyticsAggregationWindow(completeClient, [todayUtc()], {
+  trigger: "cron",
+  requestId: "req-complete",
+});
+assert.equal(completeWindow.ok, true, "complete aggregation runs base and Business facts");
+assert.equal(completeWindow.days[0].business_ok, true, "complete aggregation exposes Business status");
 
 process.env.ANALYTICS_CRON_SECRET = "cron-secret-test";
 assert.throws(

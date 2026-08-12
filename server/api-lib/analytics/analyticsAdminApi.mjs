@@ -17,7 +17,7 @@ import {
   getAnalyticsIngestionHealth,
   getDeadLetterSummary,
   resolveAggregationInput,
-  runAnalyticsAggregationWindow,
+  runCompleteAnalyticsAggregationWindow,
 } from "./analyticsOperationsService.mjs";
 import {
   BusinessInsightsError,
@@ -1212,8 +1212,9 @@ async function runAggregationRequest(request, { trigger, requireAdminAuth }) {
     }
 
     const days = resolveAggregationInput(body);
-    const result = await runAnalyticsAggregationWindow(supabase, days, {
+    const result = await runCompleteAnalyticsAggregationWindow(supabase, days, {
       requestId,
+      trigger,
     });
 
     for (const failure of result.failures || []) {

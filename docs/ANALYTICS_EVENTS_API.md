@@ -17,6 +17,7 @@ Apply the migration before calling `POST /api/events` in production:
 3. Paste and run `supabase/migrations/20260702120000_analytics_events_data001_compat.sql`.
 4. Paste and run aggregation migrations through `20260704160000_analytics_aggregate_safe_deletes.sql` (daily rollups).
 5. Paste and run `supabase/migrations/20260810120000_admin_product_analytics_snapshot.sql` (DAU/WAU/impressions/CTR/route starts RPC).
+6. Paste and run `supabase/migrations/20260811150000_business_intelligence_v2.sql` (Business/geography model, eligibility view, taxonomy, facts, and Business aggregation RPC).
 
 Without these tables, ingestion returns `503` with `"Analytics schema not installed."`.
 Other Supabase readiness problems return a safe error code, for example
@@ -47,6 +48,8 @@ Inserts use the Vercel `SUPABASE_SECRET_KEY` service role. Mobile clients must n
 - `entity_type`
 - `entity_id`
 - `source`
+- `source_type`
+- `source_id`
 - `platform`
 - `app_version`
 - `build_number`
@@ -56,6 +59,9 @@ Inserts use the Vercel `SUPABASE_SECRET_KEY` service role. Mobile clients must n
 - `country`
 - `region`
 - `city`
+- `geo_id`
+- `analytics_eligible`
+- `analytics_exclusion_reason`
 - `properties`
 - `context`
 - `occurred_at`
@@ -95,6 +101,11 @@ Mobile apps should normally omit `source` or send `mobile`. Web clients can send
 `web`, but can also omit it when `platform` is `web`. Invalid explicit source
 values are rejected before database insert with reason `invalid_source`; they do
 not fail the whole batch.
+
+`source_type` is the discovery/attribution path (`search`, `map`, `feed`,
+`video`, `post`, `content`, `route`, `creator`, `recommendation`, `profile`, or
+`direct_link`). `source_id` identifies the source entity. They are distinct from
+the transport/application `source` field above.
 
 ## Required Environment Variables
 
@@ -169,6 +180,7 @@ Session/app:
 
 Search:
 
+- `search_performed`
 - `search_submitted`
 - `search_result_clicked`
 - `search_no_results`
@@ -192,10 +204,12 @@ Video:
 Place:
 
 - `place_impression`
+- `place_view`
 - `place_click`
 - `place_save`
 - `place_unsave`
 - `place_open_map`
+- `place_map_open`
 - `place_get_directions`
 - `place_share`
 - `place_call`
@@ -204,13 +218,24 @@ Place:
 Route:
 
 - `route_impression`
+- `route_view`
 - `route_click`
 - `route_save`
 - `route_unsave`
 - `route_start`
 - `route_step_view`
+- `route_stop_view`
 - `route_complete`
 - `route_share`
+
+Canonical content/engagement:
+
+- `content_impression`
+- `content_view`
+- `content_save`
+- `content_share`
+- `share`
+- `rating_submit`
 
 User/profile:
 

@@ -3,18 +3,51 @@
  * Privacy-safe, geo-filterable, name-enriched place/route rankings.
  */
 
+import {
+  BUSINESS_ANALYTICS_CORE_VERSION,
+  MIN_SEARCHES_FOR_OPPORTUNITY,
+  MIN_USERS_FOR_SEGMENT,
+  MIN_RELIABLE_SAMPLE,
+  MIN_TREND_BASELINE,
+  buildBusinessBenchmark,
+  buildDecisionInsights,
+  buildExecutiveSummary,
+  calculateCanonicalKpis,
+  calculateDemandIndex,
+  categoryMatrix,
+  enrichCategoryIntelligence,
+  eventTaxonomyForClient,
+  metricDefinitionsForClient,
+  periodDelta,
+} from "./businessAnalyticsCore.mjs";
+
 const EVENTS_TABLE = "analytics_events";
+const VALID_EVENTS_VIEW = "analytics_normalized_events";
 const PAGE_SIZE = 1000;
 const MAX_EVENTS = 100_000;
 const MAX_RANGE_DAYS = 366;
-const LOCATION_MIN_EVENTS = 3;
-const SEARCH_DISPLAY_MIN = 5;
-const MOVER_MIN_PREVIOUS = 8;
+const LOCATION_MIN_EVENTS = MIN_USERS_FOR_SEGMENT;
+const SEARCH_DISPLAY_MIN = MIN_SEARCHES_FOR_OPPORTUNITY;
+const MOVER_MIN_PREVIOUS = MIN_TREND_BASELINE;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const VALID_PRESETS = new Set(["7d", "30d", "90d", "365d", "12m"]);
 const VALID_COMPARE = new Set(["previous", "previous_year", "none"]);
 const VALID_GRANULARITY = new Set(["daily", "weekly", "monthly"]);
-const VALID_MAP_METRICS = new Set(["activity", "users", "place_views", "route_views", "intent", "saves", "searches"]);
+const VALID_PLATFORMS = new Set(["ios", "android", "web", "server"]);
+const VALID_SOURCES = new Set(["mobile", "web", "backend", "admin"]);
+const VALID_MAP_METRICS = new Set([
+  "demand",
+  "activity",
+  "users",
+  "place_views",
+  "route_views",
+  "intent",
+  "saves",
+  "searches",
+  "growth",
+  "supply",
+  "opportunity",
+]);
 
 const VIDEO_ENGAGEMENT_EVENTS = new Set([
   "video_impression",
@@ -65,7 +98,13 @@ const SAVE_EVENTS = new Set(["content_save", "video_save", "place_save", "route_
 const SHARE_EVENTS = new Set(["content_share", "video_share", "place_share", "route_share", "place_photo_share"]);
 const SEARCH_EVENTS = new Set(["search_performed", "search_submitted", "search_no_results", "search_result_clicked"]);
 const IMPRESSION_EVENTS = new Set(["video_impression", "place_impression", "route_impression"]);
-const PLACE_COMMERCE_EVENTS = new Set(["place_get_directions", "place_call", "place_website_click", "place_open_map"]);
+const PLACE_COMMERCE_EVENTS = new Set([
+  "place_get_directions",
+  "place_call",
+  "place_website_click",
+  "place_map_open",
+  "place_open_map",
+]);
 
 const COUNTRY_NAMES = {
   US: "United States",
@@ -274,17 +313,8 @@ function warning(code, message, severity = "warning") {
   return { code, severity, message };
 }
 
-function uniqueUsers(rows) {
-  const ids = new Set();
-  for (const row of rows) {
-    if (row.user_id) ids.add(`u:${row.user_id}`);
-    else if (row.anonymous_id) ids.add(`a:${row.anonymous_id}`);
-  }
-  return ids.size;
-}
-
-function uniqueSessions(rows) {
-  return new Set(rows.map((row) => row.session_id).filter(Boolean)).size;
+function latestDataAsOf(rows) {
+  return rows.map((row) => row.received_at || row.occurred_at).filter(Boolean).sort().at(-1) || null;
 }
 
 function isPlaceView(row) {
@@ -319,6 +349,32 @@ function weekdayBucket(iso) {
   return date.getUTCDay(); // 0 Sun
 }
 
+const TIME_PART_FORMATTERS = new Map();
+
+function localTimeBuckets(iso, timezone) {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const zone = String(timezone || "UTC").trim() || "UTC";
+  try {
+    let formatter = TIME_PART_FORMATTERS.get(zone);
+    if (!formatter) {
+      formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: zone,
+        hour: "2-digit",
+        hourCycle: "h23",
+        weekday: "short",
+      });
+      TIME_PART_FORMATTERS.set(zone, formatter);
+    }
+    const parts = Object.fromEntries(formatter.formatToParts(date).map((part) => [part.type, part.value]));
+    const weekdays = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    return { hour: Number(parts.hour), weekday: weekdays[parts.weekday] };
+  } catch {
+    return { hour: hourBucket(iso), weekday: weekdayBucket(iso) };
+  }
+}
+
 function daypart(hour) {
   if (hour == null) return null;
   if (hour >= 5 && hour < 12) return "morning";
@@ -331,8 +387,10 @@ export function resolveBusinessIntelligenceParams(request) {
   const url = new URL(request.url);
   const presetRaw = url.searchParams.get("range") || "30d";
   const preset = presetRaw === "12m" ? "365d" : presetRaw;
-  const startParam = url.searchParams.get("date_from") || url.searchParams.get("start");
-  const endParam = url.searchParams.get("date_to") || url.searchParams.get("end");
+  const startParam = url.searchParams.get("from") || url.searchParams.get("date_from") || url.searchParams.get("start");
+  const endParam = url.searchParams.get("to") || url.searchParams.get("date_to") || url.searchParams.get("end");
+  const compareFromParam = url.searchParams.get("compare_from");
+  const compareToParam = url.searchParams.get("compare_to");
   const compareRaw = url.searchParams.get("compare") || "previous";
   const compare = VALID_COMPARE.has(compareRaw) ? compareRaw : "previous";
   const granularity = VALID_GRANULARITY.has(url.searchParams.get("granularity") || "")
@@ -346,9 +404,27 @@ export function resolveBusinessIntelligenceParams(request) {
   const region = (url.searchParams.get("region") || "").trim() || null;
   const city = (url.searchParams.get("city") || "").trim() || null;
   const neighborhood = (url.searchParams.get("neighborhood") || "").trim() || null;
-  const category = (url.searchParams.get("category") || "").trim() || null;
+  const geoId = (url.searchParams.get("geo_id") || "").trim() || null;
+  const category = (url.searchParams.get("category") || url.searchParams.get("category_id") || "").trim() || null;
+  const categoryId = (url.searchParams.get("category_id") || "").trim() || null;
+  const businessId = (url.searchParams.get("business_id") || "").trim() || null;
+  const locationId = (url.searchParams.get("location_id") || "").trim() || null;
   const placeId = (url.searchParams.get("place_id") || "").trim() || null;
   const routeId = (url.searchParams.get("route_id") || "").trim() || null;
+  const platform = (url.searchParams.get("platform") || "").trim().toLowerCase() || null;
+  const source = (url.searchParams.get("source") || "").trim().toLowerCase() || null;
+  const compareMarkets = url.searchParams
+    .getAll("compare_market")
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .slice(0, 5);
+  if (platform && !VALID_PLATFORMS.has(platform)) {
+    throw new BusinessIntelligenceError(400, "Invalid platform filter.", { code: "bi_invalid_platform" });
+  }
+  if (source && !VALID_SOURCES.has(source)) {
+    throw new BusinessIntelligenceError(400, "Invalid source filter.", { code: "bi_invalid_source" });
+  }
 
   let range;
   if (startParam || endParam) {
@@ -389,6 +465,25 @@ export function resolveBusinessIntelligenceParams(request) {
     };
   }
 
+  let explicitComparison = null;
+  if (compareFromParam || compareToParam) {
+    if (!compareFromParam || !compareToParam) {
+      throw new BusinessIntelligenceError(400, "Custom comparison requires compare_from and compare_to.", { code: "bi_invalid_comparison" });
+    }
+    const compareStart = parseDay(compareFromParam, "compare_from");
+    const compareEnd = parseDay(compareToParam, "compare_to");
+    if (compareStart > compareEnd) {
+      throw new BusinessIntelligenceError(400, "compare_from must be on or before compare_to.", { code: "bi_invalid_comparison" });
+    }
+    explicitComparison = {
+      preset: "custom_comparison",
+      start: compareStart,
+      end: compareEnd,
+      since: `${compareStart}T00:00:00.000Z`,
+      until: `${addDays(compareEnd, 1)}T00:00:00.000Z`,
+    };
+  }
+
   return {
     ...range,
     compare,
@@ -398,14 +493,23 @@ export function resolveBusinessIntelligenceParams(request) {
     region,
     city,
     neighborhood,
+    geo_id: geoId,
     category,
+    category_id: categoryId,
+    business_id: businessId,
+    location_id: locationId,
     place_id: placeId,
     route_id: routeId,
+    platform,
+    source,
+    compare_markets: compareMarkets,
+    explicit_comparison: explicitComparison,
   };
 }
 
 function previousParams(params) {
   if (params.compare === "none") return null;
+  if (params.explicit_comparison) return { ...params, ...params.explicit_comparison };
   if (params.compare === "previous_year") {
     const start = addDays(params.start, -365);
     const end = addDays(params.end, -365);
@@ -433,16 +537,16 @@ function previousParams(params) {
   };
 }
 
-async function fetchEventsInRange(supabase, params) {
+async function fetchEventsFrom(supabase, table, params, extended = false) {
   const rows = [];
   let offset = 0;
   let truncated = false;
 
   while (offset < MAX_EVENTS) {
     let query = supabase
-      .from(EVENTS_TABLE)
+      .from(table)
       .select(
-        "event_id, event_name, entity_type, entity_id, user_id, anonymous_id, session_id, source, platform, locale, country, region, city, received_at, occurred_at, properties, context",
+        `event_id, event_name, entity_type, entity_id, user_id, anonymous_id, session_id, source, platform, locale, timezone, country, region, city, received_at, occurred_at, properties, context${extended ? ", source_type, source_id, geo_id" : ""}`,
       )
       .gte("received_at", params.since)
       .lt("received_at", params.until)
@@ -451,6 +555,10 @@ async function fetchEventsInRange(supabase, params) {
 
     // Country filter at DB when possible; region/city/neighborhood often enriched later.
     if (params.country) query = query.eq("country", params.country);
+    if (params.platform) query = query.eq("platform", params.platform);
+    if (params.source) query = query.eq("source", params.source);
+    if (extended && params.geo_ids?.length) query = query.in("geo_id", params.geo_ids);
+    else if (extended && params.geo_id) query = query.eq("geo_id", params.geo_id);
 
     const { data, error } = await query;
     if (error) throw error;
@@ -467,9 +575,28 @@ async function fetchEventsInRange(supabase, params) {
   return { rows, truncated, fetched: rows.length };
 }
 
+async function fetchEventsInRange(supabase, params) {
+  try {
+    return await fetchEventsFrom(supabase, VALID_EVENTS_VIEW, params, true);
+  } catch (error) {
+    const code = String(error?.code || "").toUpperCase();
+    const message = String(error?.message || "").toLowerCase();
+    const viewMissing =
+      code === "42P01" ||
+      code === "PGRST205" ||
+      message.includes("analytics_normalized_events") ||
+      message.includes("analytics_valid_events");
+    if (!viewMissing) throw error;
+    const fallback = await fetchEventsFrom(supabase, EVENTS_TABLE, params, false);
+    return { ...fallback, validity_view_missing: true };
+  }
+}
+
 async function enrichRowsWithCatalogGeo(supabase, rows) {
   const placeIds = rows.filter((row) => row.entity_type === "place" && row.entity_id).map((row) => row.entity_id);
+  const routeIds = rows.filter((row) => row.entity_type === "route" && row.entity_id).map((row) => row.entity_id);
   const places = await fetchEntityMeta(supabase, "places", placeIds);
+  const routes = await fetchEntityMeta(supabase, "routes", routeIds);
 
   return rows.map((row) => {
     const next = { ...row, properties: row.properties || {}, context: row.context || {} };
@@ -496,8 +623,13 @@ async function enrichRowsWithCatalogGeo(supabase, rows) {
       next._place_region = info.region;
       next._place_city = info.city;
       next._place_neighborhood = info.neighborhood;
+      next._category = info.category;
       if (info.lat != null) next._lat = info.lat;
       if (info.lng != null) next._lng = info.lng;
+    }
+    if (row.entity_type === "route" && row.entity_id && routes.has(row.entity_id)) {
+      const info = routeMeta(routes.get(row.entity_id));
+      next._category = info.category;
     }
 
     const propLat = Number(props.lat ?? props.latitude);
@@ -519,6 +651,23 @@ function filterRows(rows, params) {
     if (params.region && region !== params.region) return false;
     if (params.city && city !== params.city) return false;
     if (params.neighborhood && neighborhood !== params.neighborhood) return false;
+    if (params.geo_ids?.length && !params.geo_ids.includes(row.geo_id)) return false;
+    if (!params.geo_ids?.length && params.geo_id && row.geo_id !== params.geo_id) return false;
+    if (params.platform && row.platform !== params.platform) return false;
+    if (params.source && row.source !== params.source) return false;
+    if (params.category || params.category_id) {
+      const category = extractCategoryHint(row, { category: row._category });
+      const selectedCategory = params.category_id || params.category;
+      const normalizedCategory = String(category || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      const normalizedSelected = String(selectedCategory || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      if (!normalizedCategory || normalizedCategory !== normalizedSelected) return false;
+    }
+    if (Array.isArray(params.authorized_place_ids)) {
+      if (params.authorized_place_ids.length === 0) return false;
+      const directPlace = row.entity_type === "place" ? row.entity_id : null;
+      const attributedPlace = row.properties?.place_id || row.properties?.target_place_id || null;
+      if (!params.authorized_place_ids.includes(directPlace) && !params.authorized_place_ids.includes(attributedPlace)) return false;
+    }
     if (params.place_id && !(row.entity_type === "place" && row.entity_id === params.place_id)) return false;
     if (params.route_id && !(row.entity_type === "route" && row.entity_id === params.route_id)) return false;
     return true;
@@ -578,48 +727,30 @@ function videoMeta(row) {
   return { name: firstField(row, ["title", "caption", "description", "name"]) };
 }
 
-function computeKpis(rows) {
-  const placeViews = rows.filter(isPlaceView).length;
-  const routeViews = rows.filter(isRouteView).length;
-  const routeStarts = rows.filter((row) => row.event_name === "route_start").length;
-  const routeCompletes = rows.filter((row) => row.event_name === "route_complete").length;
-  const saves = rows.filter((row) => SAVE_EVENTS.has(row.event_name)).length;
-  const intent = rows.filter((row) => PLACE_COMMERCE_EVENTS.has(row.event_name)).length;
-  const searches = rows.filter(isSearchEvent).length;
-  const placeImpressions = rows.filter((row) => row.event_name === "place_impression").length;
-  const placeSaves = rows.filter((row) => row.event_name === "place_save").length;
-
-  return {
-    active_users: uniqueUsers(rows),
-    sessions: uniqueSessions(rows),
-    place_views: placeViews,
-    route_views: routeViews,
-    route_starts: routeStarts,
-    route_completions: routeCompletes,
-    saves,
-    commercial_intent: intent,
-    searches,
-    place_impressions: placeImpressions,
-    place_saves: placeSaves,
-    total_events: rows.length,
-    route_completion_rate: rate(routeCompletes, routeStarts),
-  };
+export function computeKpis(rows) {
+  return calculateCanonicalKpis(rows);
 }
 
 function kpiDefinitions() {
+  const canonical = metricDefinitionsForClient().metrics;
   return {
-    active_users: "Unique user_id + anonymous_id observed in filtered analytics events.",
-    sessions: "Unique session_id values in the filtered period.",
-    place_views: "place_view events and place entity view events.",
-    route_views: "route_view events and route entity view events.",
-    route_starts: "route_start events.",
-    route_completions: "route_complete events.",
-    saves: "Save events across content, places, routes, and photos.",
-    commercial_intent: "place_get_directions + place_call + place_website_click + place_open_map.",
+    active_users: canonical.active_travelers.description,
+    active_travelers: canonical.active_travelers.description,
+    sessions: canonical.sessions.description,
+    place_discoveries: canonical.place_discoveries.description,
+    place_views: canonical.place_views.description,
+    route_views: canonical.route_views.description,
+    route_starts: canonical.route_starts.description,
+    route_completions: canonical.route_completions.description,
+    saves: canonical.saves.description,
+    shares: canonical.shares.description,
+    commercial_intent: canonical.commercial_actions.description,
+    commercial_actions: canonical.commercial_actions.description,
+    intent_rate: canonical.intent_rate.description,
   };
 }
 
-function buildGeography(rows, params, mapMetric) {
+function buildGeography(rows, params, mapMetric, previousRows = []) {
   const level = params.neighborhood
     ? "neighborhood"
     : params.city
@@ -660,6 +791,7 @@ function buildGeography(rows, params, mapMetric) {
       intent: 0,
       saves: 0,
       searches: 0,
+      supply: new Set(),
       latSum: 0,
       lngSum: 0,
       geoCount: 0,
@@ -673,6 +805,7 @@ function buildGeography(rows, params, mapMetric) {
     if (PLACE_COMMERCE_EVENTS.has(row.event_name)) current.intent += 1;
     if (SAVE_EVENTS.has(row.event_name)) current.saves += 1;
     if (isSearchEvent(row)) current.searches += 1;
+    if (["place", "route"].includes(row.entity_type) && row.entity_id) current.supply.add(`${row.entity_type}:${row.entity_id}`);
     const point = eventLatLng(row);
     if (point) {
       current.latSum += point.lat;
@@ -682,15 +815,15 @@ function buildGeography(rows, params, mapMetric) {
     buckets.set(key, current);
   }
 
-  const metricValue = (item) => {
-    if (mapMetric === "users") return item.users.size;
-    if (mapMetric === "place_views") return item.place_views;
-    if (mapMetric === "route_views") return item.route_views;
-    if (mapMetric === "intent") return item.intent;
-    if (mapMetric === "saves") return item.saves;
-    if (mapMetric === "searches") return item.searches;
-    return item.events;
-  };
+  const previousCounts = new Map();
+  for (const row of previousRows) {
+    let key = null;
+    if (childKey === "country") key = marketCountry(row);
+    else if (childKey === "region") key = marketRegion(row);
+    else if (childKey === "city") key = marketCity(row);
+    else key = marketNeighborhood(row);
+    if (key) previousCounts.set(key, (previousCounts.get(key) || 0) + 1);
+  }
 
   const children = [...buckets.values()]
     .filter((item) => item.events >= LOCATION_MIN_EVENTS)
@@ -709,18 +842,53 @@ function buildGeography(rows, params, mapMetric) {
         intent: item.intent,
         saves: item.saves,
         searches: item.searches,
-        metric: metricValue(item),
+        demand: users + item.place_views + item.route_views + item.intent + item.saves + item.searches,
+        supply: item.supply.size,
+        previous_events: previousCounts.get(item.key) || 0,
+        growth_pct:
+          (previousCounts.get(item.key) || 0) >= MOVER_MIN_PREVIOUS
+            ? periodDelta(item.events, previousCounts.get(item.key) || 0).percent
+            : null,
+        metric: 0,
         share_pct: null,
         lat: item.geoCount ? item.latSum / item.geoCount : null,
         lng: item.geoCount ? item.lngSum / item.geoCount : null,
       };
     })
-    .sort((a, b) => b.metric - a.metric)
     .slice(0, 25);
 
-  const totalMetric = children.reduce((sum, item) => sum + item.metric, 0) || 1;
+  function cohortRank(value, values, inverse = false) {
+    const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+    if (!sorted.length) return null;
+    if (sorted.length === 1) return 50;
+    const below = sorted.filter((item) => item < value).length;
+    const score = Math.round((below / (sorted.length - 1)) * 100);
+    return inverse ? 100 - score : score;
+  }
+
+  const demandValues = children.map((item) => item.demand);
+  const supplyValues = children.map((item) => item.supply);
   for (const child of children) {
-    child.share_pct = Math.round((child.metric / totalMetric) * 1000) / 10;
+    child.demand_index = cohortRank(child.demand, demandValues);
+    child.supply_index = cohortRank(child.supply, supplyValues);
+    child.opportunity_score = Math.round((child.demand_index + cohortRank(child.supply, supplyValues, true)) / 2);
+    if (mapMetric === "users") child.metric = child.users;
+    else if (mapMetric === "place_views") child.metric = child.place_views;
+    else if (mapMetric === "route_views") child.metric = child.route_views;
+    else if (mapMetric === "intent") child.metric = child.intent;
+    else if (mapMetric === "saves") child.metric = child.saves;
+    else if (mapMetric === "searches") child.metric = child.searches;
+    else if (mapMetric === "growth") child.metric = child.growth_pct ?? 0;
+    else if (mapMetric === "supply") child.metric = child.supply_index;
+    else if (mapMetric === "opportunity") child.metric = child.opportunity_score;
+    else if (mapMetric === "demand") child.metric = child.demand_index;
+    else child.metric = child.events;
+  }
+  children.sort((a, b) => b.metric - a.metric);
+
+  const totalMetric = children.reduce((sum, item) => sum + Math.abs(item.metric), 0) || 1;
+  for (const child of children) {
+    child.share_pct = Math.round((Math.abs(child.metric) / totalMetric) * 1000) / 10;
   }
 
   const breadcrumb = [{ level: "global", key: null, label: "Global" }];
@@ -775,14 +943,20 @@ function buildTimeseries(rows, granularity) {
     const current = buckets.get(key) || {
       period: key,
       users: new Set(),
+      sessions: new Set(),
       place_views: 0,
       route_views: 0,
+      searches: 0,
+      saves: 0,
       commercial_actions: 0,
     };
     if (row.user_id) current.users.add(`u:${row.user_id}`);
     else if (row.anonymous_id) current.users.add(`a:${row.anonymous_id}`);
+    if (row.session_id) current.sessions.add(row.session_id);
     if (isPlaceView(row)) current.place_views += 1;
     if (isRouteView(row)) current.route_views += 1;
+    if (isSearchEvent(row)) current.searches += 1;
+    if (SAVE_EVENTS.has(row.event_name)) current.saves += 1;
     if (PLACE_COMMERCE_EVENTS.has(row.event_name)) current.commercial_actions += 1;
     buckets.set(key, current);
   }
@@ -791,8 +965,11 @@ function buildTimeseries(rows, granularity) {
     .map(([, bucket]) => ({
       period: bucket.period,
       users: bucket.users.size,
+      sessions: bucket.sessions.size,
       place_views: bucket.place_views,
       route_views: bucket.route_views,
+      searches: bucket.searches,
+      saves: bucket.saves,
       commercial_actions: bucket.commercial_actions,
     }));
 }
@@ -808,22 +985,85 @@ function buildPeakDemand(rows) {
   let tracked = 0;
   for (const row of rows) {
     const iso = row.occurred_at || row.received_at;
-    const hour = hourBucket(iso);
-    const weekday = weekdayBucket(iso);
+    const local = localTimeBuckets(iso, row.timezone);
+    const hour = local?.hour;
+    const weekday = local?.weekday;
     if (hour == null || weekday == null) continue;
     const part = daypart(hour);
     matrix[part][weekday] += 1;
     byHour[hour] += 1;
     tracked += 1;
   }
+  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const averageWindow = tracked / 28;
+  let peakWindow = null;
+  for (const [part, values] of Object.entries(matrix)) {
+    values.forEach((value, weekday) => {
+      if (!peakWindow || value > peakWindow.sample_size) {
+        peakWindow = {
+          day: weekdays[weekday],
+          daypart: part,
+          label: `${weekdays[weekday]} ${part}`,
+          sample_size: value,
+          above_average_pct: averageWindow > 0 ? Math.round(((value - averageWindow) / averageWindow) * 100) : 0,
+        };
+      }
+    });
+  }
   return {
     available: tracked > 0,
-    weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+    weekdays,
     dayparts: ["morning", "afternoon", "evening", "night"],
     matrix,
     by_hour: byHour,
     tracked_events: tracked,
+    peak_window: peakWindow && peakWindow.sample_size > 0 ? peakWindow : null,
+    timezone_basis: "event_timezone_with_UTC_fallback",
   };
+}
+
+function rowsForGeoChild(rows, child) {
+  return rows.filter((row) => {
+    if (child.level === "country") return marketCountry(row) === child.key;
+    if (child.level === "region") return marketRegion(row) === child.key;
+    if (child.level === "city") return marketCity(row) === child.key;
+    return marketNeighborhood(row) === child.key;
+  });
+}
+
+function buildMarketComparisons(currentRows, previousRows, geography, selectedMarkets = []) {
+  const selected = selectedMarkets.length
+    ? geography.children.filter((child) => selectedMarkets.includes(child.key) || selectedMarkets.includes(child.label))
+    : geography.children.slice(0, 5);
+  return selected.map((child) => {
+    const current = rowsForGeoChild(currentRows, child);
+    const previous = rowsForGeoChild(previousRows, child);
+    const kpis = computeKpis(current);
+    const prior = computeKpis(previous);
+    const demand = calculateDemandIndex(kpis, prior);
+    const weekend = current.filter((row) => {
+      const local = localTimeBuckets(row.occurred_at || row.received_at, row.timezone);
+      return local?.weekday === 0 || local?.weekday === 6;
+    }).length;
+    const restaurant = current.filter((row) => /restaurant|food|cafe|coffee|dining/i.test(extractCategoryHint(row, { category: row._category }) || ""));
+    return {
+      key: child.key,
+      label: child.label,
+      level: child.level,
+      demand_index: demand.score,
+      demand_status: demand.status,
+      demand_growth_pct: periodDelta(kpis.active_users, prior.active_users).reliable
+        ? periodDelta(kpis.active_users, prior.active_users).percent
+        : null,
+      restaurant_intent_share_pct: rate(
+        restaurant.filter((row) => PLACE_COMMERCE_EVENTS.has(row.event_name)).length,
+        kpis.commercial_intent,
+      ),
+      route_activity_share_pct: rate(kpis.route_views + kpis.route_starts, current.length),
+      weekend_demand_pct: rate(weekend, current.length),
+      sample_size: current.length,
+    };
+  });
 }
 
 function aggregateEntities(rows, entityType) {
@@ -861,6 +1101,119 @@ function aggregateEntities(rows, entityType) {
     groups.set(row.entity_id, current);
   }
   return [...groups.values()];
+}
+
+function discoverySource(row) {
+  const props = row?.properties || {};
+  const context = row?.context || {};
+  const raw =
+    row?.source_type ||
+    props.discovery_source ||
+    props.source_type ||
+    props.entry_point ||
+    props.referrer ||
+    context.discovery_source ||
+    context.source_type ||
+    context.entry_point ||
+    null;
+  const value = String(raw || "").trim().toLowerCase();
+  const known = new Set(["search", "map", "feed", "video", "route", "recommendation", "profile", "direct_link"]);
+  return known.has(value) ? value : "other";
+}
+
+function entitySourceMix(rows, entityType, entityId) {
+  const counts = new Map();
+  for (const row of rows) {
+    if (row.entity_type !== entityType || row.entity_id !== entityId) continue;
+    if (!(isPlaceView(row) || isRouteView(row) || VIEW_EVENTS.has(row.event_name))) continue;
+    const source = discoverySource(row);
+    counts.set(source, (counts.get(source) || 0) + 1);
+  }
+  const total = [...counts.values()].reduce((sum, value) => sum + value, 0) || 1;
+  return [...counts.entries()]
+    .map(([source, count]) => ({ source, count, share_pct: Math.round((count / total) * 1000) / 10 }))
+    .sort((a, b) => b.count - a.count);
+}
+
+function routeAttributionId(row) {
+  const props = row?.properties || {};
+  const context = row?.context || {};
+  const sourceType = row?.source_type || props.source_type || context.source_type;
+  return (
+    props.route_id ||
+    props.from_route_id ||
+    props.source_route_id ||
+    context.route_id ||
+    context.from_route_id ||
+    (sourceType === "route" ? row?.source_id || props.source_id || context.source_id : null) ||
+    null
+  );
+}
+
+function buildRouteJourney(rows, routeId) {
+  const routeRows = rows.filter((row) => row.entity_type === "route" && row.entity_id === routeId);
+  const starts = routeRows.filter((row) => row.event_name === "route_start");
+  const stopGroups = new Map();
+  for (const row of routeRows) {
+    if (!["route_stop_view", "route_step_view"].includes(row.event_name)) continue;
+    const props = row.properties || {};
+    const stopIndex = Number(props.stop_index ?? props.step_index ?? props.position);
+    const stopId = props.stop_id || props.place_id || `stop-${Number.isFinite(stopIndex) ? stopIndex : stopGroups.size + 1}`;
+    const key = String(stopId);
+    const current = stopGroups.get(key) || {
+      stop_id: key,
+      stop_index: Number.isFinite(stopIndex) ? stopIndex : stopGroups.size + 1,
+      stop_name: props.stop_name || props.place_name || `Stop ${Number.isFinite(stopIndex) ? stopIndex + 1 : stopGroups.size + 1}`,
+      actors: new Set(),
+      events: 0,
+    };
+    current.events += 1;
+    const actor = row.user_id || row.anonymous_id || row.session_id;
+    if (actor) current.actors.add(actor);
+    stopGroups.set(key, current);
+  }
+  const startActors = new Set(starts.map((row) => row.user_id || row.anonymous_id || row.session_id).filter(Boolean));
+  const denominator = Math.max(startActors.size, starts.length, 1);
+  let previousReach = 100;
+  const dropoff = [...stopGroups.values()]
+    .sort((a, b) => a.stop_index - b.stop_index)
+    .map((stop) => {
+      const visitors = Math.max(stop.actors.size, stop.events);
+      const reach = Math.min(100, rate(visitors, denominator) || 0);
+      const drop = Math.max(0, Math.round((previousReach - reach) * 10) / 10);
+      previousReach = reach;
+      return {
+        stop_id: stop.stop_id,
+        stop_index: stop.stop_index,
+        stop_name: stop.stop_name,
+        visitors,
+        reach_pct: reach,
+        dropoff_from_previous_pct: drop,
+      };
+    });
+  const majorDrop = [...dropoff].sort((a, b) => b.dropoff_from_previous_pct - a.dropoff_from_previous_pct)[0] || null;
+
+  const attributed = rows.filter((row) => routeAttributionId(row) === routeId);
+  return {
+    funnel: {
+      discovery: routeRows.filter((row) => row.event_name === "route_impression").length,
+      views: routeRows.filter(isRouteView).length,
+      saves: routeRows.filter((row) => row.event_name === "route_save").length,
+      starts: starts.length,
+      stops_visited: dropoff.reduce((sum, stop) => sum + stop.visitors, 0),
+      completes: routeRows.filter((row) => row.event_name === "route_complete").length,
+      commercial_actions: attributed.filter((row) => PLACE_COMMERCE_EVENTS.has(row.event_name)).length,
+    },
+    dropoff,
+    major_drop: majorDrop && majorDrop.dropoff_from_previous_pct >= 15 ? majorDrop : null,
+    dropoff_status: dropoff.length ? "ready" : starts.length ? "missing_tracking" : "zero",
+    generated: {
+      place_saves: attributed.filter((row) => row.event_name === "place_save").length,
+      directions: attributed.filter((row) => row.event_name === "place_get_directions").length,
+      website_clicks: attributed.filter((row) => row.event_name === "place_website_click").length,
+      calls: attributed.filter((row) => row.event_name === "place_call").length,
+    },
+  };
 }
 
 function applyCategoryFilter(items, category, metaById, kind) {
@@ -902,8 +1255,11 @@ async function enrichPlaces(supabase, rows, previousRows, params) {
       directions: item.directions,
       calls: item.calls,
       website_clicks: item.website_clicks,
+      intent_rate: rate(item.intent, item.views),
       rating: info.rating == null ? null : Number(info.rating),
       trend_pct: prev && prev.views >= MOVER_MIN_PREVIOUS ? delta.percent : null,
+      discovery_sources: entitySourceMix(rows, "place", item.entity_id),
+      peak_demand: buildPeakDemand(rows.filter((row) => row.entity_type === "place" && row.entity_id === item.entity_id)).peak_window,
       data_quality: unknown ? "missing_name" : "ok",
     };
   });
@@ -930,6 +1286,7 @@ async function enrichRoutes(supabase, rows, previousRows, params) {
     const info = routeMeta(meta.get(item.entity_id));
     const prev = previous.get(item.entity_id);
     const delta = buildDelta(item.views, prev?.views || 0);
+    const journey = buildRouteJourney(rows, item.entity_id);
     return {
       route_id: item.entity_id,
       route_name: info.name || "Unknown route",
@@ -943,8 +1300,15 @@ async function enrichRoutes(supabase, rows, previousRows, params) {
       starts: item.route_starts,
       completes: item.route_completes,
       completion_rate: rate(item.route_completes, item.route_starts),
-      commercial_actions: item.intent,
+      commercial_actions: item.intent + journey.funnel.commercial_actions,
+      intent_rate: rate(item.intent + journey.funnel.commercial_actions, item.views),
       trend_pct: prev && prev.views >= MOVER_MIN_PREVIOUS ? delta.percent : null,
+      discovery_sources: entitySourceMix(rows, "route", item.entity_id),
+      funnel: journey.funnel,
+      dropoff: journey.dropoff,
+      major_drop: journey.major_drop,
+      dropoff_status: journey.dropoff_status,
+      generated: journey.generated,
       data_quality: info.name ? "ok" : "missing_name",
     };
   });
@@ -959,24 +1323,57 @@ async function enrichRoutes(supabase, rows, previousRows, params) {
   };
 }
 
-async function buildCategories(supabase, rows) {
-  const placeIds = rows.filter((row) => row.entity_type === "place" && row.entity_id).map((row) => row.entity_id);
-  const meta = await fetchEntityMeta(supabase, "places", placeIds);
-  const counts = new Map();
+function aggregateCategories(rows) {
+  const groups = new Map();
   for (const row of rows) {
-    if (!(isPlaceView(row) || row.entity_type === "place" || SEARCH_EVENTS.has(row.event_name))) continue;
-    const hint = extractCategoryHint(row, placeMeta(meta.get(row.entity_id)));
+    if (!(isPlaceView(row) || isRouteView(row) || row.entity_type === "place" || row.entity_type === "route" || SEARCH_EVENTS.has(row.event_name))) continue;
+    const hint = extractCategoryHint(row, { category: row._category });
     const key = hint ? String(hint) : "Uncategorized";
-    counts.set(key, (counts.get(key) || 0) + 1);
+    const current = groups.get(key) || {
+      category: key,
+      demand: 0,
+      views: 0,
+      saves: 0,
+      intent: 0,
+      searches: 0,
+      supply: new Set(),
+    };
+    current.demand += 1;
+    if (isPlaceView(row) || isRouteView(row)) current.views += 1;
+    if (SAVE_EVENTS.has(row.event_name)) current.saves += 1;
+    if (PLACE_COMMERCE_EVENTS.has(row.event_name)) current.intent += 1;
+    if (isSearchEvent(row)) current.searches += 1;
+    if (["place", "route"].includes(row.entity_type) && row.entity_id) current.supply.add(`${row.entity_type}:${row.entity_id}`);
+    groups.set(key, current);
   }
-  const total = [...counts.values()].reduce((a, b) => a + b, 0) || 1;
-  return [...counts.entries()]
-    .map(([category, count]) => ({
-      category,
-      count,
-      share_pct: Math.round((count / total) * 1000) / 10,
-    }))
-    .sort((a, b) => b.count - a.count)
+  return groups;
+}
+
+async function buildCategories(_supabase, rows, previousRows = []) {
+  const current = aggregateCategories(rows);
+  const previous = aggregateCategories(previousRows);
+  const total = [...current.values()].reduce((sum, item) => sum + item.demand, 0) || 1;
+  const categories = [...current.values()].map((item) => {
+    const prior = previous.get(item.category);
+    const delta = periodDelta(item.demand, prior?.demand || 0);
+    return {
+      category: item.category,
+      count: item.demand,
+      demand: item.demand,
+      previous_demand: prior?.demand || 0,
+      share_pct: Math.round((item.demand / total) * 1000) / 10,
+      growth_pct: delta.reliable ? delta.percent : null,
+      supply: item.supply.size,
+      views: item.views,
+      searches: item.searches,
+      saves: item.saves,
+      intent: item.intent,
+      intent_rate: rate(item.intent, item.views),
+      save_rate: rate(item.saves, item.views),
+    };
+  });
+  return enrichCategoryIntelligence(categories)
+    .sort((a, b) => b.demand - a.demand)
     .slice(0, 20);
 }
 
@@ -1002,14 +1399,15 @@ function extractResultCount(row) {
   return Number.isFinite(value) ? value : null;
 }
 
-function buildSearches(rows) {
+function buildSearches(rows, previousRows = []) {
   const submitted = rows.filter((row) => ["search_performed", "search_submitted"].includes(row.event_name));
   const noResults = rows.filter((row) => row.event_name === "search_no_results");
   const clicks = rows.filter((row) => row.event_name === "search_result_clicked");
+  const attributed = rows.filter((row) => isPlaceView(row) || PLACE_COMMERCE_EVENTS.has(row.event_name));
 
   const byKey = new Map();
   let missingHash = 0;
-  for (const row of [...submitted, ...noResults]) {
+  for (const row of [...submitted, ...noResults, ...clicks, ...attributed]) {
     const hash = extractQueryHash(row);
     const display = extractDisplayQuery(row);
     const key = hash || (display ? `text:${display.toLowerCase()}` : null);
@@ -1022,11 +1420,17 @@ function buildSearches(rows) {
       display_query: null,
       count: 0,
       no_results: 0,
+      result_clicks: 0,
+      place_conversions: 0,
+      intent_conversions: 0,
       result_count_sum: 0,
       result_count_n: 0,
     };
-    current.count += 1;
+    if (["search_performed", "search_submitted"].includes(row.event_name)) current.count += 1;
     if (row.event_name === "search_no_results") current.no_results += 1;
+    if (row.event_name === "search_result_clicked") current.result_clicks += 1;
+    if (isPlaceView(row)) current.place_conversions += 1;
+    if (PLACE_COMMERCE_EVENTS.has(row.event_name)) current.intent_conversions += 1;
     if (display) current.display_query = display;
     const resultCount = extractResultCount(row);
     if (resultCount != null) {
@@ -1049,6 +1453,10 @@ function buildSearches(rows) {
         display_query: canShowText ? item.display_query : null,
         count: item.count,
         no_results: item.no_results,
+        result_clicks: item.result_clicks,
+        ctr: rate(item.result_clicks, item.count),
+        conversion_to_place: rate(item.place_conversions, item.count),
+        conversion_to_intent: rate(item.intent_conversions, item.count),
         avg_results:
           item.result_count_n > 0 ? Math.round((item.result_count_sum / item.result_count_n) * 10) / 10 : null,
         text_visible: canShowText,
@@ -1071,6 +1479,7 @@ function buildSearches(rows) {
         searches: item.count,
         matching_places: avgResults == null ? null : Math.round(avgResults),
         no_results: item.no_results,
+        opportunity: item.count >= 30 && (item.no_results >= item.count * 0.5 || (avgResults != null && avgResults <= 2)) ? "High" : "Medium",
         detail:
           avgResults != null
             ? `${item.count} searches · ~${Math.round(avgResults)} matching results`
@@ -1095,6 +1504,13 @@ function buildSearches(rows) {
       search_ctr: rate(clicks.length, submitted.length),
       missing_query_hash: missingHash,
       text_visibility_threshold: SEARCH_DISPLAY_MIN,
+      growth_pct:
+        previousRows.filter((row) => ["search_performed", "search_submitted"].includes(row.event_name)).length >= MOVER_MIN_PREVIOUS
+          ? periodDelta(
+              submitted.length,
+              previousRows.filter((row) => ["search_performed", "search_submitted"].includes(row.event_name)).length,
+            ).percent
+          : null,
     },
     top_searches: top,
     low_supply: lowSupply,
@@ -1110,6 +1526,7 @@ function explicitSourceContentId(row) {
   const props = row?.properties || {};
   const context = row?.context || {};
   return (
+    (["video", "post", "content", "creator"].includes(row?.source_type) ? row?.source_id : null) ||
     props.from_video_id ||
     props.video_id ||
     props.source_content_id ||
@@ -1383,14 +1800,17 @@ function buildMovers(places, routes, geography) {
 }
 
 function travelerOrigins(rows, params) {
-  // When filtered to a destination, approximate origin via locale country when event country differs
-  // or use all event countries as traveler markets for destination content engagement.
   if (!params.country && !params.region && !params.city) {
     return { available: false, markets: [], note: "Select a destination to compare traveler markets." };
   }
   const counts = new Map();
   for (const row of rows) {
-    const origin = marketCountry(row);
+    const origin = normalizeCountryCode(
+      row.properties?.origin_country ||
+        row.context?.origin_country ||
+        row.context?.home_country ||
+        countryFromLocale(row.locale),
+    );
     if (!origin) continue;
     counts.set(origin, (counts.get(origin) || 0) + 1);
   }
@@ -1408,15 +1828,94 @@ function travelerOrigins(rows, params) {
   return {
     available: markets.length > 0,
     markets,
-    note: "Aggregated market mix from privacy-safe country/locale fields in the destination filter.",
+    note: "Aggregated origin mix from privacy-safe origin-country or locale fields. Individual locations are never returned.",
+  };
+}
+
+function audienceSegmentation(rows, params, categories) {
+  const segments = { local: 0, domestic_traveler: 0, international_traveler: 0, unknown: 0 };
+  for (const row of rows) {
+    const explicit = String(row.properties?.traveler_segment || row.context?.traveler_segment || "").toLowerCase();
+    if (["local", "domestic_traveler", "international_traveler"].includes(explicit)) {
+      segments[explicit] += 1;
+      continue;
+    }
+    const originCountry = normalizeCountryCode(
+      row.properties?.origin_country || row.context?.origin_country || countryFromLocale(row.locale),
+    );
+    const originCity = String(row.properties?.origin_city || row.context?.origin_city || "").trim().toLowerCase();
+    if (params.city && originCity && originCity === String(params.city).toLowerCase()) segments.local += 1;
+    else if (params.country && originCountry === params.country) segments.domestic_traveler += 1;
+    else if (params.country && originCountry) segments.international_traveler += 1;
+    else segments.unknown += 1;
+  }
+  const total = Object.values(segments).reduce((sum, value) => sum + value, 0) || 1;
+  const mix = Object.entries(segments)
+    .map(([segment, count]) => ({
+      segment,
+      count,
+      share_pct: Math.round((count / total) * 1000) / 10,
+    }))
+    .filter((item) => item.segment === "unknown" || item.count >= MIN_USERS_FOR_SEGMENT);
+  const behaviorTotal = categories.reduce((sum, item) => sum + item.demand, 0) || 1;
+  const behavior = categories
+    .filter((item) => item.demand >= MIN_USERS_FOR_SEGMENT)
+    .slice(0, 8)
+    .map((item) => ({
+      segment: item.category,
+      count: item.demand,
+      share_pct: Math.round((item.demand / behaviorTotal) * 1000) / 10,
+    }));
+  return {
+    traveler_mix: mix,
+    behavior,
+    status: rows.length >= MIN_RELIABLE_SAMPLE ? "ready" : "low_sample",
+    privacy_note: "Behavioral segments are aggregated from Explore activity and never use sensitive personal attributes.",
+  };
+}
+
+function discoveryAttribution(rows) {
+  const counts = new Map();
+  for (const row of rows) {
+    if (!(isPlaceView(row) || isRouteView(row) || PLACE_COMMERCE_EVENTS.has(row.event_name))) continue;
+    const source = discoverySource(row);
+    counts.set(source, (counts.get(source) || 0) + 1);
+  }
+  const total = [...counts.values()].reduce((sum, value) => sum + value, 0) || 1;
+  const sources = [...counts.entries()]
+    .map(([source, count]) => ({ source, count, share_pct: Math.round((count / total) * 1000) / 10 }))
+    .filter((item) => item.count >= MIN_USERS_FOR_SEGMENT)
+    .sort((a, b) => b.count - a.count);
+  return {
+    available: sources.length > 0,
+    sources,
   };
 }
 
 async function loadScoped(supabase, params) {
-  const fetched = await fetchEventsInRange(supabase, params);
+  let geoIds = null;
+  if (params.geo_id) {
+    try {
+      const descendants = await supabase.rpc("business_geo_descendant_ids", { root_geo_id: params.geo_id });
+      if (!descendants.error) geoIds = (descendants.data || []).map((row) => row.geo_id).filter(Boolean);
+    } catch {
+      geoIds = null;
+    }
+  }
+  const scopedParams = geoIds?.length ? { ...params, geo_ids: geoIds } : params;
+  const fetched = await fetchEventsInRange(supabase, scopedParams);
   const enriched = await enrichRowsWithCatalogGeo(supabase, fetched.rows);
-  const rows = filterRows(enriched, params);
+  const rows = filterRows(enriched, scopedParams);
   const warnings = [];
+  if (fetched.validity_view_missing) {
+    warnings.push(
+      warning(
+        "analytics_validity_view_missing",
+        "analytics_normalized_events is not installed yet; this response fell back to raw idempotent events.",
+        "warning",
+      ),
+    );
+  }
   if (fetched.truncated) {
     warnings.push(
       warning(
@@ -1429,22 +1928,26 @@ async function loadScoped(supabase, params) {
   if (params.country && enriched.length && !rows.length) {
     warnings.push(warning("geo_filter_empty", "No events matched the selected geography after place-catalog enrichment."));
   }
-  return { rows, warnings, fetched: fetched.fetched };
+  return { rows, warnings, fetched: fetched.fetched, validity_view_missing: Boolean(fetched.validity_view_missing) };
 }
 
 export async function getBusinessIntelligenceDashboard(supabase, params) {
   const current = await loadScoped(supabase, params);
   const prevParams = previousParams(params);
   const previous = prevParams ? await loadScoped(supabase, prevParams) : { rows: [], warnings: [] };
+  const productionQualityPromise =
+    params.access_scope === "admin_global"
+      ? supabase.rpc("business_intelligence_quality_report")
+      : Promise.resolve({ data: null, error: null });
 
   const kpis = computeKpis(current.rows);
   const previousKpis = computeKpis(previous.rows);
   const deltas = Object.fromEntries(Object.keys(kpis).map((key) => [key, buildDelta(kpis[key] ?? 0, previousKpis[key] ?? 0)]));
 
-  const geography = buildGeography(current.rows, params, params.map_metric);
+  const geography = buildGeography(current.rows, params, params.map_metric, previous.rows);
   const placesPack = await enrichPlaces(supabase, current.rows, previous.rows, params);
   const routesPack = await enrichRoutes(supabase, current.rows, previous.rows, params);
-  const categories = await buildCategories(supabase, current.rows);
+  const categories = await buildCategories(supabase, current.rows, previous.rows);
   const filteredPlaces =
     params.category != null && params.category !== ""
       ? placesPack.places.filter((place) => String(place.category).toLowerCase() === params.category.toLowerCase())
@@ -1456,8 +1959,22 @@ export async function getBusinessIntelligenceDashboard(supabase, params) {
 
   const funnel = buildCommerceFunnel(current.rows);
   const timeseries = buildTimeseries(current.rows, params.granularity);
+  const previousTimeseries = buildTimeseries(previous.rows, params.granularity);
+  const comparisonTimeseries = timeseries.map((point, index) => {
+    const previousPoint = previousTimeseries[index] || {};
+    return {
+      ...point,
+      previous_users: previousPoint.users || 0,
+      previous_sessions: previousPoint.sessions || 0,
+      previous_place_views: previousPoint.place_views || 0,
+      previous_route_views: previousPoint.route_views || 0,
+      previous_searches: previousPoint.searches || 0,
+      previous_saves: previousPoint.saves || 0,
+      previous_commercial_actions: previousPoint.commercial_actions || 0,
+    };
+  });
   const peak = buildPeakDemand(current.rows);
-  const searches = buildSearches(current.rows);
+  const searches = buildSearches(current.rows, previous.rows);
   const content = await buildContentAttribution(supabase, current.rows);
   const opportunities = buildOpportunities({
     geography,
@@ -1477,15 +1994,63 @@ export async function getBusinessIntelligenceDashboard(supabase, params) {
   });
   const movers = buildMovers(filteredPlaces, filteredRoutes, geography);
   const origins = travelerOrigins(current.rows, params);
+  const demandIndex = calculateDemandIndex(kpis, previousKpis);
+  const marketLabel = geography.breadcrumb[geography.breadcrumb.length - 1]?.label || "Global";
+  const range = { start: params.start, end: params.end, preset: params.preset };
+  const comparisonRange = prevParams ? { start: prevParams.start, end: prevParams.end } : null;
+  const executiveSummary = buildExecutiveSummary({
+    marketLabel,
+    range,
+    kpis,
+    previousKpis,
+    categories,
+    peak,
+  });
+  const insights = buildDecisionInsights({
+    range,
+    comparisonRange,
+    kpis,
+    previousKpis,
+    categories,
+    peak,
+    movers,
+  });
+  const placesWithBenchmarks = filteredPlaces.map((place) => ({
+    ...place,
+    benchmark: buildBusinessBenchmark(place, filteredPlaces),
+  }));
+  const dataAsOf = latestDataAsOf(current.rows);
+  const categorySupplyDemand = categoryMatrix(categories);
+  const audience = audienceSegmentation(current.rows, params, categories);
+  const marketComparison = buildMarketComparisons(current.rows, previous.rows, geography, params.compare_markets);
+  const attribution = discoveryAttribution(current.rows);
+  const unresolvedPlaces = filteredPlaces.filter((item) => !item.name_resolved).length;
+  const unresolvedRoutes = filteredRoutes.filter((item) => !item.name_resolved).length;
+  const missingGeography = current.rows.filter((row) => !marketCountry(row)).length;
+  let productionQuality = null;
+  try {
+    const result = await productionQualityPromise;
+    if (!result?.error) productionQuality = result?.data || null;
+  } catch {
+    productionQuality = null;
+  }
 
   return {
-    range: { start: params.start, end: params.end, preset: params.preset },
+    core_version: BUSINESS_ANALYTICS_CORE_VERSION,
+    data_as_of: dataAsOf,
+    range,
     filters: {
       country: params.country,
       region: params.region,
       city: params.city,
       neighborhood: params.neighborhood,
       category: params.category,
+      geo_id: params.geo_id,
+      category_id: params.category_id,
+      business_id: params.business_id,
+      location_id: params.location_id,
+      platform: params.platform,
+      source: params.source,
       compare: params.compare,
       granularity: params.granularity,
       map_metric: params.map_metric,
@@ -1495,24 +2060,60 @@ export async function getBusinessIntelligenceDashboard(supabase, params) {
         ? null
         : {
             mode: params.compare,
-            previous_period: prevParams ? { start: prevParams.start, end: prevParams.end } : null,
+            previous_period: comparisonRange,
             deltas,
           },
     kpis,
     kpi_definitions: kpiDefinitions(),
+    metric_dictionary: metricDefinitionsForClient(),
+    event_taxonomy: eventTaxonomyForClient(),
+    executive_summary: executiveSummary,
+    demand_index: demandIndex,
     geography,
+    market_comparison: marketComparison,
     funnel,
-    timeseries,
+    timeseries: comparisonTimeseries,
     peak_demand: peak,
     categories,
-    places: filteredPlaces,
+    supply_demand_matrix: categorySupplyDemand,
+    places: placesWithBenchmarks,
     routes: filteredRoutes,
     searches,
     content_attribution: content,
-    opportunities,
+    opportunities: {
+      ...opportunities,
+      category_scores: categories
+        .filter((item) => item.opportunity_score != null)
+        .sort((a, b) => b.opportunity_score - a.opportunity_score),
+      matrix: categorySupplyDemand,
+    },
     business_signals: signals,
     movers,
+    insights,
+    what_changed: insights.filter((item) => ["growth", "decline", "trend"].includes(item.type)),
     traveler_origins: origins,
+    audience,
+    discovery_attribution: attribution,
+    business_performance:
+      params.place_id && placesWithBenchmarks.length
+        ? placesWithBenchmarks.find((item) => item.place_id === params.place_id)?.benchmark || null
+        : null,
+    data_quality: {
+      status: current.validity_view_missing ? "degraded" : "ready",
+      valid_events: current.rows.length,
+      unknown_places: unresolvedPlaces,
+      unknown_routes: unresolvedRoutes,
+      missing_geography: missingGeography,
+      validity_view_active: !current.validity_view_missing,
+      geo_coverage_pct: productionQuality?.events_with_geo_pct ?? null,
+      place_resolution_pct: productionQuality?.place_resolution_pct ?? null,
+      route_resolution_pct: productionQuality?.route_resolution_pct ?? null,
+      rejected_events: productionQuality?.rejected_events ?? null,
+      aggregation_failures: productionQuality?.aggregation_failures ?? null,
+      possible_duplicate_places: productionQuality?.possible_duplicate_places ?? null,
+      last_aggregation: productionQuality?.last_aggregation ?? null,
+    },
+    state: current.rows.length ? "ready" : "zero",
     warnings: [...current.warnings, ...placesPack.warnings, ...routesPack.warnings, ...previous.warnings],
   };
 }
@@ -1520,11 +2121,18 @@ export async function getBusinessIntelligenceDashboard(supabase, params) {
 export async function getBusinessIntelligenceOverview(supabase, params) {
   const dash = await getBusinessIntelligenceDashboard(supabase, params);
   return {
+    core_version: dash.core_version,
+    data_as_of: dash.data_as_of,
     range: dash.range,
     filters: dash.filters,
     comparison: dash.comparison,
     kpis: dash.kpis,
     kpi_definitions: dash.kpi_definitions,
+    executive_summary: dash.executive_summary,
+    demand_index: dash.demand_index,
+    insights: dash.insights.slice(0, 5),
+    business_performance: dash.business_performance,
+    state: dash.state,
     geography: { breadcrumb: dash.geography.breadcrumb, level: dash.geography.level, region_terminology: dash.geography.region_terminology },
     warnings: dash.warnings,
   };
@@ -1532,8 +2140,10 @@ export async function getBusinessIntelligenceOverview(supabase, params) {
 
 export async function getBusinessIntelligenceGeography(supabase, params) {
   const current = await loadScoped(supabase, params);
-  const geography = buildGeography(current.rows, params, params.map_metric);
-  return { range: { start: params.start, end: params.end, preset: params.preset }, filters: params, geography, warnings: current.warnings };
+  const prevParams = previousParams(params);
+  const previous = prevParams ? await loadScoped(supabase, prevParams) : { rows: [] };
+  const geography = buildGeography(current.rows, params, params.map_metric, previous.rows);
+  return { range: { start: params.start, end: params.end, preset: params.preset }, data_as_of: latestDataAsOf(current.rows), filters: params, geography, warnings: current.warnings };
 }
 
 export async function getBusinessIntelligencePlaces(supabase, params) {
@@ -1541,7 +2151,7 @@ export async function getBusinessIntelligencePlaces(supabase, params) {
   const prevParams = previousParams(params);
   const previous = prevParams ? await loadScoped(supabase, prevParams) : { rows: [] };
   const pack = await enrichPlaces(supabase, current.rows, previous.rows, params);
-  return { range: { start: params.start, end: params.end, preset: params.preset }, places: pack.places, warnings: [...current.warnings, ...pack.warnings] };
+  return { range: { start: params.start, end: params.end, preset: params.preset }, data_as_of: latestDataAsOf(current.rows), places: pack.places, warnings: [...current.warnings, ...pack.warnings] };
 }
 
 export async function getBusinessIntelligenceRoutes(supabase, params) {
@@ -1549,19 +2159,22 @@ export async function getBusinessIntelligenceRoutes(supabase, params) {
   const prevParams = previousParams(params);
   const previous = prevParams ? await loadScoped(supabase, prevParams) : { rows: [] };
   const pack = await enrichRoutes(supabase, current.rows, previous.rows, params);
-  return { range: { start: params.start, end: params.end, preset: params.preset }, routes: pack.routes, warnings: [...current.warnings, ...pack.warnings] };
+  return { range: { start: params.start, end: params.end, preset: params.preset }, data_as_of: latestDataAsOf(current.rows), routes: pack.routes, warnings: [...current.warnings, ...pack.warnings] };
 }
 
 export async function getBusinessIntelligenceCategories(supabase, params) {
   const current = await loadScoped(supabase, params);
-  const categories = await buildCategories(supabase, current.rows);
-  return { range: { start: params.start, end: params.end, preset: params.preset }, categories, warnings: current.warnings };
+  const prevParams = previousParams(params);
+  const previous = prevParams ? await loadScoped(supabase, prevParams) : { rows: [] };
+  const categories = await buildCategories(supabase, current.rows, previous.rows);
+  return { range: { start: params.start, end: params.end, preset: params.preset }, data_as_of: latestDataAsOf(current.rows), categories, warnings: current.warnings };
 }
 
 export async function getBusinessIntelligenceTimeseries(supabase, params) {
   const current = await loadScoped(supabase, params);
   return {
     range: { start: params.start, end: params.end, preset: params.preset },
+    data_as_of: latestDataAsOf(current.rows),
     granularity: params.granularity,
     series: buildTimeseries(current.rows, params.granularity),
     warnings: current.warnings,
@@ -1570,25 +2183,263 @@ export async function getBusinessIntelligenceTimeseries(supabase, params) {
 
 export async function getBusinessIntelligenceFunnel(supabase, params) {
   const current = await loadScoped(supabase, params);
-  return { range: { start: params.start, end: params.end, preset: params.preset }, funnel: buildCommerceFunnel(current.rows), warnings: current.warnings };
+  return { range: { start: params.start, end: params.end, preset: params.preset }, data_as_of: latestDataAsOf(current.rows), funnel: buildCommerceFunnel(current.rows), warnings: current.warnings };
 }
 
 export async function getBusinessIntelligenceSearches(supabase, params) {
   const current = await loadScoped(supabase, params);
-  return { range: { start: params.start, end: params.end, preset: params.preset }, ...buildSearches(current.rows), warnings: current.warnings };
+  const prevParams = previousParams(params);
+  const previous = prevParams ? await loadScoped(supabase, prevParams) : { rows: [] };
+  return { range: { start: params.start, end: params.end, preset: params.preset }, data_as_of: latestDataAsOf(current.rows), ...buildSearches(current.rows, previous.rows), warnings: current.warnings };
 }
 
 export async function getBusinessIntelligenceOpportunities(supabase, params) {
   const dash = await getBusinessIntelligenceDashboard(supabase, params);
-  return { range: dash.range, opportunities: dash.opportunities, business_signals: dash.business_signals, movers: dash.movers, warnings: dash.warnings };
+  return { range: dash.range, data_as_of: dash.data_as_of, opportunities: dash.opportunities, business_signals: dash.business_signals, movers: dash.movers, warnings: dash.warnings };
 }
 
 export async function getBusinessIntelligenceContentAttribution(supabase, params) {
   const current = await loadScoped(supabase, params);
   const content = await buildContentAttribution(supabase, current.rows);
-  return { range: { start: params.start, end: params.end, preset: params.preset }, ...content, warnings: current.warnings };
+  return { range: { start: params.start, end: params.end, preset: params.preset }, data_as_of: latestDataAsOf(current.rows), ...content, warnings: current.warnings };
 }
 
 export async function getBusinessIntelligenceMarkets(supabase, params) {
   return getBusinessIntelligenceGeography(supabase, params);
+}
+
+export async function getBusinessIntelligenceExecutiveSummary(supabase, params) {
+  const dash = await getBusinessIntelligenceDashboard(supabase, params);
+  return {
+    range: dash.range,
+    data_as_of: dash.data_as_of,
+    executive_summary: dash.executive_summary,
+    kpis: dash.kpis,
+    demand_index: dash.demand_index,
+    warnings: dash.warnings,
+  };
+}
+
+export async function getBusinessIntelligenceCompare(supabase, params) {
+  const dash = await getBusinessIntelligenceDashboard(supabase, params);
+  return { range: dash.range, data_as_of: dash.data_as_of, markets: dash.market_comparison, warnings: dash.warnings };
+}
+
+export async function getBusinessIntelligenceDemand(supabase, params) {
+  const dash = await getBusinessIntelligenceDashboard(supabase, params);
+  return {
+    range: dash.range,
+    data_as_of: dash.data_as_of,
+    demand_index: dash.demand_index,
+    timeseries: dash.timeseries,
+    comparison: dash.comparison,
+    movers: dash.movers,
+    warnings: dash.warnings,
+  };
+}
+
+export async function getBusinessIntelligenceUnmetDemand(supabase, params) {
+  const searches = await getBusinessIntelligenceSearches(supabase, params);
+  return { range: searches.range, data_as_of: searches.data_as_of, unmet_demand: searches.low_supply, warnings: searches.warnings };
+}
+
+export async function getBusinessIntelligencePlaceDetail(supabase, params) {
+  if (!params.place_id) {
+    throw new BusinessIntelligenceError(400, "place_id is required.", { code: "bi_place_required" });
+  }
+  const dash = await getBusinessIntelligenceDashboard(supabase, { ...params, place_id: null });
+  const place = dash.places.find((item) => item.place_id === params.place_id) || null;
+  return {
+    range: dash.range,
+    data_as_of: dash.data_as_of,
+    place,
+    benchmark: place?.benchmark || null,
+    audience: dash.audience,
+    warnings: dash.warnings,
+    state: place ? "ready" : "zero",
+  };
+}
+
+export async function getBusinessIntelligenceRouteDetail(supabase, params) {
+  if (!params.route_id) {
+    throw new BusinessIntelligenceError(400, "route_id is required.", { code: "bi_route_required" });
+  }
+  const dash = await getBusinessIntelligenceDashboard(supabase, { ...params, route_id: null });
+  const route = dash.routes.find((item) => item.route_id === params.route_id) || null;
+  return {
+    range: dash.range,
+    data_as_of: dash.data_as_of,
+    route,
+    warnings: dash.warnings,
+    state: route ? "ready" : "zero",
+  };
+}
+
+export async function getBusinessIntelligenceAudience(supabase, params) {
+  const dash = await getBusinessIntelligenceDashboard(supabase, params);
+  return {
+    range: dash.range,
+    data_as_of: dash.data_as_of,
+    audience: dash.audience,
+    traveler_origins: dash.traveler_origins,
+    warnings: dash.warnings,
+  };
+}
+
+export async function getBusinessIntelligenceTime(supabase, params) {
+  const current = await loadScoped(supabase, params);
+  return {
+    range: { start: params.start, end: params.end, preset: params.preset },
+    data_as_of: current.rows.map((row) => row.received_at || row.occurred_at).filter(Boolean).sort().at(-1) || null,
+    peak_demand: buildPeakDemand(current.rows),
+    warnings: current.warnings,
+  };
+}
+
+export async function getBusinessIntelligenceInsights(supabase, params) {
+  const dash = await getBusinessIntelligenceDashboard(supabase, params);
+  return {
+    range: dash.range,
+    data_as_of: dash.data_as_of,
+    insights: dash.insights,
+    what_changed: dash.what_changed,
+    warnings: dash.warnings,
+  };
+}
+
+export async function getBusinessIntelligenceBenchmarks(supabase, params) {
+  const dash = await getBusinessIntelligenceDashboard(supabase, params);
+  return {
+    range: dash.range,
+    data_as_of: dash.data_as_of,
+    business_performance: dash.business_performance,
+    places: dash.places.map((place) => ({
+      place_id: place.place_id,
+      place_name: place.place_name,
+      category: place.category,
+      benchmark: place.benchmark,
+    })),
+    warnings: dash.warnings,
+  };
+}
+
+export function buildBusinessMobileOverviewPayload(dash, params) {
+  const benchmark = dash.business_performance;
+  const directions = dash.places.reduce((sum, place) => sum + Number(place.directions || 0), 0);
+  const kpiValues = {
+    place_views: dash.kpis.place_views,
+    saves: dash.kpis.saves,
+    directions,
+  };
+  const mobileKpis = [
+    { metric: "place_views", value: kpiValues.place_views, delta: dash.comparison?.deltas?.place_views || null },
+    { metric: "saves", value: kpiValues.saves, delta: dash.comparison?.deltas?.saves || null },
+    { metric: "directions", value: kpiValues.directions, delta: null },
+  ];
+  return {
+    business: { business_id: params.business_id || null, location_id: params.location_id || null },
+    period: dash.range,
+    range: dash.range,
+    data_as_of: dash.data_as_of,
+    summary: dash.executive_summary,
+    kpis: mobileKpis,
+    kpi_values: kpiValues,
+    comparison: dash.comparison,
+    business_score: benchmark
+      ? { score: benchmark.score ?? null, status: benchmark.status, components: benchmark.components, version: benchmark.version }
+      : { score: null, status: "insufficient_data", components: null, version: "v1" },
+    business_score_value: benchmark?.score ?? null,
+    what_changed: dash.what_changed.slice(0, 3),
+    top_insights: dash.insights.slice(0, 3),
+    peak_demand: dash.peak_demand,
+    strongest_period: dash.peak_demand.peak_window,
+    insights: dash.insights.slice(0, 3),
+    state: dash.state,
+  };
+}
+
+export async function getBusinessIntelligenceMobileOverview(supabase, params) {
+  const dash = await getBusinessIntelligenceDashboard(supabase, params);
+  return buildBusinessMobileOverviewPayload(dash, params);
+}
+
+export function getBusinessIntelligenceDefinitions() {
+  return {
+    core_version: BUSINESS_ANALYTICS_CORE_VERSION,
+    metric_dictionary: metricDefinitionsForClient(),
+    event_taxonomy: eventTaxonomyForClient(),
+  };
+}
+
+export async function getBusinessIntelligenceHealth(supabase, params) {
+  const current = await loadScoped(supabase, params);
+  const received = current.rows.length;
+  const delayed = current.rows.filter((row) => {
+    const occurred = Date.parse(row.occurred_at || "");
+    const receivedAt = Date.parse(row.received_at || "");
+    return Number.isFinite(occurred) && Number.isFinite(receivedAt) && receivedAt - occurred > 15 * 60 * 1000;
+  }).length;
+  const missingGeo = current.rows.filter((row) => !marketCountry(row)).length;
+  let invalidEvents = null;
+  let lastAggregation = null;
+  let productionQuality = null;
+  try {
+    const deadLetters = await supabase
+      .from("analytics_event_dead_letters")
+      .select("id", { count: "exact", head: true })
+      .gte("received_at", params.since)
+      .lt("received_at", params.until);
+    if (!deadLetters.error) invalidEvents = deadLetters.count || 0;
+  } catch {
+    invalidEvents = null;
+  }
+  try {
+    const aggregation = await supabase
+      .from("business_aggregation_runs")
+      .select("job_finished_at, status, events_processed, records_generated")
+      .eq("status", "succeeded")
+      .order("job_finished_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!aggregation.error) lastAggregation = aggregation.data?.job_finished_at || null;
+  } catch {
+    lastAggregation = null;
+  }
+  try {
+    const qualityReport = await supabase.rpc("business_intelligence_quality_report");
+    if (!qualityReport.error) productionQuality = qualityReport.data || null;
+  } catch {
+    productionQuality = null;
+  }
+  const quality = invalidEvents == null ? null : received + invalidEvents > 0 ? Math.round((received / (received + invalidEvents)) * 1000) / 10 : 100;
+  const dataAsOf = latestDataAsOf(current.rows);
+  const processingLagSeconds = dataAsOf ? Math.max(0, Math.round((Date.now() - Date.parse(dataAsOf)) / 1000)) : null;
+  const healthy = !current.validity_view_missing && Number(productionQuality?.aggregation_failures || 0) === 0;
+  return {
+    range: { start: params.start, end: params.end, preset: params.preset },
+    analytics_health: {
+      score_pct: quality,
+      events_received: received,
+      invalid_events: invalidEvents,
+      missing_geography: missingGeo,
+      duplicate_events: 0,
+      delayed_events: delayed,
+      schema_errors: current.validity_view_missing ? 1 : 0,
+      last_successful_aggregation: lastAggregation,
+      last_event: dataAsOf,
+      processing_lag_seconds: processingLagSeconds,
+      system_status: healthy ? "healthy" : current.validity_view_missing ? "schema_missing" : "degraded",
+      raw_events: productionQuality?.events_total ?? null,
+      valid_events_total: productionQuality?.valid_events ?? received,
+      rejected_events_total: productionQuality?.rejected_events ?? invalidEvents,
+      geo_coverage_pct: productionQuality?.events_with_geo_pct ?? null,
+      place_resolution_pct: productionQuality?.place_resolution_pct ?? null,
+      route_resolution_pct: productionQuality?.route_resolution_pct ?? null,
+      unknown_entities: Number(productionQuality?.unknown_geo || 0),
+      aggregation_failures: Number(productionQuality?.aggregation_failures || 0),
+      possible_duplicate_places: Number(productionQuality?.possible_duplicate_places || 0),
+      data_as_of: dataAsOf,
+    },
+    warnings: current.warnings,
+  };
 }

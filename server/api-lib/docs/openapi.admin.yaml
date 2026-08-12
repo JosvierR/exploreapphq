@@ -1088,6 +1088,368 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/admin/business/executive-summary:
+    get:
+      tags: [Business Intelligence]
+      summary: Deterministic executive summary and Demand Index
+      operationId: getBusinessIntelligenceExecutiveSummary
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Executive summary }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/admin/business/compare:
+    get:
+      tags: [Business Intelligence]
+      summary: Compare up to five markets
+      operationId: compareBusinessIntelligenceMarkets
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Market comparison }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/admin/business/demand:
+    get:
+      tags: [Business Intelligence]
+      summary: Demand index, trend, and movers
+      operationId: getBusinessIntelligenceDemand
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Demand intelligence }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/admin/business/audience:
+    get:
+      tags: [Business Intelligence]
+      summary: Privacy-safe audience origins and behavior
+      operationId: getBusinessIntelligenceAudience
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Audience intelligence }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/admin/business/time:
+    get:
+      tags: [Business Intelligence]
+      summary: Destination-timezone demand heatmap
+      operationId: getBusinessIntelligenceTime
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Time intelligence }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/admin/business/insights:
+    get:
+      tags: [Business Intelligence]
+      summary: Evidence-backed automated insights
+      operationId: getBusinessIntelligenceInsights
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Business insights }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/admin/business/benchmarks:
+    get:
+      tags: [Business Intelligence]
+      summary: Aggregated business benchmarks
+      operationId: getBusinessIntelligenceBenchmarks
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Business benchmarks }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/admin/business/mobile-overview:
+    get:
+      tags: [Business Intelligence]
+      summary: Mobile-ready overview from the shared Analytics Core
+      operationId: getAdminBusinessMobileOverview
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Mobile overview }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/admin/business/definitions:
+    get:
+      tags: [Business Intelligence]
+      summary: Versioned event taxonomy and metric dictionary
+      operationId: getBusinessIntelligenceDefinitions
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Canonical definitions }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/admin/business/health:
+    get:
+      tags: [Business Intelligence]
+      summary: Admin-only Analytics Health
+      operationId: getBusinessIntelligenceHealth
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Analytics health }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/overview:
+    get:
+      tags: [Business Intelligence]
+      summary: Authorized Business overview
+      operationId: getBusinessV1Overview
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Business overview }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/executive-summary:
+    get:
+      tags: [Business Intelligence]
+      summary: Authorized executive summary
+      operationId: getBusinessV1ExecutiveSummary
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Executive summary }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/mobile-overview:
+    get:
+      tags: [Business Intelligence]
+      summary: Mobile-ready own-business overview
+      operationId: getBusinessV1MobileOverview
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Mobile overview }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/geography:
+    get:
+      tags: [Business Intelligence]
+      summary: Entitled geographic intelligence
+      operationId: getBusinessV1Geography
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Geographic intelligence }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/markets:
+    get:
+      tags: [Business Intelligence]
+      summary: Entitled market intelligence
+      operationId: getBusinessV1Markets
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Markets }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/compare:
+    get:
+      tags: [Business Intelligence]
+      summary: Entitled market comparison
+      operationId: compareBusinessV1Markets
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Market comparison }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/demand:
+    get:
+      tags: [Business Intelligence]
+      summary: Entitled market demand
+      operationId: getBusinessV1Demand
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Demand intelligence }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/categories:
+    get:
+      tags: [Business Intelligence]
+      summary: Entitled category intelligence
+      operationId: getBusinessV1Categories
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Category intelligence }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/searches:
+    get:
+      tags: [Business Intelligence]
+      summary: Entitled search intelligence
+      operationId: getBusinessV1Searches
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Search intelligence }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/unmet-demand:
+    get:
+      tags: [Business Intelligence]
+      summary: Entitled zero-result and low-supply searches
+      operationId: getBusinessV1UnmetDemand
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Unmet demand }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/places:
+    get:
+      tags: [Business Intelligence]
+      summary: Authorized business locations
+      operationId: getBusinessV1Places
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Authorized place analytics }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/places/{id}:
+    get:
+      tags: [Business Intelligence]
+      summary: Authorized Place 360
+      operationId: getBusinessV1PlaceDetail
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Place 360 }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/routes:
+    get:
+      tags: [Business Intelligence]
+      summary: Entitled routes intelligence
+      operationId: getBusinessV1Routes
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Routes intelligence }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/routes/{id}:
+    get:
+      tags: [Business Intelligence]
+      summary: Entitled Route 360
+      operationId: getBusinessV1RouteDetail
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Route 360 }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/audience:
+    get:
+      tags: [Business Intelligence]
+      summary: Entitled privacy-safe audience intelligence
+      operationId: getBusinessV1Audience
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Audience intelligence }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/time:
+    get:
+      tags: [Business Intelligence]
+      summary: Authorized time intelligence
+      operationId: getBusinessV1Time
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Time intelligence }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/content-attribution:
+    get:
+      tags: [Business Intelligence]
+      summary: Entitled content attribution
+      operationId: getBusinessV1ContentAttribution
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Content attribution }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/funnel:
+    get:
+      tags: [Business Intelligence]
+      summary: Authorized commercial intent funnel
+      operationId: getBusinessV1Funnel
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Intent funnel }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/opportunities:
+    get:
+      tags: [Business Intelligence]
+      summary: Entitled opportunity intelligence
+      operationId: getBusinessV1Opportunities
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Opportunities }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/insights:
+    get:
+      tags: [Business Intelligence]
+      summary: Evidence-backed own-business insights
+      operationId: getBusinessV1Insights
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Insights }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/benchmarks:
+    get:
+      tags: [Business Intelligence]
+      summary: Entitled aggregated benchmarks
+      operationId: getBusinessV1Benchmarks
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Benchmarks }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/business/v1/definitions:
+    get:
+      tags: [Business Intelligence]
+      summary: Canonical metric and event definitions
+      operationId: getBusinessV1Definitions
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Canonical definitions }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
   /api/admin/system/health:
     get:
       tags: [System]
@@ -1500,9 +1862,16 @@ components:
         source:
           type: string
           enum: [mobile, web, backend, admin]
+        source_type:
+          type: [string, "null"]
+          enum: [search, map, feed, video, post, content, route, creator, recommendation, profile, direct_link, null]
+          description: Normalized discovery/attribution source type.
+        source_id:
+          type: [string, "null"]
+          description: Source entity ID, for example the video or route that generated the action.
         platform:
           type: string
-          enum: [ios, android, web]
+          enum: [ios, android, web, server]
         app_version:
           type: string
         build_number:
@@ -1519,6 +1888,10 @@ components:
           type: [string, "null"]
         city:
           type: [string, "null"]
+        geo_id:
+          type: [string, "null"]
+          format: uuid
+          description: Normalized destination geography when known.
         properties:
           type: object
           additionalProperties: true

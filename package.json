@@ -11,10 +11,12 @@
     "build:api": "tsc -p tsconfig.server.json",
     "preview": "vite preview",
     "lint": "tsc -b --noEmit",
-    "test": "tsx src/lib/analyticsDisplay.test.ts && tsx src/features/admin/observability/adminMetricsFormat.test.ts && node src/features/pioneers/api/pioneersApi.test.mjs && node server/api-lib/pioneers/pioneersService.test.mjs && node server/api-lib/analytics/analyticsRouter.source.test.mjs && node server/api-lib/analytics/analyticsAdminApi.test.mjs && node server/api-lib/analytics/analyticsOperationsService.test.mjs && node server/api-lib/analytics/businessInsightsService.test.mjs && node --test server/api-lib/analytics/businessIntelligenceService.test.mjs server/api-lib/docs/docsRouter.source.test.mjs server/api-lib/docs/postgrestOpenApi.test.mjs server/api-lib/docs/openapi.admin.antiDrift.test.mjs server/api-lib/docs/edgeOpenApi.spec.test.mjs",
+    "test": "tsx src/lib/analyticsDisplay.test.ts && tsx src/features/admin/observability/adminMetricsFormat.test.ts && node src/features/pioneers/api/pioneersApi.test.mjs && node server/api-lib/pioneers/pioneersService.test.mjs && node server/api-lib/analytics/analyticsRouter.source.test.mjs && node server/api-lib/analytics/analyticsAdminApi.test.mjs && node server/api-lib/analytics/analyticsOperationsService.test.mjs && node server/api-lib/analytics/businessInsightsService.test.mjs && node --test server/api-lib/analytics/businessAccess.test.mjs server/api-lib/analytics/businessEventToInsightE2E.test.mjs server/api-lib/analytics/businessGoldenDataset.test.mjs server/api-lib/analytics/businessIntelligenceService.test.mjs server/api-lib/analytics/businessProductionMigration.test.mjs server/api-lib/docs/docsRouter.source.test.mjs server/api-lib/docs/postgrestOpenApi.test.mjs server/api-lib/docs/openapi.admin.antiDrift.test.mjs server/api-lib/docs/edgeOpenApi.spec.test.mjs",
     "openapi:lint": "redocly lint server/api-lib/docs/openapi.admin.yaml",
     "openapi:preview": "redocly preview-docs server/api-lib/docs/openapi.admin.yaml",
     "openapi:sync-edge": "node scripts/sync-edge-openapi.mjs",
+    "verify:business-schema": "node scripts/verify-business-schema.mjs",
+    "business:backfill": "node scripts/business-backfill.mjs",
     "obs:up": "docker compose -f observability/docker-compose.observability.yml up -d",
     "obs:down": "docker compose -f observability/docker-compose.observability.yml down",
     "obs:logs": "docker compose -f observability/docker-compose.observability.yml logs -f grafana prometheus loki",
@@ -30,7 +32,8 @@
     "resend:check": "node scripts/check-resend-domain.mjs",
     "admin:provision": "node scripts/provision-supabase-admins.mjs",
     "admin:bootstrap": "node scripts/run-board-admin-bootstrap.mjs",
-    "vercel:env": "powershell -ExecutionPolicy Bypass -File scripts/crear-vercel-env.ps1"
+    "vercel:env": "powershell -ExecutionPolicy Bypass -File scripts/crear-vercel-env.ps1",
+    "env:from-prod": "vercel env run -e production -- node scripts/write-prod-env.mjs"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.19",

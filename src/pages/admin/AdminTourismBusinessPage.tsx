@@ -15,6 +15,7 @@ import {
 } from "@/lib/adminAnalyticsApi";
 import { formatNumber, formatPercent, formatRangeLabel } from "@/lib/analyticsDisplay";
 import { AdminApiError } from "@/lib/moderationAdminApi";
+import { downloadCsv } from "@/lib/csvExport";
 
 const TourismWorldMap = lazy(() =>
   import("@/features/admin/components/TourismWorldMap").then((mod) => ({ default: mod.TourismWorldMap })),
@@ -41,6 +42,7 @@ const COMPARES: Array<{ value: BusinessIntelCompare; label: string }> = [
 ];
 
 const MAP_METRICS: Array<{ value: BusinessIntelMapMetric; label: string }> = [
+  { value: "demand", label: "Demand" },
   { value: "activity", label: "Activity" },
   { value: "users", label: "Users" },
   { value: "place_views", label: "Place views" },
@@ -48,22 +50,26 @@ const MAP_METRICS: Array<{ value: BusinessIntelMapMetric; label: string }> = [
   { value: "intent", label: "Intent" },
   { value: "saves", label: "Saves" },
   { value: "searches", label: "Searches" },
+  { value: "growth", label: "Growth" },
+  { value: "supply", label: "Supply" },
+  { value: "opportunity", label: "Opportunity" },
 ];
 
 const KPI_ORDER = [
   "active_users",
   "sessions",
+  "place_discoveries",
   "place_views",
   "route_views",
   "route_starts",
-  "route_completions",
   "saves",
   "commercial_intent",
 ] as const;
 
 const KPI_LABELS: Record<string, string> = {
-  active_users: "Active users",
+  active_users: "Active travelers",
   sessions: "Sessions",
+  place_discoveries: "Place discoveries",
   place_views: "Place views",
   route_views: "Route views",
   route_starts: "Route starts",
@@ -72,13 +78,25 @@ const KPI_LABELS: Record<string, string> = {
   commercial_intent: "Commercial intent",
 };
 
+const TREND_METRICS = [
+  { value: "users", label: "Travelers" },
+  { value: "sessions", label: "Sessions" },
+  { value: "place_views", label: "Place views" },
+  { value: "route_views", label: "Route views" },
+  { value: "searches", label: "Searches" },
+  { value: "saves", label: "Saves" },
+  { value: "commercial_actions", label: "Intent actions" },
+] as const;
+
 function Section({
+  id,
   kicker,
   title,
   subtitle,
   action,
   children,
 }: {
+  id?: string;
   kicker: string;
   title: string;
   subtitle: string;
@@ -86,7 +104,7 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="admin-executive-section">
+    <section id={id} className="admin-executive-section">
       <header className="admin-executive-section__header">
         <div>
           <p>{kicker}</p>
@@ -98,6 +116,15 @@ function Section({
       {children}
     </section>
   );
+}
+
+function freshnessLabel(value?: string | null) {
+  if (!value) return "Data freshness unavailable";
+  const minutes = Math.max(0, Math.round((Date.now() - Date.parse(value)) / 60_000));
+  if (minutes < 1) return "Updated just now";
+  if (minutes < 60) return `Updated ${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  return `Updated ${hours}h ago`;
 }
 
 function DeltaText({ percent }: { percent: number | null | undefined }) {
@@ -132,8 +159,11 @@ function BusinessIntelligenceContent() {
   const [range, setRange] = useState<BusinessIntelRange>("30d");
   const [compare, setCompare] = useState<BusinessIntelCompare>("previous");
   const [granularity, setGranularity] = useState<"daily" | "weekly" | "monthly">("daily");
-  const [mapMetric, setMapMetric] = useState<BusinessIntelMapMetric>("activity");
+  const [trendMetric, setTrendMetric] = useState<(typeof TREND_METRICS)[number]["value"]>("place_views");
+  const [mapMetric, setMapMetric] = useState<BusinessIntelMapMetric>("demand");
   const [category, setCategory] = useState<string | null>(null);
+  const [platform, setPlatform] = useState<string | null>(null);
+  const [source, setSource] = useState<string | null>(null);
   const [geo, setGeo] = useState<GeoState>({ country: null, region: null, city: null, neighborhood: null });
   const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -154,8 +184,10 @@ function BusinessIntelligenceContent() {
       city: geo.city,
       neighborhood: geo.neighborhood,
       category,
+      platform,
+      source,
     }),
-    [range, compare, granularity, mapMetric, geo, category],
+    [range, compare, granularity, mapMetric, geo, category, platform, source],
   );
 
   const load = useCallback(
@@ -238,6 +270,31 @@ function BusinessIntelligenceContent() {
           <Link className="admin-btn admin-btn--ghost admin-btn--sm" to="/admin/analytics/data">
             App Data
           </Link>
+          <button
+            type="button"
+            className="admin-btn admin-btn--ghost admin-btn--sm"
+            disabled={!data}
+            onClick={() =>
+              downloadCsv(
+                `explore-business-${range}-${data?.range.start || "report"}.csv`,
+                KPI_ORDER.map((metric) => ({
+                  market: data?.executive_summary.market,
+                  period_start: data?.range.start,
+                  period_end: data?.range.end,
+                  metric,
+                  value: data?.kpis[metric],
+                  previous: data?.comparison?.deltas[metric]?.previous,
+                  change_percent: data?.comparison?.deltas[metric]?.percent,
+                  data_as_of: data?.data_as_of,
+                })),
+              )
+            }
+          >
+            Export CSV
+          </button>
+          <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm" disabled={!data} onClick={() => window.print()}>
+            PDF report
+          </button>
           <button type="button" className="admin-btn admin-btn--secondary admin-btn--sm" onClick={() => setRefreshKey((value) => value + 1)}>
             Refresh
           </button>
@@ -248,7 +305,7 @@ function BusinessIntelligenceContent() {
         <div className="admin-command-strip__period">
           <span>Geography</span>
           <strong>{geography?.breadcrumb.map((item) => item.label).join(" / ") || "Global"}</strong>
-          <small>{periodLabel}</small>
+          <small>{periodLabel} · {freshnessLabel(data?.data_as_of)}</small>
         </div>
         <div className="admin-command-strip__filters">
           <label>
@@ -283,6 +340,25 @@ function BusinessIntelligenceContent() {
                   {item.category}
                 </option>
               ))}
+            </select>
+          </label>
+          <label>
+            <span>Platform</span>
+            <select value={platform || ""} onChange={(event) => setPlatform(event.target.value || null)}>
+              <option value="">All platforms</option>
+              <option value="ios">iOS</option>
+              <option value="android">Android</option>
+              <option value="web">Web</option>
+              <option value="server">Server</option>
+            </select>
+          </label>
+          <label>
+            <span>Source</span>
+            <select value={source || ""} onChange={(event) => setSource(event.target.value || null)}>
+              <option value="">All sources</option>
+              <option value="mobile">Mobile</option>
+              <option value="web">Web</option>
+              <option value="backend">Backend</option>
             </select>
           </label>
         </div>
@@ -321,12 +397,47 @@ function BusinessIntelligenceContent() {
         </aside>
       ))}
 
-      <Section kicker="Pulse" title="Business KPIs" subtitle="Unique metrics for the selected geography and period, with comparison deltas.">
+      <Section
+        id="executive-summary"
+        kicker="Executive summary"
+        title={`${data?.executive_summary.market || "Market"} · ${periodLabel}`}
+        subtitle="A deterministic interpretation of calculated metrics — no generated claims without evidence."
+      >
+        {loading ? (
+          <div className="admin-skeleton admin-skeleton--block" aria-label="Loading executive summary" />
+        ) : !data ? null : (
+          <div className="admin-bi-summary-grid">
+            <article className="admin-bi-summary-copy">
+              <p>{data.executive_summary.text}</p>
+              <small>Generated by verified rules · Core {data.core_version}</small>
+            </article>
+            <article className="admin-bi-index" title={data.metric_dictionary.metrics.demand_index?.description}>
+              <div>
+                <span>Explore Demand Index</span>
+                <strong>{data.demand_index.score == null ? "—" : data.demand_index.score}</strong>
+                <small>/ 100 · {data.demand_index.version}</small>
+              </div>
+              <dl>
+                <div><dt>Demand</dt><dd>{data.demand_index.demand}</dd></div>
+                <div><dt>Growth</dt><dd>{data.demand_index.growth}</dd></div>
+                <div><dt>Intent</dt><dd>{data.demand_index.intent}</dd></div>
+                <div><dt>Momentum</dt><dd>{data.demand_index.momentum}</dd></div>
+              </dl>
+              {data.demand_index.score == null ? (
+                <p>Need at least three signals with a reliable comparison baseline.</p>
+              ) : null}
+            </article>
+          </div>
+        )}
+      </Section>
+
+      <Section id="market-pulse" kicker="Market pulse" title="What changed at a glance" subtitle="Canonical metrics for the selected geography and period, with comparison deltas.">
         <div className="admin-bi-kpi-grid">
           {KPI_ORDER.map((key) => {
             const value = data?.kpis?.[key];
             const delta = data?.comparison?.deltas?.[key];
-            const definition = data?.kpi_definitions?.[key];
+            const canonicalKey = key === "active_users" ? "active_travelers" : key === "commercial_intent" ? "commercial_actions" : key;
+            const definition = data?.metric_dictionary?.metrics?.[canonicalKey]?.description || data?.kpi_definitions?.[key];
             return (
               <article key={key} className="admin-bi-kpi" title={definition || KPI_LABELS[key]}>
                 <span>{KPI_LABELS[key]}</span>
@@ -347,6 +458,7 @@ function BusinessIntelligenceContent() {
       </Section>
 
       <Section
+        id="geographic-intelligence"
         kicker="Travel demand"
         title="Where demand is happening"
         subtitle={`${geography?.child_label || "Markets"} for the current geography. Click map or list to drill down.`}
@@ -408,23 +520,70 @@ function BusinessIntelligenceContent() {
       </Section>
 
       <Section
+        id="market-comparison"
+        kicker="Compare markets"
+        title="How markets differ"
+        subtitle="Up to five sibling markets, calculated with the same period, definitions, and minimum-volume rules."
+      >
+        {loading ? (
+          <div className="admin-skeleton admin-skeleton--block" aria-label="Loading market comparison" />
+        ) : !data?.market_comparison.length ? (
+          <EmptyState title="No comparable markets" message="Comparison appears when at least one sibling market clears the privacy threshold." />
+        ) : (
+          <AdminDataTable label="Market comparison">
+            <thead>
+              <tr>
+                <th>Market</th>
+                <th>Demand Index</th>
+                <th>Demand growth</th>
+                <th>Restaurant intent</th>
+                <th>Route activity</th>
+                <th>Weekend demand</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.market_comparison.map((market) => (
+                <tr key={market.key}>
+                  <td><strong>{market.label}</strong><small className="admin-bi-quality"> · n={formatNumber(market.sample_size)}</small></td>
+                  <td>{market.demand_index == null ? "—" : `${market.demand_index}/100`}</td>
+                  <td>{market.demand_growth_pct == null ? "—" : `${market.demand_growth_pct > 0 ? "+" : ""}${market.demand_growth_pct}%`}</td>
+                  <td>{market.restaurant_intent_share_pct == null ? "—" : formatPercent(market.restaurant_intent_share_pct)}</td>
+                  <td>{market.route_activity_share_pct == null ? "—" : formatPercent(market.route_activity_share_pct)}</td>
+                  <td>{market.weekend_demand_pct == null ? "—" : formatPercent(market.weekend_demand_pct)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </AdminDataTable>
+        )}
+      </Section>
+
+      <Section
+        id="demand-trend"
         kicker="Demand trend"
         title="How demand is moving"
         subtitle="Users, place views, route views, and commercial actions over time."
         action={
-          <label className="admin-inline-field">
-            <span>Grain</span>
-            <select value={granularity} onChange={(event) => setGranularity(event.target.value as "daily" | "weekly" | "monthly")}>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-          </label>
+          <div className="admin-bi-section-actions">
+            <label className="admin-inline-field">
+              <span>Metric</span>
+              <select value={trendMetric} onChange={(event) => setTrendMetric(event.target.value as (typeof TREND_METRICS)[number]["value"])}>
+                {TREND_METRICS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </select>
+            </label>
+            <label className="admin-inline-field">
+              <span>Grain</span>
+              <select value={granularity} onChange={(event) => setGranularity(event.target.value as "daily" | "weekly" | "monthly")}>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </label>
+          </div>
         }
       >
         <ChartCard
           title="Demand trend"
-          subtitle={`${granularity} series`}
+          subtitle={`${granularity} · current vs ${compare === "none" ? "no comparison" : compare.replaceAll("_", " ")}`}
           loading={loading}
           empty={!data?.timeseries?.length}
           emptyTitle="No trend yet"
@@ -434,17 +593,17 @@ function BusinessIntelligenceContent() {
             data={(data?.timeseries || []) as Array<Record<string, unknown>>}
             xKey="period"
             series={[
-              { key: "users", label: "Users", color: chartColors.primary },
-              { key: "place_views", label: "Place views", color: chartColors.secondary },
-              { key: "route_views", label: "Route views", color: chartColors.primary },
-              { key: "commercial_actions", label: "Commercial actions", color: chartColors.secondary },
+              { key: trendMetric, label: TREND_METRICS.find((item) => item.value === trendMetric)?.label || trendMetric, color: chartColors.primary },
+              ...(compare === "none"
+                ? []
+                : [{ key: `previous_${trendMetric}`, label: "Comparison period", color: chartColors.secondary }]),
             ]}
             ariaLabel="Demand trend"
           />
         </ChartCard>
       </Section>
 
-      <Section kicker="From discovery to action" title="Commercial intent funnel" subtitle="Whether place discovery turns into saves and business actions.">
+      <Section id="intent-funnel" kicker="From discovery to action" title="Commercial intent funnel" subtitle="Whether place discovery turns into saves and business actions.">
         {loading ? (
           <div className="admin-skeleton admin-skeleton--block" aria-label="Loading funnel" />
         ) : !data?.funnel?.some((step) => step.count > 0) ? (
@@ -462,7 +621,7 @@ function BusinessIntelligenceContent() {
         )}
       </Section>
 
-      <Section kicker="What travelers want" title="Categories and search demand" subtitle="Demand mix for partners deciding what inventory to add.">
+      <Section id="customer-intent" kicker="What travelers want" title="Category and search intelligence" subtitle="Demand, growth, supply, intent, and opportunity calculated from the same market filter.">
         <div className="admin-tourism-inventory-grid">
           <ChartCard
             title="Demand by category"
@@ -498,8 +657,10 @@ function BusinessIntelligenceContent() {
               <AdminDataTable label="Top searches">
                 <thead>
                   <tr>
-                    <th>Fingerprint</th>
+                    <th>Search</th>
                     <th>Searches</th>
+                    <th>CTR</th>
+                    <th>Results</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -507,6 +668,8 @@ function BusinessIntelligenceContent() {
                     <tr key={row.query_hash}>
                       <td>{row.label}</td>
                       <td>{formatNumber(row.count)}</td>
+                      <td>{row.ctr == null ? "—" : formatPercent(row.ctr)}</td>
+                      <td>{row.avg_results == null ? "—" : row.avg_results}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -526,9 +689,59 @@ function BusinessIntelligenceContent() {
             ))}
           </ChartCard>
         </div>
+        {!loading && data?.categories.length ? (
+          <AdminDataTable label="Category intelligence">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Demand</th>
+                <th>Growth</th>
+                <th>Supply</th>
+                <th>Intent rate</th>
+                <th>Save rate</th>
+                <th>Competition</th>
+                <th>Opportunity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.categories.map((item) => (
+                <tr key={item.category}>
+                  <td><strong>{item.category}</strong><small className="admin-bi-quality"> · n={formatNumber(item.demand)}</small></td>
+                  <td>{item.demand_index == null ? "—" : `${item.demand_index}/100`}</td>
+                  <td>{item.growth_pct == null ? "—" : `${item.growth_pct > 0 ? "+" : ""}${item.growth_pct}%`}</td>
+                  <td>{item.supply_index == null ? "—" : `${item.supply_index}/100`}</td>
+                  <td>{item.intent_rate == null ? "—" : formatPercent(item.intent_rate)}</td>
+                  <td>{item.save_rate == null ? "—" : formatPercent(item.save_rate)}</td>
+                  <td>{item.supply_index == null ? "—" : item.supply_index >= 67 ? "High" : item.supply_index >= 34 ? "Moderate" : "Low"}</td>
+                  <td><strong>{item.opportunity_score == null ? "—" : `${item.opportunity_score}/100`}</strong><small className="admin-bi-quality"> · {item.opportunity_level}</small></td>
+                </tr>
+              ))}
+            </tbody>
+          </AdminDataTable>
+        ) : null}
       </Section>
 
-      <Section kicker="When travelers are active" title="Peak demand" subtitle="UTC daypart × weekday heatmap for staffing and promo timing.">
+      <Section id="opportunities" kicker="Supply vs demand" title="Where gaps may exist" subtitle="Cohort-normalized demand and supply; signals are investigative, not financial predictions.">
+        {!loading && !data?.supply_demand_matrix.length ? (
+          <EmptyState title="Not enough category data" message="At least two reliable categories are needed to compare demand with observed supply." />
+        ) : (
+          <div className="admin-bi-matrix">
+            {data?.supply_demand_matrix.map((item) => (
+              <article key={item.category} className={`admin-bi-matrix__item admin-bi-matrix__item--${item.quadrant}`}>
+                <p>{item.quadrant.replaceAll("_", " ")}</p>
+                <h3>{item.category}</h3>
+                <dl>
+                  <div><dt>Demand</dt><dd>{item.demand}</dd></div>
+                  <div><dt>Supply</dt><dd>{item.supply}</dd></div>
+                  <div><dt>Opportunity</dt><dd>{item.opportunity_score}</dd></div>
+                </dl>
+              </article>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section id="time-intelligence" kicker="When travelers are active" title="Peak demand" subtitle="Destination/event timezone daypart × weekday heatmap for staffing and promo timing.">
         {!loading && !data?.peak_demand.available ? (
           <EmptyState title="Peak demand not available" message="Need timestamps on analytics events to build day/hour demand." />
         ) : (
@@ -558,11 +771,21 @@ function BusinessIntelligenceContent() {
                 </Fragment>
               ))}
             </div>
+            {data?.peak_demand.peak_window ? (
+              <aside className="admin-insight-callout" style={{ marginTop: "1rem" }}>
+                <span className="admin-insight-callout__mark" aria-hidden="true" />
+                <div>
+                  <strong>Peak opportunity · {data.peak_demand.peak_window.label}</strong>
+                  <p>{data.peak_demand.peak_window.above_average_pct}% above the weekly window average.</p>
+                  <small>Based on {formatNumber(data.peak_demand.peak_window.sample_size)} eligible events.</small>
+                </div>
+              </aside>
+            ) : null}
           </div>
         )}
       </Section>
 
-      <Section kicker="Places" title="Places performance" subtitle="Names from catalog metadata — never UUIDs as primary text. Click a row for detail.">
+      <Section id="places" kicker="Places & competitive landscape" title="Who is capturing demand" subtitle="Names from catalog metadata — never UUIDs as primary text. Click a row for Place 360.">
         {loading ? (
           <div className="admin-skeleton admin-skeleton--block" aria-label="Loading places" />
         ) : !data?.places?.length ? (
@@ -576,8 +799,11 @@ function BusinessIntelligenceContent() {
                 <th>Category</th>
                 <th>Location</th>
                 <th>Views</th>
+                <th>Visitors</th>
                 <th>Saves</th>
-                <th>Actions</th>
+                <th>Shares</th>
+                <th>Directions</th>
+                <th>Intent rate</th>
                 <th>Rating</th>
                 <th>Trend</th>
               </tr>
@@ -595,8 +821,11 @@ function BusinessIntelligenceContent() {
                   <td>{String(row.category || "—")}</td>
                   <td>{String(row.location || "—")}</td>
                   <td>{formatNumber(row.views)}</td>
+                  <td>{formatNumber(row.unique_visitors)}</td>
                   <td>{formatNumber(row.saves)}</td>
-                  <td>{formatNumber(row.actions)}</td>
+                  <td>{formatNumber(row.shares)}</td>
+                  <td>{formatNumber(row.directions)}</td>
+                  <td>{row.intent_rate == null ? "—" : formatPercent(row.intent_rate)}</td>
                   <td>{row.rating == null ? "—" : Number(row.rating).toFixed(1)}</td>
                   <td>{row.trend_pct == null ? "—" : `${Number(row.trend_pct) > 0 ? "+" : ""}${row.trend_pct}%`}</td>
                 </tr>
@@ -606,7 +835,52 @@ function BusinessIntelligenceContent() {
         )}
       </Section>
 
-      <Section kicker="Routes" title="Routes performance" subtitle="Tour and experience routes with completion quality — names from catalog.">
+      <Section id="business-performance" kicker="Business performance" title="Places vs aggregated market cohorts" subtitle="Explore Business Score is performance; Opportunity Score is market potential. They are intentionally separate.">
+        {loading ? (
+          <div className="admin-skeleton admin-skeleton--block" aria-label="Loading benchmarks" />
+        ) : !data?.places.length ? (
+          <EmptyState title="No business cohort yet" message="Benchmarks require place views and at least four eligible places in the cohort." />
+        ) : (
+          <AdminDataTable label="Business performance benchmarks">
+            <thead>
+              <tr>
+                <th>Business</th>
+                <th>Business Score</th>
+                <th>Discovery</th>
+                <th>Engagement</th>
+                <th>Intent</th>
+                <th>Growth</th>
+                <th>Reputation</th>
+                <th>Cohort</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.places.slice(0, 12).map((row) => {
+                const benchmark = (row.benchmark || {}) as {
+                  score?: number | null;
+                  status?: string;
+                  cohort_size?: number;
+                  components?: Record<string, number | null>;
+                };
+                return (
+                  <tr key={String(row.place_id)} onClick={() => setSelectedPlace(row)} style={{ cursor: "pointer" }}>
+                    <td><strong>{String(row.place_name)}</strong><small className="admin-bi-quality"> · {String(row.category || "Uncategorized")}</small></td>
+                    <td><strong>{benchmark.score == null ? "—" : `${benchmark.score}/100`}</strong></td>
+                    <td>{benchmark.components?.discovery ?? "—"}</td>
+                    <td>{benchmark.components?.engagement ?? "—"}</td>
+                    <td>{benchmark.components?.intent ?? "—"}</td>
+                    <td>{benchmark.components?.growth ?? "—"}</td>
+                    <td>{benchmark.components?.reputation ?? "—"}</td>
+                    <td>{benchmark.cohort_size ?? "—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </AdminDataTable>
+        )}
+      </Section>
+
+      <Section id="routes" kicker="Routes & experiences" title="Which experiences work" subtitle="Tour and experience routes with completion quality, drop-off, and generated business intent.">
         {loading ? (
           <div className="admin-skeleton admin-skeleton--block" aria-label="Loading routes" />
         ) : !data?.routes?.length ? (
@@ -620,9 +894,11 @@ function BusinessIntelligenceContent() {
                 <th>Area</th>
                 <th>Stops</th>
                 <th>Views</th>
+                <th>Saves</th>
                 <th>Starts</th>
                 <th>Completes</th>
                 <th>Completion</th>
+                <th>Intent generated</th>
                 <th>Trend</th>
               </tr>
             </thead>
@@ -639,9 +915,11 @@ function BusinessIntelligenceContent() {
                   <td>{String(row.area || "—")}</td>
                   <td>{row.stops == null ? "—" : formatNumber(row.stops)}</td>
                   <td>{formatNumber(row.views)}</td>
+                  <td>{formatNumber(row.saves)}</td>
                   <td>{formatNumber(row.starts)}</td>
                   <td>{formatNumber(row.completes)}</td>
                   <td>{row.completion_rate == null ? "—" : formatPercent(row.completion_rate)}</td>
+                  <td>{formatNumber(row.commercial_actions)}</td>
                   <td>{row.trend_pct == null ? "—" : `${Number(row.trend_pct) > 0 ? "+" : ""}${row.trend_pct}%`}</td>
                 </tr>
               ))}
@@ -650,7 +928,7 @@ function BusinessIntelligenceContent() {
         )}
       </Section>
 
-      <Section kicker="Content → business" title="Content driving discovery" subtitle="Approximate same-period attribution from videos to place/route demand.">
+      <Section id="content-attribution" kicker="Content → business" title="Content driving discovery" subtitle="Explicit source links and same-session paths from content to place/route demand.">
         {!loading && !data?.content_attribution.available ? (
           <EmptyState title="No content attribution yet" message={data?.content_attribution.note || "Video entities with engagement unlock this section."} />
         ) : (
@@ -686,64 +964,78 @@ function BusinessIntelligenceContent() {
         {data?.content_attribution.note ? <p className="admin-bi-note">{data.content_attribution.note}</p> : null}
       </Section>
 
-      <Section kicker="Opportunities" title="Market opportunities" subtitle="Generated only when evidence clears volume thresholds — never fabricated.">
-        {data?.opportunities.insufficient_data ? (
-          <EmptyState title="Insufficient data" message={data.opportunities.message || "Not enough signal to recommend actions."} />
+      <Section id="discovery-attribution" kicker="Discovery attribution" title="How travelers find businesses" subtitle="Source is carried on the event contract; unknown sources remain visible as Other.">
+        {!loading && !data?.discovery_attribution.available ? (
+          <EmptyState title="Discovery source tracking is missing" message="Send source_type / discovery_source on place and route interactions to unlock attribution." />
         ) : (
-          <div className="admin-tourism-opportunities">
-            {(data?.opportunities.cards || []).map((card) => (
-              <article key={`${card.type}-${card.title}`} className="admin-tourism-opportunity">
-                <p>{card.type.replaceAll("_", " ")} · {card.confidence}</p>
-                <h3>{card.title}</h3>
-                <span>{card.evidence}</span>
-                <strong style={{ display: "block", marginTop: "0.55rem", fontSize: "0.84rem" }}>{card.opportunity}</strong>
+          <div className="admin-bi-source-grid">
+            {data?.discovery_attribution.sources.map((item) => (
+              <article key={item.source}>
+                <span>{item.source.replaceAll("_", " ")}</span>
+                <strong>{item.share_pct}%</strong>
+                <small>{formatNumber(item.count)} attributed interactions</small>
               </article>
             ))}
           </div>
         )}
       </Section>
 
-      <Section kicker="Business insights" title="Who this data helps" subtitle="Signals for the current geographic filter.">
-        <div className="admin-tourism-opportunities">
-          <article className="admin-tourism-opportunity">
-            <p>Tourism boards</p>
-            <h3>Destination demand</h3>
-            <span>
-              Top zones:{" "}
-              {(((data?.business_signals.tourism_boards as { fastest_growing?: Array<{ label: string }> })?.fastest_growing) || [])
-                .map((item) => item.label)
-                .join(", ") || "Insufficient data"}
-            </span>
-          </article>
-          <article className="admin-tourism-opportunity">
-            <p>Restaurants & places</p>
-            <h3>{formatNumber(data?.kpis.commercial_intent)} commercial intents</h3>
-            <span>
-              {formatNumber(data?.kpis.place_views)} place views · {formatNumber(data?.kpis.saves)} saves in filter
-            </span>
-          </article>
-          <article className="admin-tourism-opportunity">
-            <p>Tours & experiences</p>
-            <h3>{formatNumber(data?.kpis.route_starts)} route starts</h3>
-            <span>
-              Completion {data?.kpis.route_completion_rate == null ? "—" : formatPercent(data.kpis.route_completion_rate)} ·{" "}
-              {formatNumber(data?.kpis.route_views)} route views
-            </span>
-          </article>
-        </div>
+      <Section id="recommended-actions" kicker="Recommended actions" title="Market opportunities worth investigating" subtitle="Generated only when evidence clears volume thresholds — never fabricated or framed as guaranteed outcomes.">
+        {!loading && !data?.insights.length ? (
+          <EmptyState title="Insufficient data" message="Not enough reliable evidence to recommend an action for this filter." />
+        ) : (
+          <div className="admin-tourism-opportunities">
+            {(data?.insights || []).slice(0, 6).map((insight) => (
+              <article key={insight.id} className="admin-tourism-opportunity">
+                <p>{insight.type.replaceAll("_", " ")} · {insight.confidence} confidence</p>
+                <h3>{insight.title}</h3>
+                <span>{insight.evidence}</span>
+                <strong style={{ display: "block", marginTop: "0.55rem", fontSize: "0.84rem" }}>Consider: {insight.consideration}</strong>
+                <small>n={insight.sample_size == null ? "—" : formatNumber(insight.sample_size)} · {insight.period.start} → {insight.period.end}</small>
+              </article>
+            ))}
+          </div>
+        )}
       </Section>
 
-      <Section kicker="Origins" title="Where demand comes from" subtitle="Traveler market mix for the selected destination (privacy-safe aggregates).">
-        <ChartCard
-          title="Traveler markets"
-          subtitle={data?.traveler_origins.note || ""}
-          loading={loading}
-          empty={!data?.traveler_origins.available}
-          emptyTitle="Select a destination"
-          emptyMessage="Drill into a country/region/city to compare traveler market origins."
-        >
-          <HorizontalBarChart data={originChart} valueLabel="Events" ariaLabel="Traveler origins" />
-        </ChartCard>
+      <Section id="audience" kicker="Audience" title="Who is showing intent" subtitle="Privacy-safe origin, traveler mix, and behavior segments — never individual location histories.">
+        <div className="admin-tourism-inventory-grid">
+          <ChartCard
+            title="Traveler markets"
+            subtitle={data?.traveler_origins.note || ""}
+            loading={loading}
+            empty={!data?.traveler_origins.available}
+            emptyTitle="Select a destination"
+            emptyMessage="Drill into a country/region/city to compare traveler market origins."
+          >
+            <HorizontalBarChart data={originChart} valueLabel="Events" ariaLabel="Traveler origins" />
+          </ChartCard>
+          <ChartCard
+            title="Local vs traveler mix"
+            subtitle={data?.audience.privacy_note || "Aggregated behavior only"}
+            loading={loading}
+            empty={!data?.audience.traveler_mix.some((item) => item.count > 0)}
+            emptyTitle="Audience mix unavailable"
+            emptyMessage="Origin-country or explicit traveler_segment instrumentation is required."
+          >
+            <HorizontalBarChart
+              data={(data?.audience.traveler_mix || []).map((item) => ({ label: `${item.segment.replaceAll("_", " ")} — ${item.share_pct}%`, value: item.count }))}
+              valueLabel="Events"
+              ariaLabel="Traveler mix"
+            />
+          </ChartCard>
+        </div>
+        {(data?.audience.behavior || []).length ? (
+          <div className="admin-bi-source-grid">
+            {data?.audience.behavior.map((item) => (
+              <article key={item.segment}>
+                <span>{item.segment}</span>
+                <strong>{item.share_pct}%</strong>
+                <small>{formatNumber(item.count)} demand signals</small>
+              </article>
+            ))}
+          </div>
+        ) : null}
       </Section>
 
       <Section kicker="Top movers" title="Rising and declining" subtitle={`Requires ≥ previous volume threshold to avoid noisy percentages.`}>
@@ -779,11 +1071,50 @@ function BusinessIntelligenceContent() {
         </div>
       </Section>
 
+      <Section id="explore-insights" kicker="Explore insights" title="What changed and why it matters" subtitle="Every recommendation includes evidence, confidence, sample size, period, and a link back to its metric.">
+        {!loading && !data?.insights.length ? (
+          <EmptyState title="No reliable insights yet" message="Insights are suppressed until minimum comparison and sample-size rules are met." />
+        ) : (
+          <div className="admin-bi-insights">
+            {data?.insights.map((insight) => (
+              <article key={insight.id}>
+                <p>{insight.type} · {insight.confidence} confidence</p>
+                <h3>{insight.title}</h3>
+                <span>{insight.evidence}</span>
+                <strong>Consider: {insight.consideration}</strong>
+                <footer>
+                  <small>n={insight.sample_size == null ? "—" : formatNumber(insight.sample_size)} · {insight.period.start} → {insight.period.end}</small>
+                  <a href={`#${insight.anchor}`}>View evidence</a>
+                </footer>
+              </article>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section id="analytics-health" kicker="Admin only" title="Analytics health" subtitle="Operational quality behind this Business Intelligence response.">
+        <div className="admin-bi-health-grid">
+          <article><span>Eligible events</span><strong>{formatNumber(data?.data_quality.valid_events)}</strong></article>
+          <article><span>Unknown places</span><strong>{formatNumber(data?.data_quality.unknown_places)}</strong></article>
+          <article><span>Unknown routes</span><strong>{formatNumber(data?.data_quality.unknown_routes)}</strong></article>
+          <article><span>Missing geography</span><strong>{formatNumber(data?.data_quality.missing_geography)}</strong></article>
+          <article><span>Validity filter</span><strong>{data?.data_quality.validity_view_active ? "Active" : "Fallback"}</strong></article>
+          <article><span>Geo coverage</span><strong>{data?.data_quality.geo_coverage_pct == null ? "—" : `${data.data_quality.geo_coverage_pct}%`}</strong></article>
+          <article><span>Place resolution</span><strong>{data?.data_quality.place_resolution_pct == null ? "—" : `${data.data_quality.place_resolution_pct}%`}</strong></article>
+          <article><span>Route resolution</span><strong>{data?.data_quality.route_resolution_pct == null ? "—" : `${data.data_quality.route_resolution_pct}%`}</strong></article>
+          <article><span>Rejected events</span><strong>{formatNumber(data?.data_quality.rejected_events)}</strong></article>
+          <article><span>Duplicate candidates</span><strong>{formatNumber(data?.data_quality.possible_duplicate_places)}</strong></article>
+          <article><span>Aggregation failures</span><strong>{formatNumber(data?.data_quality.aggregation_failures)}</strong></article>
+          <article><span>Last aggregation</span><strong>{freshnessLabel(data?.data_quality.last_aggregation)}</strong></article>
+          <article><span>Data as of</span><strong>{freshnessLabel(data?.data_as_of)}</strong></article>
+        </div>
+      </Section>
+
       {selectedPlace ? (
-        <aside className="admin-bi-drawer" role="dialog" aria-label="Place overview">
+        <aside className="admin-bi-drawer" role="dialog" aria-label="Place 360">
           <header>
             <div>
-              <p>Place overview</p>
+              <p>Place 360</p>
               <h3>{String(selectedPlace.place_name)}</h3>
             </div>
             <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm" onClick={() => setSelectedPlace(null)}>
@@ -800,17 +1131,35 @@ function BusinessIntelligenceContent() {
             <div><dt>Directions</dt><dd>{formatNumber(selectedPlace.directions)}</dd></div>
             <div><dt>Calls</dt><dd>{formatNumber(selectedPlace.calls)}</dd></div>
             <div><dt>Website clicks</dt><dd>{formatNumber(selectedPlace.website_clicks)}</dd></div>
+            <div><dt>Intent rate</dt><dd>{selectedPlace.intent_rate == null ? "—" : formatPercent(selectedPlace.intent_rate)}</dd></div>
             <div><dt>Rating</dt><dd>{selectedPlace.rating == null ? "—" : Number(selectedPlace.rating).toFixed(1)}</dd></div>
             <div><dt>Trend</dt><dd>{selectedPlace.trend_pct == null ? "—" : `${selectedPlace.trend_pct}%`}</dd></div>
           </dl>
+          {selectedPlace.benchmark ? (
+            <div className="admin-bi-drawer__section">
+              <h4>Market context</h4>
+              <p>Explore Business Score: <strong>{String((selectedPlace.benchmark as { score?: number | null }).score ?? "Insufficient data")}</strong></p>
+              <small>Cohort size: {String((selectedPlace.benchmark as { cohort_size?: number }).cohort_size ?? "—")}</small>
+            </div>
+          ) : null}
+          {Array.isArray(selectedPlace.discovery_sources) ? (
+            <div className="admin-bi-drawer__section">
+              <h4>Discovery sources</h4>
+              <ul className="admin-bi-movers">
+                {(selectedPlace.discovery_sources as Array<{ source: string; count: number; share_pct: number }>).map((item) => (
+                  <li key={item.source}>{item.source.replaceAll("_", " ")} <strong>{item.share_pct}%</strong></li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </aside>
       ) : null}
 
       {selectedRoute ? (
-        <aside className="admin-bi-drawer" role="dialog" aria-label="Route overview">
+        <aside className="admin-bi-drawer" role="dialog" aria-label="Route 360">
           <header>
             <div>
-              <p>Route overview</p>
+              <p>Route 360</p>
               <h3>{String(selectedRoute.route_name)}</h3>
             </div>
             <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm" onClick={() => setSelectedRoute(null)}>
@@ -828,6 +1177,32 @@ function BusinessIntelligenceContent() {
             <div><dt>Commercial actions</dt><dd>{formatNumber(selectedRoute.commercial_actions)}</dd></div>
             <div><dt>Trend</dt><dd>{selectedRoute.trend_pct == null ? "—" : `${selectedRoute.trend_pct}%`}</dd></div>
           </dl>
+          <div className="admin-bi-drawer__section">
+            <h4>Route drop-off</h4>
+            {Array.isArray(selectedRoute.dropoff) && selectedRoute.dropoff.length ? (
+              <ol className="admin-bi-route-dropoff">
+                {(selectedRoute.dropoff as Array<{ stop_id: string; stop_name: string; reach_pct: number; dropoff_from_previous_pct: number }>).map((stop) => (
+                  <li key={stop.stop_id}>
+                    <span>{stop.stop_name}</span>
+                    <strong>{stop.reach_pct}%</strong>
+                    {stop.dropoff_from_previous_pct >= 15 ? <small>major drop −{stop.dropoff_from_previous_pct}%</small> : null}
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p>{selectedRoute.dropoff_status === "missing_tracking" ? "Route starts exist, but stop tracking is not currently available." : "No route starts occurred during this period."}</p>
+            )}
+          </div>
+          {selectedRoute.generated ? (
+            <div className="admin-bi-drawer__section">
+              <h4>Business generated by this route</h4>
+              <dl>
+                {Object.entries(selectedRoute.generated as Record<string, unknown>).map(([key, value]) => (
+                  <div key={key}><dt>{key.replaceAll("_", " ")}</dt><dd>{formatNumber(value)}</dd></div>
+                ))}
+              </dl>
+            </div>
+          ) : null}
         </aside>
       ) : null}
     </AdminPageShell>
