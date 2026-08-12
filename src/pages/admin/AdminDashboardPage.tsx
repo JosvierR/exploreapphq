@@ -695,7 +695,6 @@ function MetricGroup({ title, description, children }: { title: string; descript
     <section className="admin-metric-group">
       <div className="admin-section-heading">
         <div>
-          <p className="admin-eyebrow">{title}</p>
           <h3>{title}</h3>
         </div>
         <p>{description}</p>
