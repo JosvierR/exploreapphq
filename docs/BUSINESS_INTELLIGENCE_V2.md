@@ -181,7 +181,7 @@ Daily analytical tables are:
 - `fact_content_attribution`
 - `fact_business_daily`
 
-`aggregate_business_intelligence_for_day(date)` populates them from `analytics_valid_events`. It should run after `aggregate_analytics_events_for_day(date)` for today and yesterday. The current API retains a raw-event fallback while the new facts are backfilled; the response warns when `analytics_valid_events` is not installed. Production rollout should backfill facts before switching high-volume markets to aggregate-only reads.
+`aggregate_business_intelligence_for_day(date)` populates them from `analytics_valid_events`. The scheduled job runs it after `aggregate_analytics_events_for_day(date)` for UTC D-3 through D so late events are recomputed idempotently. The current API retains a raw-event fallback while the new facts are backfilled; the response warns when `analytics_valid_events` is not installed. Production rollout should backfill facts before switching high-volume markets to aggregate-only reads.
 
 The Admin dashboard uses one initial snapshot request, stable skeletons, one lazy-loaded map, and no frontend metric recomputation. Deep endpoints allow future Business clients to lazy-load secondary analysis.
 

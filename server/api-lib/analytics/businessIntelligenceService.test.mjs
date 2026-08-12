@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  destinationMarketForRow,
   resolveBusinessIntelligenceParams,
+  travelerOriginForRow,
 } from "./businessIntelligenceService.mjs";
 import {
   buildBusinessBenchmark,
@@ -152,4 +154,28 @@ test("Business scope restricts own analytics to authorized locations", () => {
     () => scopeBusinessAnalyticsParams({ geo_id: "geo-miami" }, access, "market"),
     (error) => error instanceof BusinessAccessError && error.code === "business_market_denied",
   );
+});
+
+test("destination market never falls back to traveler-origin geography", () => {
+  const row = {
+    country: "US",
+    region: "FL",
+    city: "Miami",
+    locale: "en-US",
+    _destination_country: "DO",
+    _destination_region: "Santiago",
+    _destination_city: "Santiago de los Caballeros",
+  };
+  assert.deepEqual(destinationMarketForRow(row), {
+    country: "DO",
+    region: "Santiago",
+    city: "Santiago de los Caballeros",
+    neighborhood: null,
+  });
+  assert.deepEqual(travelerOriginForRow(row), {
+    country: "US",
+    region: "FL",
+    city: "Miami",
+  });
+  assert.equal(destinationMarketForRow({ country: "US", locale: "en-US" }).country, null);
 });

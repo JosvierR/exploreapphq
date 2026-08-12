@@ -483,9 +483,26 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
   /api/cron/analytics/aggregate:
+    get:
+      tags: [Analytics]
+      summary: Vercel Cron trigger for analytics aggregates
+      description: Vercel invokes this GET endpoint with the CRON_SECRET bearer and recomputes UTC D through D-3.
+      operationId: getCronAnalyticsAggregate
+      security:
+        - cronSecretAuth: []
+      responses:
+        "200":
+          description: Aggregation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     post:
       tags: [Analytics]
-      summary: Cron trigger for analytics aggregates
+      summary: Manual authorized trigger for analytics aggregates
       operationId: postCronAnalyticsAggregate
       security:
         - cronSecretAuth: []
@@ -1769,7 +1786,7 @@ components:
       type: apiKey
       in: header
       name: Authorization
-      description: Bearer ANALYTICS_CRON_SECRET (or project cron auth).
+      description: Bearer CRON_SECRET for Vercel Cron, or ANALYTICS_CRON_SECRET for an authorized manual run.
     bootstrapSecretAuth:
       type: apiKey
       in: header

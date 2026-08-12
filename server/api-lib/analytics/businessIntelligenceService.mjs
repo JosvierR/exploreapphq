@@ -244,9 +244,8 @@ function buildDelta(current, previous) {
 }
 
 function marketCountry(row) {
-  const raw = row?.country || row?._place_country || null;
-  if (raw) return normalizeCountryCode(raw);
-  return countryFromLocale(row?.locale);
+  const raw = row?._destination_country || row?._place_country || null;
+  return raw ? normalizeCountryCode(raw) : null;
 }
 
 function countryFromLocale(locale) {
@@ -268,18 +267,42 @@ function normalizeCountryCode(value) {
 }
 
 function marketRegion(row) {
-  const value = row?.region || row?._place_region;
+  const value = row?._destination_region || row?._place_region;
   return value ? String(value).trim() : null;
 }
 
 function marketCity(row) {
-  const value = row?.city || row?._place_city;
+  const value = row?._destination_city || row?._place_city;
   return value ? String(value).trim() : null;
 }
 
 function marketNeighborhood(row) {
-  const value = row?.neighborhood || row?._place_neighborhood || row?.properties?.neighborhood || row?.properties?.area;
+  const value = row?._destination_neighborhood || row?._place_neighborhood;
   return value ? String(value).trim() : null;
+}
+
+export function destinationMarketForRow(row) {
+  return {
+    country: marketCountry(row),
+    region: marketRegion(row),
+    city: marketCity(row),
+    neighborhood: marketNeighborhood(row),
+  };
+}
+
+export function travelerOriginForRow(row) {
+  const country =
+    row?._origin_country ||
+    row?.origin_country ||
+    row?.properties?.origin_country ||
+    row?.context?.origin_country ||
+    row?.country ||
+    countryFromLocale(row?.locale);
+  return {
+    country: country ? normalizeCountryCode(country) : null,
+    region: row?._origin_region || row?.origin_region || row?.region || null,
+    city: row?._origin_city || row?.origin_city || row?.city || null,
+  };
 }
 
 function eventLatLng(row) {
@@ -553,8 +576,8 @@ async function fetchEventsFrom(supabase, table, params, extended = false) {
       .order("received_at", { ascending: false })
       .range(offset, offset + PAGE_SIZE - 1);
 
-    // Country filter at DB when possible; region/city/neighborhood often enriched later.
-    if (params.country) query = query.eq("country", params.country);
+    // `country` is coarse traveler origin. Destination market filtering is
+    // applied against canonical geo_id/hierarchy after catalog enrichment.
     if (params.platform) query = query.eq("platform", params.platform);
     if (params.source) query = query.eq("source", params.source);
     if (extended && params.geo_ids?.length) query = query.in("geo_id", params.geo_ids);
@@ -597,32 +620,48 @@ async function enrichRowsWithCatalogGeo(supabase, rows) {
   const routeIds = rows.filter((row) => row.entity_type === "route" && row.entity_id).map((row) => row.entity_id);
   const places = await fetchEntityMeta(supabase, "places", placeIds);
   const routes = await fetchEntityMeta(supabase, "routes", routeIds);
+  const placeDestinations = await fetchRecordsBy(
+    supabase,
+    "business_place_destination_geography",
+    "place_id",
+    placeIds,
+  );
+  const routeDestinations = await fetchRecordsBy(
+    supabase,
+    "business_route_destination_geography",
+    "route_id",
+    routeIds,
+  );
+  const geoIds = rows.map((row) => row.geo_id).filter(Boolean);
+  const destinationHierarchy = await fetchRecordsBy(
+    supabase,
+    "business_destination_geo_hierarchy",
+    "leaf_geo_id",
+    geoIds,
+  );
 
   return rows.map((row) => {
     const next = { ...row, properties: row.properties || {}, context: row.context || {} };
     const props = next.properties;
+    next._origin_country = row.origin_country || row.country || null;
+    next._origin_region = row.origin_region || row.region || null;
+    next._origin_city = row.origin_city || row.city || null;
 
-    if (!next.city && props.city) next.city = String(props.city).trim();
-    if (!next.region && (props.region || props.state || props.province)) {
-      next.region = String(props.region || props.state || props.province).trim();
-    }
-    if (!next.country && (props.country || props.country_code)) {
-      next.country = normalizeCountryCode(props.country || props.country_code);
-    }
-    if (props.neighborhood || props.area || props.district) {
-      next.neighborhood = String(props.neighborhood || props.area || props.district).trim();
-    }
+    let destination = row.geo_id ? destinationHierarchy.get(String(row.geo_id)) : null;
+    if (!destination && row.entity_type === "place") destination = placeDestinations.get(String(row.entity_id));
+    if (!destination && row.entity_type === "route") destination = routeDestinations.get(String(row.entity_id));
+    next._destination_country = destination?.country_code || props.destination_country || props.target_country || null;
+    next._destination_region = destination?.admin_level_1 || props.destination_region || props.target_region || null;
+    next._destination_city = destination?.locality || props.destination_city || props.target_city || null;
+    next._destination_neighborhood =
+      destination?.sub_locality || props.destination_neighborhood || props.target_neighborhood || null;
 
     if (row.entity_type === "place" && row.entity_id && places.has(row.entity_id)) {
       const info = placeMeta(places.get(row.entity_id));
-      if (!marketCountry(next) && info.country) next.country = normalizeCountryCode(info.country);
-      if (!marketRegion(next) && info.region) next.region = info.region;
-      if (!marketCity(next) && info.city) next.city = info.city;
-      if (!marketNeighborhood(next) && info.neighborhood) next.neighborhood = info.neighborhood;
-      next._place_country = info.country ? normalizeCountryCode(info.country) : null;
-      next._place_region = info.region;
-      next._place_city = info.city;
-      next._place_neighborhood = info.neighborhood;
+      next._place_country = destination?.country_code || (info.country ? normalizeCountryCode(info.country) : null);
+      next._place_region = destination?.admin_level_1 || info.region;
+      next._place_city = destination?.locality || info.city;
+      next._place_neighborhood = destination?.sub_locality || info.neighborhood;
       next._category = info.category;
       if (info.lat != null) next._lat = info.lat;
       if (info.lng != null) next._lng = info.lng;
@@ -630,6 +669,10 @@ async function enrichRowsWithCatalogGeo(supabase, rows) {
     if (row.entity_type === "route" && row.entity_id && routes.has(row.entity_id)) {
       const info = routeMeta(routes.get(row.entity_id));
       next._category = info.category;
+      next._place_country = destination?.country_code || null;
+      next._place_region = destination?.admin_level_1 || null;
+      next._place_city = destination?.locality || null;
+      next._place_neighborhood = destination?.sub_locality || null;
     }
 
     const propLat = Number(props.lat ?? props.latitude);
@@ -687,6 +730,20 @@ async function fetchEntityMeta(supabase, table, ids) {
     for (const row of data) {
       map.set(String(row.id), row);
     }
+  }
+  return map;
+}
+
+async function fetchRecordsBy(supabase, table, key, ids) {
+  const unique = [...new Set(ids.filter(Boolean).map(String))];
+  const map = new Map();
+  if (!unique.length) return map;
+  for (let index = 0; index < unique.length; index += 80) {
+    const chunk = unique.slice(index, index + 80);
+    const { data, error } = await supabase.from(table).select("*").in(key, chunk);
+    if (error) throw error;
+    if (!data) continue;
+    for (const row of data) map.set(String(row[key]), row);
   }
   return map;
 }
@@ -1805,12 +1862,7 @@ function travelerOrigins(rows, params) {
   }
   const counts = new Map();
   for (const row of rows) {
-    const origin = normalizeCountryCode(
-      row.properties?.origin_country ||
-        row.context?.origin_country ||
-        row.context?.home_country ||
-        countryFromLocale(row.locale),
-    );
+    const origin = travelerOriginForRow(row).country;
     if (!origin) continue;
     counts.set(origin, (counts.get(origin) || 0) + 1);
   }
@@ -1840,10 +1892,9 @@ function audienceSegmentation(rows, params, categories) {
       segments[explicit] += 1;
       continue;
     }
-    const originCountry = normalizeCountryCode(
-      row.properties?.origin_country || row.context?.origin_country || countryFromLocale(row.locale),
-    );
-    const originCity = String(row.properties?.origin_city || row.context?.origin_city || "").trim().toLowerCase();
+    const origin = travelerOriginForRow(row);
+    const originCountry = origin.country;
+    const originCity = String(origin.city || "").trim().toLowerCase();
     if (params.city && originCity && originCity === String(params.city).toLowerCase()) segments.local += 1;
     else if (params.country && originCountry === params.country) segments.domestic_traveler += 1;
     else if (params.country && originCountry) segments.international_traveler += 1;
@@ -1939,6 +1990,10 @@ export async function getBusinessIntelligenceDashboard(supabase, params) {
     params.access_scope === "admin_global"
       ? supabase.rpc("business_intelligence_quality_report")
       : Promise.resolve({ data: null, error: null });
+  const destinationQualityPromise =
+    params.access_scope === "admin_global"
+      ? supabase.rpc("business_destination_geography_quality_report")
+      : Promise.resolve({ data: null, error: null });
 
   const kpis = computeKpis(current.rows);
   const previousKpis = computeKpis(previous.rows);
@@ -2029,8 +2084,11 @@ export async function getBusinessIntelligenceDashboard(supabase, params) {
   const missingGeography = current.rows.filter((row) => !marketCountry(row)).length;
   let productionQuality = null;
   try {
-    const result = await productionQualityPromise;
-    if (!result?.error) productionQuality = result?.data || null;
+    const [coreResult, destinationResult] = await Promise.all([productionQualityPromise, destinationQualityPromise]);
+    productionQuality = {
+      ...(coreResult?.error ? {} : coreResult?.data || {}),
+      ...(destinationResult?.error ? {} : destinationResult?.data || {}),
+    };
   } catch {
     productionQuality = null;
   }
@@ -2105,7 +2163,13 @@ export async function getBusinessIntelligenceDashboard(supabase, params) {
       unknown_routes: unresolvedRoutes,
       missing_geography: missingGeography,
       validity_view_active: !current.validity_view_missing,
-      geo_coverage_pct: productionQuality?.events_with_geo_pct ?? null,
+      geo_coverage_pct: productionQuality?.destination_events_with_geo_pct ?? null,
+      destination_geo_coverage_pct: productionQuality?.destination_events_with_geo_pct ?? null,
+      traveler_origin_coverage_pct: productionQuality?.traveler_origin_country_pct ?? null,
+      places_with_country_pct: productionQuality?.places_with_country_pct ?? null,
+      places_with_region_pct: productionQuality?.places_with_region_pct ?? null,
+      places_with_city_pct: productionQuality?.places_with_city_pct ?? null,
+      routes_with_market_pct: productionQuality?.routes_with_market_pct ?? null,
       place_resolution_pct: productionQuality?.place_resolution_pct ?? null,
       route_resolution_pct: productionQuality?.route_resolution_pct ?? null,
       rejected_events: productionQuality?.rejected_events ?? null,
@@ -2406,8 +2470,14 @@ export async function getBusinessIntelligenceHealth(supabase, params) {
     lastAggregation = null;
   }
   try {
-    const qualityReport = await supabase.rpc("business_intelligence_quality_report");
-    if (!qualityReport.error) productionQuality = qualityReport.data || null;
+    const [qualityReport, destinationReport] = await Promise.all([
+      supabase.rpc("business_intelligence_quality_report"),
+      supabase.rpc("business_destination_geography_quality_report"),
+    ]);
+    productionQuality = {
+      ...(qualityReport.error ? {} : qualityReport.data || {}),
+      ...(destinationReport.error ? {} : destinationReport.data || {}),
+    };
   } catch {
     productionQuality = null;
   }
@@ -2432,7 +2502,14 @@ export async function getBusinessIntelligenceHealth(supabase, params) {
       raw_events: productionQuality?.events_total ?? null,
       valid_events_total: productionQuality?.valid_events ?? received,
       rejected_events_total: productionQuality?.rejected_events ?? invalidEvents,
-      geo_coverage_pct: productionQuality?.events_with_geo_pct ?? null,
+      geo_coverage_pct: productionQuality?.destination_events_with_geo_pct ?? null,
+      destination_geo_coverage_pct: productionQuality?.destination_events_with_geo_pct ?? null,
+      traveler_origin_coverage_pct: productionQuality?.traveler_origin_country_pct ?? null,
+      places_with_country_pct: productionQuality?.places_with_country_pct ?? null,
+      places_with_region_pct: productionQuality?.places_with_region_pct ?? null,
+      places_with_city_pct: productionQuality?.places_with_city_pct ?? null,
+      routes_with_market_pct: productionQuality?.routes_with_market_pct ?? null,
+      last_attempted_aggregation: productionQuality?.last_attempted_aggregation ?? null,
       place_resolution_pct: productionQuality?.place_resolution_pct ?? null,
       route_resolution_pct: productionQuality?.route_resolution_pct ?? null,
       unknown_entities: Number(productionQuality?.unknown_geo || 0),

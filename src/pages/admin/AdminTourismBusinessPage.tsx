@@ -1097,9 +1097,14 @@ function BusinessIntelligenceContent() {
           <article><span>Eligible events</span><strong>{formatNumber(data?.data_quality.valid_events)}</strong></article>
           <article><span>Unknown places</span><strong>{formatNumber(data?.data_quality.unknown_places)}</strong></article>
           <article><span>Unknown routes</span><strong>{formatNumber(data?.data_quality.unknown_routes)}</strong></article>
-          <article><span>Missing geography</span><strong>{formatNumber(data?.data_quality.missing_geography)}</strong></article>
+          <article><span>Missing destination geography</span><strong>{formatNumber(data?.data_quality.missing_geography)}</strong></article>
           <article><span>Validity filter</span><strong>{data?.data_quality.validity_view_active ? "Active" : "Fallback"}</strong></article>
-          <article><span>Geo coverage</span><strong>{data?.data_quality.geo_coverage_pct == null ? "—" : `${data.data_quality.geo_coverage_pct}%`}</strong></article>
+          <article><span>Destination-event geo</span><strong>{data?.data_quality.destination_geo_coverage_pct == null ? "—" : `${data.data_quality.destination_geo_coverage_pct}%`}</strong></article>
+          <article><span>Traveler-origin country</span><strong>{data?.data_quality.traveler_origin_coverage_pct == null ? "—" : `${data.data_quality.traveler_origin_coverage_pct}%`}</strong></article>
+          <article><span>Places with country</span><strong>{data?.data_quality.places_with_country_pct == null ? "—" : `${data.data_quality.places_with_country_pct}%`}</strong></article>
+          <article><span>Places with region</span><strong>{data?.data_quality.places_with_region_pct == null ? "—" : `${data.data_quality.places_with_region_pct}%`}</strong></article>
+          <article><span>Places with city</span><strong>{data?.data_quality.places_with_city_pct == null ? "—" : `${data.data_quality.places_with_city_pct}%`}</strong></article>
+          <article><span>Routes with market</span><strong>{data?.data_quality.routes_with_market_pct == null ? "—" : `${data.data_quality.routes_with_market_pct}%`}</strong></article>
           <article><span>Place resolution</span><strong>{data?.data_quality.place_resolution_pct == null ? "—" : `${data.data_quality.place_resolution_pct}%`}</strong></article>
           <article><span>Route resolution</span><strong>{data?.data_quality.route_resolution_pct == null ? "—" : `${data.data_quality.route_resolution_pct}%`}</strong></article>
           <article><span>Rejected events</span><strong>{formatNumber(data?.data_quality.rejected_events)}</strong></article>

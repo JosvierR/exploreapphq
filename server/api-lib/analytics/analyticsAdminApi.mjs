@@ -1191,7 +1191,8 @@ async function runAggregationRequest(request, { trigger, requireAdminAuth }) {
 
   try {
     if (request.method === "OPTIONS") return optionsResponse();
-    if (request.method !== "POST") return methodNotAllowed(request);
+    const allowedMethods = trigger === "cron" ? new Set(["GET", "POST"]) : new Set(["POST"]);
+    if (!allowedMethods.has(request.method)) return methodNotAllowed(request);
 
     // Auth only — RPC always uses the service-role client (EXECUTE is granted to service_role).
     if (requireAdminAuth) {

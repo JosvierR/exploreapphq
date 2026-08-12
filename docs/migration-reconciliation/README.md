@@ -66,7 +66,7 @@ If both applications continue changing the shared database, move migration owner
 
 1. Run `npm run verify:shared-migration-history`.
 2. Run `npx.cmd supabase migration list --linked` and confirm the linked project is `ookbeuiavzjhvezvamfu`.
-3. Run `npx.cmd supabase db push --linked --dry-run`; expect only the three intentional forwards.
+3. Run `npx.cmd supabase db push --linked --dry-run`; expect only the reviewed intentional forwards for the release.
 4. Complete the pre-DDL tests, TypeScript, OpenAPI, build, security, and risk gates.
 5. Only then apply production DDL.
 
