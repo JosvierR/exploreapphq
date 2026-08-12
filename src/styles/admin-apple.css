@@ -694,6 +694,18 @@
   padding: 1.15rem 1.25rem !important;
 }
 
+.admin-panel--nested {
+  margin-top: 0.75rem;
+  padding: 1rem 1.1rem !important;
+  background: var(--admin-bg, #f8fafc) !important;
+  box-shadow: none !important;
+}
+
+.admin-panel--nested:hover {
+  box-shadow: none !important;
+  border-color: var(--admin-border-soft) !important;
+}
+
 .admin-panel__header {
   margin-bottom: 0.75rem;
   align-items: baseline;
@@ -1137,6 +1149,10 @@
 .admin-report-preview:hover {
   background: var(--admin-surface-soft);
   transform: none;
+}
+
+.admin-table__interactive-row {
+  cursor: pointer;
 }
 
 /* —— Status badges / pills —— */
