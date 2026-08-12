@@ -1,0 +1,623 @@
+{
+  "schema_version": 1,
+  "production_project": "ookbeuiavzjhvezvamfu",
+  "hash_mode": "sha256 of UTF-8 SQL with CRLF normalized to LF",
+  "canonical_remote_total": 76,
+  "canonical_migrations": [
+    {
+      "version": "00001",
+      "filename": "00001_enable_postgis.sql",
+      "sha256": "f46e7947e014f0f1a1bf861705155dd0f176e7988a6a7a08360610d2ecfa6c03",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "00002",
+      "filename": "00002_create_users.sql",
+      "sha256": "4e7e499749abb4278dc557ba71c1c5214791459fc74025b8a935f75465e2753b",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "00003",
+      "filename": "00003_create_places.sql",
+      "sha256": "702b86e1fca3df51afb6915932adbf23aa16fd54264cbad30a5b4a52ba2ae1ab",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "00004",
+      "filename": "00004_create_routes.sql",
+      "sha256": "8f195305a9fa8f67950ff85e1d4b53a132cb360569c0aec417599f6566feb3f1",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "00005",
+      "filename": "00005_create_videos.sql",
+      "sha256": "a6db3cfadc274497de21e503547309a4e932646654325bbe3089a17ada71e790",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "00006",
+      "filename": "00006_rls_policies.sql",
+      "sha256": "6524412180957aa26bfe22fb34175cc966936ad91a56a61eaffd0b633cf4763e",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "00007",
+      "filename": "00007_auth_user_created_trigger.sql",
+      "sha256": "f3649ebcec307893ae30894fa5447383f4e1bbbee8af5d04d67df99146245445",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "00008",
+      "filename": "00008_auth_email_registered.sql",
+      "sha256": "22c1a8b751ca0832a0cf8a86e6f3d295e20a739b42b69dbd53c875aa5faf129d",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "00009",
+      "filename": "00009_auth_user_updated_trigger.sql",
+      "sha256": "4dc935690359cb505807e08f9123b10a3192c97a236b309244e91cce8f5c45e4",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260525",
+      "filename": "20260525_community_domain.sql",
+      "sha256": "7c35e3ba41196f517e7d27f898895e6de5281848bfbe62b79fed92cd9df1210e",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260527120000",
+      "filename": "20260527120000_create_places_domain.sql",
+      "sha256": "b7375eae384f710685824998ae4342b7ce19b201fe61805645cf4ff28d32575d",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260527131500",
+      "filename": "20260527131500_fix_places_in_bbox_signature.sql",
+      "sha256": "5273c5f0fc91664fb22a684b6000e559e889fb31aeba8b3d6bbd476a52c60ab6",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260527233500",
+      "filename": "20260527233500_community_feed_rpc.sql",
+      "sha256": "454c2ea7184ef18c70a82f5b390c2140a5b0db70efb892acfc81b9a62868a70d",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260528120000",
+      "filename": "20260528120000_video_impressions.sql",
+      "sha256": "3e9ccd4612f40dcc42941eb06c3c6a3c44ece7ab8cc1a628ddb57bf7d1a9cce4",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260603120000",
+      "filename": "20260603120000_place_photos_storage.sql",
+      "sha256": "25eb9322e0a40d7035aa75a2a0282b12993ba25ac214366e4c004aa0a8cd1260",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260603130000",
+      "filename": "20260603130000_update_video_links_rpc.sql",
+      "sha256": "a65eb5afb6044a385e277f9fbe9c195833b0fd931a2001ac98d96fd18eb42587",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260604120000",
+      "filename": "20260604120000_videos_realtime_publication.sql",
+      "sha256": "d49e970d3771d6768952d0cd985528766bf7f73f525999422564fc090d318e5f",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260605120000",
+      "filename": "20260605120000_increment_video_likes_rpc.sql",
+      "sha256": "dbe4db40342d2da07e732682f637d69f517c108d839baa315de0f08d985fde4a",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260606120000",
+      "filename": "20260606120000_increment_video_comments_rpc.sql",
+      "sha256": "9b2ebf48c58573ee5aead965072a0dc932691ea37688bb8127aa2215efbcb868",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260607120000",
+      "filename": "20260607120000_photo_uploads_log.sql",
+      "sha256": "98db6cade934e50b8c86a004b67d5c096ffb23d6cff0a10a9accedb1a8c6044e",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260607130000",
+      "filename": "20260607130000_place_photos_insert_policy.sql",
+      "sha256": "2895e2728b6a2e6f3f3de6d88cd34c74b9bfd779326d1ebf5fe928362a306f91",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260607140000",
+      "filename": "20260607140000_content_reports.sql",
+      "sha256": "7bac3725189d24a4c0080c4ee885f1cc9f72e1aada0a604b164cf928f47f200a",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260608120000",
+      "filename": "20260608120000_feed_following_rpc.sql",
+      "sha256": "2e7df33eb9ea11d00555c5472c786dc6aa806b09a721eaa70d7948d74bfd3766",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260608150000",
+      "filename": "20260608150000_places_in_bbox_category_filter.sql",
+      "sha256": "659106e29364e13f270631a8a3f9709dc6a358dea6dcd424b48b7ccf1b1f20a8",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260608230000",
+      "filename": "20260608230000_video_thumbnails_storage.sql",
+      "sha256": "91ea23510df032534aac02cbeed9306e1829e7711f673c8721c25a14c09b4ba3",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260608233000",
+      "filename": "20260608233000_video_thumbnails_rls_owner.sql",
+      "sha256": "a6b796493111a9e6598aa3ea513c6b684841f329f65a04dd99eb1c3bf292a83a",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260609120000",
+      "filename": "20260609120000_video_reports.sql",
+      "sha256": "689f9f0a249bf40c03ead529bd7d2b4f2016a37aeb3ca546cbe09708447a5d4d",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260610120000",
+      "filename": "20260610120000_routes_domain_foundation.sql",
+      "sha256": "2a4cba2a952b638b6943af2319964dfbc56a9e0051d6f67a1b51dfdb5e64faaa",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260610130000",
+      "filename": "20260610130000_routes_repository_rpcs.sql",
+      "sha256": "d51a2c45ac7b506cae72029909da7283d13ba5b1161cd790148fe8345eeecc57",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260610195342",
+      "filename": "20260610195342_video_state_draft.sql",
+      "sha256": "67887f6b7c265db3673adfc8bf9daba4737ac5a53a52c0da263a8681b00f8fd4",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260610195500",
+      "filename": "20260610195500_video_state_draft_rls.sql",
+      "sha256": "14a58a8090b32e50c4d4d1f1331c2ff45d1e517f0e64e502b9e8f24d815f248e",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260611120000",
+      "filename": "20260611120000_drop_videos_within_radius_overload.sql",
+      "sha256": "b04d2d98631c5927ca283b2ffac8f0249d395a0cad5e30ff7f05ebb09909cf68",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260612120000",
+      "filename": "20260612120000_reviews_and_photos.sql",
+      "sha256": "e912f20a8af6eac47ef4ac2f9281e441df43c4b58f07c77e222780e896b5192d",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260612120100",
+      "filename": "20260612120100_purge_community_user_data_rpc.sql",
+      "sha256": "bd423b290664c9ed902e13864df44de0761628646bf66ad056a4b52ecc125285",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260612120200",
+      "filename": "20260612120200_routes_nearby_rpc.sql",
+      "sha256": "e4affd71afcd6dd27653b1595eafc55eb60490b013b5db7c96b30a5a89e841f6",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260613120000",
+      "filename": "20260613120000_legal_compliance.sql",
+      "sha256": "280febf03ffccfc2dbf6d8961a36e5f5bba34200d23861a73051775256ff80dc",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260613120100",
+      "filename": "20260613120100_append_route_place_rpc.sql",
+      "sha256": "7da8c74ede7c9c7f462c86383f4cef702557a506b4b89524ca775845e2b5fa42",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260618120000",
+      "filename": "20260618120000_user_profile_media.sql",
+      "sha256": "597f953e93a6041865e7af242524a4f3243af5b6b32bebc6477f98031319bf34",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260619120000",
+      "filename": "20260619120000_feed_scoring.sql",
+      "sha256": "405036cf5a4a20f6fe1354a1e366a7d31535698444a290e7f603e5182a9679d0",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260619130000",
+      "filename": "20260619130000_explore_scoring_helpers.sql",
+      "sha256": "b0766fce9c676fedabd26913970c2c6b31038c6fd1dd32003fe7196514f07aa1",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260619140000",
+      "filename": "20260619140000_explore_recent_in_zone.sql",
+      "sha256": "26f01cb558188d81c3e43d7895526bc6b21809d8a02b1c66fa286c4f2d7c4600",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260619145000",
+      "filename": "20260619145000_route_completions.sql",
+      "sha256": "049985a7f5abb24b249f48534ebca2f85cd1ed2acc7a7f269c14dd81084ca046",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260619150000",
+      "filename": "20260619150000_routes_community_favorites.sql",
+      "sha256": "b04aadfbfe7cdcaa70933f5f97bebce239e2da97a7b83d550fa2204868e07cab",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260619160000",
+      "filename": "20260619160000_explore_trending_weekly.sql",
+      "sha256": "f6cdbf0401d2dc66d69ddd50d525ab1953fe7cd5e370a66ab76ac95ba91be667",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260619170000",
+      "filename": "20260619170000_explore_hidden_gems.sql",
+      "sha256": "0454d42d356742ee6f0ce849bb833c4ab347d52dcabd470da57ad9ecc80b8f8f",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260619180000",
+      "filename": "20260619180000_explore_local_creators.sql",
+      "sha256": "0089766ba230965cc3e849fd333d9c41fecce7d1237f464196f3beaa4253d125",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260620120000",
+      "filename": "20260620120000_explore_local_creators_category.sql",
+      "sha256": "70d2adfbc0981f8f09fb9007806ba25f41a45cbdcc092bbaa3b8478a66a355e0",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260620120100",
+      "filename": "20260620120100_reassign_route_place_delete_loser.sql",
+      "sha256": "d15b5dfdd9f4731964ce037d8570c26fd88015e84a586813f4fce6a1acec4f30",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260620130000",
+      "filename": "20260620130000_videos_within_radius_tag.sql",
+      "sha256": "30d741f081cf8cb3281162f3879826f35a24b6ed6a315fcb69bb26876c7ccac7",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260621120000",
+      "filename": "20260621120000_content_reports_unique_and_place_report_rls.sql",
+      "sha256": "da19ae52b23914a7b38af89683bf0e99aac634250df813d4b6da168cefe46ff8",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260623120000",
+      "filename": "20260623120000_search_places_for_map.sql",
+      "sha256": "cd00b4d3452a237677ffa7aa23ab9ac50c58d4518d716399dadcfe3bf2e4039f",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260623140000",
+      "filename": "20260623140000_route_ratings.sql",
+      "sha256": "c5846c623ca5916a366c01e9c60c764e81b5d591188b95fd329f78709dc2c91c",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260623150000",
+      "filename": "20260623150000_rating_recalc_security_definer.sql",
+      "sha256": "35c0c8b4d5fba0e0f7709e04fb23360385ded856ff0fb1a72c10b5aa360bc51b",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260624120000",
+      "filename": "20260624120000_discover_search.sql",
+      "sha256": "7f99b64b61e64d012ce38e574ac6b06aa99a29c7f68996eef6043d8887abc2b8",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260624120100",
+      "filename": "20260624120100_feed_rpcs_add_place_ids.sql",
+      "sha256": "1d04c1ccc953dd868ae1b53c9c07d9b29b03ce70e626e7dab177d7723cee4aa3",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260624140000",
+      "filename": "20260624140000_search_users_discover_enrich.sql",
+      "sha256": "1aa7902d5baa7f87b05a5154ce4cc0145bfebc88632e2836094e76a08029d33f",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260624150000",
+      "filename": "20260624150000_explore_creators_visibility.sql",
+      "sha256": "0729888f7353fa08095d4c2249d88ace8e4beeb4723d78a5f6738351ccd6d4ff",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260625120000",
+      "filename": "20260625120000_reviews_rename_score_to_rating.sql",
+      "sha256": "93cc164493c385c278232d07bd6054c5449dde5e7df471040f6b47ed3f84de97",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260625120001",
+      "filename": "20260625120001_routes_production_normalization.sql",
+      "sha256": "d85ed7a5cc3090d2a3206abf642e5853083ebdc5ab15191e5c07a3a8692c717a",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260701120000",
+      "filename": "20260701120000_moderation_visibility_lifecycle.sql",
+      "sha256": "37d140f3cd0869512506fd2ad3675011fada2935eafa110eb1ba9d0c27444678",
+      "source": "exploreapphq (local) vs AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260702123902",
+      "filename": "20260702123902_analytics_foundation.sql",
+      "sha256": "6ec4e11ac5db55bb79b7d422c38599df3606656a9d40118a287d9ada5dfc813b",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260704160000",
+      "filename": "20260704160000_place_photos_position.sql",
+      "sha256": "907e840afa57b666e8a9044bcc8362281e6f2e88a93a3c8a9a3c0537067d9af6",
+      "source": "exploreapphq (local) vs AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260704170000",
+      "filename": "20260704170000_reorder_place_photos_rpc.sql",
+      "sha256": "7a1d0b134b3ba9b87b81316b07372096c7e49bd87f93df1da49b8a8920cbf163",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260705150026",
+      "filename": "20260705150026_extend_category_enums.sql",
+      "sha256": "8eadca5bcf06eefe3c6327d4542d11868fdaed978a065f9472b98f191c9606ad",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260707120000",
+      "filename": "20260707120000_auth_email_signup_state.sql",
+      "sha256": "e64a8316fa0e6efb727708c5710e7dacdca98841e425f2406bf8dd8ad1bdd378",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260708120000",
+      "filename": "20260708120000_finalize_account_deletion_server.sql",
+      "sha256": "29ba1f9747b942ea6056b36293f69d79b3e5ce2afa570ed4145ef9405cdab2d1",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260710090000",
+      "filename": "20260710090000_guard_deletion_columns.sql",
+      "sha256": "2fcecdfeb89f52cb38036ae697e09447bb9f466ae13f63982f835f92e871f548",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260711090000",
+      "filename": "20260711090000_photo_uploads_log_rls.sql",
+      "sha256": "ff1d018f5dcd9f94d5d0d6caa462b2d815efb1d38b12f9426a5ff44bb5921e9e",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260711120000",
+      "filename": "20260711120000_finalize_frees_auth_email.sql",
+      "sha256": "d415965a44f1469661657375ebc0f65e43edb77c0eeb26a0aa18953d672fdf92",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260711140000",
+      "filename": "20260711140000_explore_creators_global_count.sql",
+      "sha256": "00e534a2ae875ea705bc2ec7e46237f55f7f46ac094d6a8219108526ae629038",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260719120000",
+      "filename": "20260719120000_reviews_updated_at_trigger.sql",
+      "sha256": "ef16ef1a1444cd38701c6d81892aa6438fc2663d156b499b5da9d167d212551b",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_ref": "origin/main tip recovered at exploreapphq checkpoint f5543fd"
+    },
+    {
+      "version": "20260719140000",
+      "filename": "20260719140000_soft_delete_cleanup.sql",
+      "sha256": "f34bb3d3ea22d9aea1dd17769ed78072750e5546752e8054b8bddbf3d03533bd",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_commit": "91a056ca36e6fa38bd18511b618897121d60abe4"
+    },
+    {
+      "version": "20260719150000",
+      "filename": "20260719150000_videos_cloudflare_uid.sql",
+      "sha256": "3e333c1696e85b9ece1f8344cf8c56a790b58f82c1e70d471cd6b4d436a9f545",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_commit": "4a149e93a61130c3002085201981117631aac209"
+    },
+    {
+      "version": "20260719160000",
+      "filename": "20260719160000_cleanup_uses_cloudflare_uid.sql",
+      "sha256": "7bec17bbb5812974d96fbfc58c1a12d0993dcfa933769b1dd3ab57bc6209581b",
+      "source": "AngRodSt/Explore-V2",
+      "production_applied": true,
+      "source_commit": "43a944b967346aad4da9acf30327611c04b0b1a5"
+    },
+    {
+      "version": "20260731120000",
+      "filename": "20260731120000_production_seed_audit.sql",
+      "sha256": "e8566506df55d6842a925daa2fa740a9b6eb37e08309c6b3fa3afdb6f5e46127",
+      "source": "schema_migrations.statements",
+      "production_applied": true,
+      "original_git_file": "unknown",
+      "statements_sha256": "453f3320277c92868f9413dd2d260fe3a57ab67d1b8f1405f8a902c487950d4b"
+    },
+    {
+      "version": "20260802120000",
+      "filename": "20260802120000_production_seed_video_engagement.sql",
+      "sha256": "de97ebf03a2da8acf123253d6b2c858b095a171fc250467da4035f3d791ee0c9",
+      "source": "schema_migrations.statements",
+      "production_applied": true,
+      "original_git_file": "unknown",
+      "statements_sha256": "4354db994641d88a5895422e2f64bbd8465c228e277bbcf86c4630a948809549"
+    }
+  ],
+  "intentional_forward_migrations": [
+    "20260810120000_admin_product_analytics_snapshot.sql",
+    "20260811150000_business_intelligence_v2.sql",
+    "20260811210000_business_intelligence_production_activation.sql"
+  ]
+}

@@ -1,0 +1,3 @@
+# Canonical migrations are byte-preserved from the shared production history.
+# Two upstream files intentionally contain an extra blank line at EOF.
+supabase/migrations/*.sql whitespace=-blank-at-eof

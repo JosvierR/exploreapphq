@@ -15,6 +15,7 @@
     "openapi:lint": "redocly lint server/api-lib/docs/openapi.admin.yaml",
     "openapi:preview": "redocly preview-docs server/api-lib/docs/openapi.admin.yaml",
     "openapi:sync-edge": "node scripts/sync-edge-openapi.mjs",
+    "verify:shared-migration-history": "node scripts/verify-shared-migration-history.mjs",
     "verify:business-schema": "node scripts/verify-business-schema.mjs",
     "business:backfill": "node scripts/business-backfill.mjs",
     "obs:up": "docker compose -f observability/docker-compose.observability.yml up -d",
