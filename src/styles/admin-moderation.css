@@ -1189,33 +1189,30 @@
 .admin-status-pill {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  padding: 0.22rem 0.52rem;
+  min-height: 22px;
+  padding: 0.2rem 0.6rem;
   border-radius: 999px;
-  border: 1px solid var(--admin-border);
-  color: var(--admin-muted);
-  background: #f2f4f7;
+  border: 0;
+  color: var(--admin-muted, #475569);
+  background: var(--admin-surface-soft, #f8fafc);
   font-size: 0.7rem;
-  font-weight: 900;
+  font-weight: 650;
   white-space: nowrap;
 }
 
 .admin-status-pill--green {
-  color: #126f34;
-  background: var(--admin-green-soft);
-  border-color: #bfe8cd;
+  color: #166534;
+  background: #dcfce7;
 }
 
 .admin-status-pill--warning {
-  color: #8a5200;
-  background: var(--admin-amber-soft);
-  border-color: #f5d38b;
+  color: #854d0e;
+  background: #fef9c3;
 }
 
 .admin-status-pill--danger {
-  color: #9f1f1f;
-  background: var(--admin-red-soft);
-  border-color: #ffc9c9;
+  color: #991b1b;
+  background: var(--admin-red-soft, #fef2f2);
 }
 
 .admin-copy-btn {
@@ -3639,12 +3636,17 @@
   flex-direction: column;
   justify-content: space-between;
   gap: 0.7rem;
-  padding: 1rem;
+  padding: 1.1rem 1.15rem;
   border: 1px solid var(--admin-kpi-border);
-  border-top: 3px solid var(--admin-chart-primary);
   border-radius: var(--admin-radius);
   background: var(--admin-kpi-surface);
-  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.05);
+  box-shadow: var(--admin-shadow, 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03));
+  transition: box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.admin-kpi-card:hover {
+  box-shadow: var(--admin-shadow-hover, 0 4px 12px rgba(0, 0, 0, 0.06));
+  border-color: var(--admin-muted-2);
 }
 
 .admin-kpi-card--positive {
@@ -3664,17 +3666,20 @@
 }
 
 .admin-kpi-card__topline > span {
-  color: var(--admin-muted);
-  font-size: 0.76rem;
-  font-weight: 800;
+  color: var(--admin-muted, #475569);
+  font-size: 0.7rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .admin-kpi-card > strong {
   color: var(--admin-kpi-number);
-  font-size: clamp(1.8rem, 2.4vw, 2.45rem);
+  font-size: clamp(1.6rem, 2.2vw, 2.1rem);
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.035em;
-  line-height: 1;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
 .admin-kpi-card__trend {

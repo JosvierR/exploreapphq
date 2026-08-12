@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useModerationAdmin } from "@/features/admin/ModerationAdminProvider";
@@ -15,6 +15,172 @@ type NavItem = {
   note?: string;
   exactQuery?: boolean;
 };
+
+/** Small outline icon glyphs for the sidebar nav (no external icon library). */
+function Icon({ children }: { children: ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  );
+}
+
+const NAV_ICONS: Record<string, ReactNode> = {
+  Dashboard: (
+    <Icon>
+      <rect x="3.5" y="3.5" width="7" height="7" rx="1.4" />
+      <rect x="13.5" y="3.5" width="7" height="7" rx="1.4" />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="1.4" />
+      <rect x="13.5" y="13.5" width="7" height="7" rx="1.4" />
+    </Icon>
+  ),
+  Moderation: (
+    <Icon>
+      <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" />
+      <path d="M9.3 12.2l1.9 1.9L14.9 10" />
+    </Icon>
+  ),
+  Reports: (
+    <Icon>
+      <path d="M6 3v18" />
+      <path d="M6 4.5h11l-2.2 3.5L17 11.5H6" />
+    </Icon>
+  ),
+  Pending: (
+    <Icon>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
+    </Icon>
+  ),
+  Reviewed: (
+    <Icon>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M8.3 12.3l2.5 2.4 4.6-5.2" />
+    </Icon>
+  ),
+  Hidden: (
+    <Icon>
+      <path d="M3.5 12s3.5-6.5 8.5-6.5 8.5 6.5 8.5 6.5-3.5 6.5-8.5 6.5S3.5 12 3.5 12z" />
+      <circle cx="12" cy="12" r="2.4" />
+      <path d="M4 4l16 16" />
+    </Icon>
+  ),
+  Users: (
+    <Icon>
+      <circle cx="9" cy="8.5" r="3" />
+      <path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" />
+      <circle cx="17" cy="9.5" r="2.4" />
+      <path d="M15.5 14.2c2 .3 3.7 1.9 3.7 4.3" />
+    </Icon>
+  ),
+  Content: (
+    <Icon>
+      <path d="M7 3.5h7l4 4V20a1 1 0 01-1 1H7a1 1 0 01-1-1V4.5a1 1 0 011-1z" />
+      <path d="M14 3.5V8h4" />
+      <path d="M8.5 12.5h7M8.5 15.5h7M8.5 18h4" />
+    </Icon>
+  ),
+  Places: (
+    <Icon>
+      <path d="M12 21s7-6.2 7-11.5A7 7 0 105 9.5C5 14.8 12 21 12 21z" />
+      <circle cx="12" cy="9.3" r="2.3" />
+    </Icon>
+  ),
+  Routes: (
+    <Icon>
+      <circle cx="6" cy="6" r="2.2" />
+      <circle cx="18" cy="18" r="2.2" />
+      <path d="M6 8.2V13a4 4 0 004 4h4" />
+    </Icon>
+  ),
+  Waitlist: (
+    <Icon>
+      <path d="M4 6h11M4 12h11M4 18h7" />
+      <circle cx="19" cy="6" r="1.3" />
+      <circle cx="19" cy="12" r="1.3" />
+    </Icon>
+  ),
+  Insights: (
+    <Icon>
+      <path d="M4 20V10M11 20V4M18 20v-7" />
+    </Icon>
+  ),
+  "Analytics Ops": (
+    <Icon>
+      <path d="M3.5 12h3.5l2-6 4 12 2-8 1.5 2h3.5" />
+    </Icon>
+  ),
+  Data: (
+    <Icon>
+      <ellipse cx="12" cy="6" rx="7" ry="2.6" />
+      <path d="M5 6v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6" />
+      <path d="M5 12v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6v-6" />
+    </Icon>
+  ),
+  System: (
+    <Icon>
+      <rect x="7.5" y="7.5" width="9" height="9" rx="1.4" />
+      <path d="M12 3.2v2.4M12 18.4v2.4M3.2 12h2.4M18.4 12h2.4M5.8 5.8l1.7 1.7M16.5 16.5l1.7 1.7M5.8 18.2l1.7-1.7M16.5 7.5l1.7-1.7" />
+    </Icon>
+  ),
+  "API Docs": (
+    <Icon>
+      <path d="M9 8l-4.5 4L9 16" />
+      <path d="M15 8l4.5 4-4.5 4" />
+    </Icon>
+  ),
+  Admins: (
+    <Icon>
+      <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" />
+      <circle cx="12" cy="10.3" r="2" />
+      <path d="M9 15.2c.5-1.6 1.6-2.3 3-2.3s2.5.7 3 2.3" />
+    </Icon>
+  ),
+};
+
+function SidebarToggleIcon() {
+  return (
+    <Icon>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+      <path d="M9.5 4.5v15" />
+    </Icon>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg
+      className="admin-console__search-icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="M20 20l-4.3-4.3" />
+    </svg>
+  );
+}
+
+function BellIcon() {
+  return (
+    <Icon>
+      <path d="M6 9a6 6 0 1112 0c0 4 1.2 5.4 1.8 6.1a.9.9 0 01-.7 1.4H4.9a.9.9 0 01-.7-1.4C4.8 14.4 6 13 6 9z" />
+      <path d="M10 19a2 2 0 004 0" />
+    </Icon>
+  );
+}
 
 const moderationItems: NavItem[] = [
   { label: "Moderation", to: "/admin?section=moderation" },
@@ -158,18 +324,38 @@ function NavGroup({ title, items, onNavigate }: { title: string; items: NavItem[
           <Link
             key={item.label}
             to={item.to}
+            title={item.label}
             className={`admin-console__link${
               isItemActive(item, location.pathname, location.search) ? " is-active" : ""
             }`}
             onClick={onNavigate}
           >
             <span className="admin-console__link-dot" aria-hidden="true" />
-            <span>{item.label}</span>
+            <span className="admin-console__link-icon">
+              {NAV_ICONS[item.label] ?? (
+                <Icon>
+                  <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
+                </Icon>
+              )}
+            </span>
+            <span className="admin-console__link-label">{item.label}</span>
           </Link>
         ) : (
-          <span key={item.label} className="admin-console__link admin-console__link--disabled" aria-disabled="true">
+          <span
+            key={item.label}
+            title={item.label}
+            className="admin-console__link admin-console__link--disabled"
+            aria-disabled="true"
+          >
             <span className="admin-console__link-dot" aria-hidden="true" />
-            <span>{item.label}</span>
+            <span className="admin-console__link-icon">
+              {NAV_ICONS[item.label] ?? (
+                <Icon>
+                  <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
+                </Icon>
+              )}
+            </span>
+            <span className="admin-console__link-label">{item.label}</span>
             <em>{item.note ?? "Soon"}</em>
           </span>
         ),
@@ -192,6 +378,10 @@ export function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [navOpen, setNavOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("admin:sidebar-collapsed") === "1";
+  });
   const [health, setHealth] = useState<AdminHealth | null>(null);
   const [healthLoading, setHealthLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -233,13 +423,21 @@ export function AdminLayout() {
     navigate("/", { replace: true });
   }
 
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      window.localStorage.setItem("admin:sidebar-collapsed", next ? "1" : "0");
+      return next;
+    });
+  }
+
   const supabaseConfigured =
     Boolean(health?.supabaseUrlConfigured && health.publishableKeyConfigured && health.secretKeyConfigured) ||
     (moderationAdmin.configured && health === null);
   const adminAuthorized = moderationAdmin.status === "authorized";
 
   return (
-    <div className={`admin-console${navOpen ? " is-nav-open" : ""}`}>
+    <div className={`admin-console${navOpen ? " is-nav-open" : ""}${collapsed ? " is-collapsed" : ""}`}>
       <button
         type="button"
         className="admin-console__scrim"
@@ -250,7 +448,7 @@ export function AdminLayout() {
       <aside className="admin-console__sidebar" id="admin-sidebar" aria-label="Admin navigation">
         <div className="admin-console__brand">
           <Link to="/admin" className="admin-console__brand-link" onClick={() => setNavOpen(false)}>
-            <BrandLogo size={34} />
+            <BrandLogo size={34} showName={false} />
             <span className="admin-console__brand-copy">
               <strong>Explore</strong>
               <small>Admin</small>
@@ -268,8 +466,14 @@ export function AdminLayout() {
         </nav>
 
         <div className="admin-console__sidebar-footer">
-          <Link to="/" className="admin-console__utility-link" onClick={() => setNavOpen(false)}>
-            Public site
+          <Link to="/" className="admin-console__utility-link" title="Public site" onClick={() => setNavOpen(false)}>
+            <span className="admin-console__link-icon">
+              <Icon>
+                <path d="M9 5H5a1.5 1.5 0 00-1.5 1.5v13A1.5 1.5 0 005 21h13a1.5 1.5 0 001.5-1.5V15" />
+                <path d="M14 4h6v6M20 4L11 13" />
+              </Icon>
+            </span>
+            <span>Public site</span>
           </Link>
         </div>
       </aside>
@@ -289,8 +493,23 @@ export function AdminLayout() {
             <span />
           </button>
 
+          <button
+            type="button"
+            className="admin-console__collapse-toggle"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            onClick={toggleCollapsed}
+          >
+            <SidebarToggleIcon />
+          </button>
+
           <div className="admin-console__page-title">
             <h1>{meta.title}</h1>
+          </div>
+
+          <div className="admin-console__search">
+            <SearchIcon />
+            <input type="search" placeholder="Search…" aria-label="Search admin" />
           </div>
 
           <div className="admin-console__topbar-actions">
@@ -323,6 +542,11 @@ export function AdminLayout() {
                 {healthLoading ? "…" : "Refresh"}
               </button>
             </div>
+
+            <button type="button" className="admin-console__notification" aria-label="Notifications">
+              <BellIcon />
+              <span className="admin-console__notification-dot" aria-hidden="true" />
+            </button>
 
             <div className="admin-console__identity">
               <span className="admin-console__avatar" aria-hidden="true">
