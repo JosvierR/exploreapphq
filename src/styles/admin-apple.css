@@ -1607,11 +1607,70 @@
   background: rgba(255, 255, 255, 0.82);
 }
 
+/* —— Leaflet chrome — match the flat, minimal admin theme —— */
+.admin-tourism-map__leaflet .leaflet-control-zoom {
+  border: 1px solid var(--admin-border-soft);
+  border-radius: var(--admin-radius-sm);
+  box-shadow: var(--admin-shadow);
+  overflow: hidden;
+}
+
+.admin-tourism-map__leaflet .leaflet-control-zoom a {
+  width: 30px;
+  height: 30px;
+  line-height: 30px;
+  background: var(--admin-surface);
+  color: var(--admin-ink);
+  font-weight: 500;
+  border-color: var(--admin-border-soft) !important;
+}
+
+.admin-tourism-map__leaflet .leaflet-control-zoom a:hover {
+  background: var(--admin-blue-soft);
+  color: var(--admin-blue);
+}
+
+.admin-tourism-map__leaflet .leaflet-popup-content-wrapper {
+  border-radius: var(--admin-radius-sm);
+  box-shadow: var(--admin-shadow-hover);
+}
+
+.admin-tourism-map__leaflet .leaflet-popup-content {
+  margin: 0.7rem 0.85rem;
+}
+
+.admin-tourism-map__leaflet .leaflet-popup-tip {
+  box-shadow: var(--admin-shadow-hover);
+}
+
+.admin-tourism-map__leaflet .leaflet-tooltip {
+  border: 1px solid var(--admin-border-soft);
+  border-radius: var(--admin-radius-sm);
+  box-shadow: var(--admin-shadow);
+  color: var(--admin-ink);
+  font: inherit;
+  font-size: 0.76rem;
+  padding: 0.35rem 0.55rem;
+}
+
+.admin-tourism-map__leaflet .leaflet-tooltip-top:before {
+  border-top-color: var(--admin-border-soft);
+}
+
 .admin-tourism-map__popup {
   display: grid;
   gap: 0.15rem;
   min-width: 7rem;
   font-size: 0.78rem;
+  color: var(--admin-ink);
+}
+
+.admin-tourism-map__popup span {
+  color: var(--admin-muted);
+}
+
+.admin-tourism-map__popup .admin-btn {
+  margin-top: 0.4rem;
 }
 
 .admin-tourism-map__popup strong {
@@ -1735,7 +1794,7 @@
 }
 
 .admin-bi-breadcrumb button.is-current {
-  color: var(--admin-text);
+  color: var(--admin-ink);
   font-weight: 600;
   background: var(--admin-surface);
 }
@@ -1857,8 +1916,8 @@
   font-size: 0.72rem;
 }
 
-.admin-bi-delta--up { color: #1f7a3f; }
-.admin-bi-delta--down { color: #b42318; }
+.admin-bi-delta--up { color: var(--admin-green); }
+.admin-bi-delta--down { color: var(--admin-red); }
 .admin-bi-delta--flat { color: var(--admin-muted); }
 
 .admin-bi-empty-metric {
@@ -1921,7 +1980,7 @@
 
 .admin-bi-matrix {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 0.7rem;
 }
 
@@ -1933,8 +1992,23 @@
 }
 
 .admin-bi-matrix__item--high_demand_low_supply {
-  border-color: color-mix(in srgb, #1f9d55 48%, var(--admin-border-soft));
-  background: color-mix(in srgb, #1f9d55 7%, var(--admin-surface));
+  border-color: color-mix(in srgb, var(--admin-green) 48%, var(--admin-border-soft));
+  background: color-mix(in srgb, var(--admin-green) 7%, var(--admin-surface));
+}
+
+.admin-bi-matrix__item--high_demand_high_supply {
+  border-color: color-mix(in srgb, var(--admin-blue) 40%, var(--admin-border-soft));
+  background: color-mix(in srgb, var(--admin-blue) 6%, var(--admin-surface));
+}
+
+.admin-bi-matrix__item--low_demand_high_supply {
+  border-color: color-mix(in srgb, var(--admin-amber) 40%, var(--admin-border-soft));
+  background: color-mix(in srgb, var(--admin-amber) 6%, var(--admin-surface));
+}
+
+.admin-bi-matrix__item--low_demand_low_supply {
+  border-color: var(--admin-border-soft);
+  background: var(--admin-surface-soft);
 }
 
 .admin-bi-matrix__item p {
@@ -1991,7 +2065,8 @@
   display: grid;
   place-items: center;
   font-size: 0.68rem;
-  color: #0b1f33;
+  font-weight: 600;
+  color: var(--admin-ink);
 }
 
 .admin-bi-movers {
@@ -2185,7 +2260,7 @@
 
 .admin-bi-route-dropoff li small {
   grid-column: 1 / -1;
-  color: #b42318;
+  color: var(--admin-red);
 }
 
 @media (max-width: 1100px) {

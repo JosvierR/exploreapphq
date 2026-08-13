@@ -762,7 +762,7 @@ function BusinessIntelligenceContent() {
                     <div
                       key={`${part}-${index}`}
                       className="admin-bi-peak__cell"
-                      style={{ background: `rgba(0, 113, 227, ${0.08 + (value / peakMax) * 0.75})` }}
+                      style={{ background: `rgba(59, 130, 246, ${0.08 + (value / peakMax) * 0.75})` }}
                       title={`${part} ${data?.peak_demand.weekdays[index]}: ${value}`}
                     >
                       {value || ""}
