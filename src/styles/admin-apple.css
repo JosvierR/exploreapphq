@@ -615,7 +615,8 @@
 .admin-section-stack > .admin-lifecycle-banner,
 .admin-section-stack > .admin-metric-group,
 .admin-section-stack > .admin-executive-section,
-.admin-section-stack > .admin-command-strip {
+.admin-section-stack > .admin-command-strip,
+.admin-section-stack > .admin-bi-breadcrumb {
   margin-bottom: 0;
 }
 
@@ -1600,6 +1601,29 @@
   border-radius: 14px;
   z-index: 0;
   background: #e8eef5;
+}
+
+/* Hero treatment for the Geography tab — the map is the star of that tab,
+   not squeezed beside a chart, so give it real height and let the ranked
+   list of markets sit full-width underneath instead of a cramped sidebar. */
+.admin-tourism-map--hero {
+  padding: 1rem;
+}
+
+.admin-tourism-map--hero .admin-tourism-map__leaflet {
+  height: 500px;
+}
+
+.admin-tourism-map--hero .admin-tourism-map__loading {
+  min-height: 500px;
+}
+
+.admin-tourism-map--hero .admin-tourism-map__legend {
+  margin-top: 0.85rem;
+}
+
+.admin-tourism-map__ranking {
+  margin-top: 1rem !important;
 }
 
 .admin-tourism-map__leaflet .leaflet-control-attribution {
