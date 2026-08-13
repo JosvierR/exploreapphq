@@ -589,13 +589,15 @@ function BusinessIntelligenceContent() {
 
           <Section id="movers" kicker="Top movers" title="Rising and declining" subtitle="Requires ≥ previous volume threshold to avoid noisy percentages.">
             <div className="admin-tourism-inventory-grid">
-              <div className="admin-panel">
-                <h3>Rising</h3>
+              <div className="admin-panel admin-bi-movers-card admin-bi-movers-card--rising">
+                <h3><span className="admin-bi-movers-card__dot" aria-hidden="true" />Rising</h3>
                 {(data?.movers.rising || []).length ? (
-                  <ul className="admin-bi-movers">
+                  <ul className="admin-bi-movers admin-bi-movers--rising">
                     {data?.movers.rising.map((item) => (
                       <li key={`up-${item.type}-${item.label}`}>
-                        ↑ {item.label} <strong>+{item.trend_pct}%</strong>
+                        <span className="admin-bi-movers__type">{item.type}</span>
+                        <span className="admin-bi-movers__label">{item.label}</span>
+                        <strong>↑ +{item.trend_pct}%</strong>
                       </li>
                     ))}
                   </ul>
@@ -603,13 +605,15 @@ function BusinessIntelligenceContent() {
                   <EmptyState title="No rising movers" message="Not enough prior-period volume to rank growth." />
                 )}
               </div>
-              <div className="admin-panel">
-                <h3>Declining</h3>
+              <div className="admin-panel admin-bi-movers-card admin-bi-movers-card--declining">
+                <h3><span className="admin-bi-movers-card__dot" aria-hidden="true" />Declining</h3>
                 {(data?.movers.declining || []).length ? (
-                  <ul className="admin-bi-movers">
+                  <ul className="admin-bi-movers admin-bi-movers--declining">
                     {data?.movers.declining.map((item) => (
                       <li key={`down-${item.type}-${item.label}`}>
-                        ↓ {item.label} <strong>{item.trend_pct}%</strong>
+                        <span className="admin-bi-movers__type">{item.type}</span>
+                        <span className="admin-bi-movers__label">{item.label}</span>
+                        <strong>↓ {item.trend_pct}%</strong>
                       </li>
                     ))}
                   </ul>
@@ -740,16 +744,22 @@ function BusinessIntelligenceContent() {
                       <div className="admin-bi-peak__label">
                         {part}
                       </div>
-                      {(data?.peak_demand.matrix[part] || []).map((value, index) => (
-                        <div
-                          key={`${part}-${index}`}
-                          className="admin-bi-peak__cell"
-                          style={{ background: `rgba(59, 130, 246, ${0.08 + (value / peakMax) * 0.75})` }}
-                          title={`${part} ${data?.peak_demand.weekdays[index]}: ${value}`}
-                        >
-                          {value || ""}
-                        </div>
-                      ))}
+                      {(data?.peak_demand.matrix[part] || []).map((value, index) => {
+                        const intensity = value / peakMax;
+                        return (
+                          <div
+                            key={`${part}-${index}`}
+                            className="admin-bi-peak__cell"
+                            style={{
+                              background: `rgba(59, 130, 246, ${0.08 + intensity * 0.75})`,
+                              color: intensity > 0.45 ? "#ffffff" : "var(--admin-ink)",
+                            }}
+                            title={`${part} ${data?.peak_demand.weekdays[index]}: ${value}`}
+                          >
+                            {value || ""}
+                          </div>
+                        );
+                      })}
                     </Fragment>
                   ))}
                 </div>
@@ -898,13 +908,17 @@ function BusinessIntelligenceContent() {
               <EmptyState title="No commercial funnel yet" message="Place impressions, views, saves, and intent actions will appear here when instrumented." />
             ) : (
               <ol className="admin-bi-funnel">
-                {data.funnel.map((step) => (
-                  <li key={step.key}>
-                    <strong>{formatNumber(step.count)}</strong>
-                    <span>{step.label}</span>
-                    {step.conversion_from_previous != null ? <small>{formatPercent(step.conversion_from_previous)} from previous</small> : null}
-                  </li>
-                ))}
+                {data.funnel.map((step) => {
+                  const baseline = data.funnel[0]?.count || 1;
+                  const widthPct = Math.max(28, Math.round((step.count / baseline) * 100));
+                  return (
+                    <li key={step.key} style={{ width: `${widthPct}%` }}>
+                      <strong>{formatNumber(step.count)}</strong>
+                      <span>{step.label}</span>
+                      {step.conversion_from_previous != null ? <small>{formatPercent(step.conversion_from_previous)} from previous</small> : null}
+                    </li>
+                  );
+                })}
               </ol>
             )}
           </Section>
@@ -1186,25 +1200,46 @@ function BusinessIntelligenceContent() {
           </Section>
 
           <Section id="analytics-health" kicker="Admin only" title="Analytics health" subtitle="Operational quality behind this Business Intelligence response.">
-            <div className="admin-bi-health-grid">
-              <article><span>Eligible events</span><strong>{formatNumber(data?.data_quality.valid_events)}</strong></article>
-              <article><span>Unknown places</span><strong>{formatNumber(data?.data_quality.unknown_places)}</strong></article>
-              <article><span>Unknown routes</span><strong>{formatNumber(data?.data_quality.unknown_routes)}</strong></article>
-              <article><span>Missing destination geography</span><strong>{formatNumber(data?.data_quality.missing_geography)}</strong></article>
-              <article><span>Validity filter</span><strong>{data?.data_quality.validity_view_active ? "Active" : "Fallback"}</strong></article>
-              <article><span>Destination-event geo</span><strong>{data?.data_quality.destination_geo_coverage_pct == null ? "—" : `${data.data_quality.destination_geo_coverage_pct}%`}</strong></article>
-              <article><span>Traveler-origin country</span><strong>{data?.data_quality.traveler_origin_coverage_pct == null ? "—" : `${data.data_quality.traveler_origin_coverage_pct}%`}</strong></article>
-              <article><span>Places with country</span><strong>{data?.data_quality.places_with_country_pct == null ? "—" : `${data.data_quality.places_with_country_pct}%`}</strong></article>
-              <article><span>Places with region</span><strong>{data?.data_quality.places_with_region_pct == null ? "—" : `${data.data_quality.places_with_region_pct}%`}</strong></article>
-              <article><span>Places with city</span><strong>{data?.data_quality.places_with_city_pct == null ? "—" : `${data.data_quality.places_with_city_pct}%`}</strong></article>
-              <article><span>Routes with market</span><strong>{data?.data_quality.routes_with_market_pct == null ? "—" : `${data.data_quality.routes_with_market_pct}%`}</strong></article>
-              <article><span>Place resolution</span><strong>{data?.data_quality.place_resolution_pct == null ? "—" : `${data.data_quality.place_resolution_pct}%`}</strong></article>
-              <article><span>Route resolution</span><strong>{data?.data_quality.route_resolution_pct == null ? "—" : `${data.data_quality.route_resolution_pct}%`}</strong></article>
-              <article><span>Rejected events</span><strong>{formatNumber(data?.data_quality.rejected_events)}</strong></article>
-              <article><span>Duplicate candidates</span><strong>{formatNumber(data?.data_quality.possible_duplicate_places)}</strong></article>
-              <article><span>Aggregation failures</span><strong>{formatNumber(data?.data_quality.aggregation_failures)}</strong></article>
-              <article><span>Last aggregation</span><strong>{freshnessLabel(data?.data_quality.last_aggregation)}</strong></article>
-              <article><span>Data as of</span><strong>{freshnessLabel(data?.data_as_of)}</strong></article>
+            <div className="admin-bi-health-group">
+              <h4>Event quality</h4>
+              <div className="admin-bi-health-grid">
+                <article><span>Eligible events</span><strong>{formatNumber(data?.data_quality.valid_events)}</strong></article>
+                <article><span>Rejected events</span><strong>{formatNumber(data?.data_quality.rejected_events)}</strong></article>
+                <article><span>Duplicate candidates</span><strong>{formatNumber(data?.data_quality.possible_duplicate_places)}</strong></article>
+                <article><span>Aggregation failures</span><strong>{formatNumber(data?.data_quality.aggregation_failures)}</strong></article>
+                <article><span>Validity filter</span><strong>{data?.data_quality.validity_view_active ? "Active" : "Fallback"}</strong></article>
+              </div>
+            </div>
+
+            <div className="admin-bi-health-group">
+              <h4>Geographic coverage</h4>
+              <div className="admin-bi-health-grid">
+                <article><span>Missing destination geography</span><strong>{formatNumber(data?.data_quality.missing_geography)}</strong></article>
+                <article><span>Destination-event geo</span><strong>{data?.data_quality.destination_geo_coverage_pct == null ? "—" : `${data.data_quality.destination_geo_coverage_pct}%`}</strong></article>
+                <article><span>Traveler-origin country</span><strong>{data?.data_quality.traveler_origin_coverage_pct == null ? "—" : `${data.data_quality.traveler_origin_coverage_pct}%`}</strong></article>
+                <article><span>Places with country</span><strong>{data?.data_quality.places_with_country_pct == null ? "—" : `${data.data_quality.places_with_country_pct}%`}</strong></article>
+                <article><span>Places with region</span><strong>{data?.data_quality.places_with_region_pct == null ? "—" : `${data.data_quality.places_with_region_pct}%`}</strong></article>
+                <article><span>Places with city</span><strong>{data?.data_quality.places_with_city_pct == null ? "—" : `${data.data_quality.places_with_city_pct}%`}</strong></article>
+                <article><span>Routes with market</span><strong>{data?.data_quality.routes_with_market_pct == null ? "—" : `${data.data_quality.routes_with_market_pct}%`}</strong></article>
+              </div>
+            </div>
+
+            <div className="admin-bi-health-group">
+              <h4>Entity resolution</h4>
+              <div className="admin-bi-health-grid">
+                <article><span>Unknown places</span><strong>{formatNumber(data?.data_quality.unknown_places)}</strong></article>
+                <article><span>Unknown routes</span><strong>{formatNumber(data?.data_quality.unknown_routes)}</strong></article>
+                <article><span>Place resolution</span><strong>{data?.data_quality.place_resolution_pct == null ? "—" : `${data.data_quality.place_resolution_pct}%`}</strong></article>
+                <article><span>Route resolution</span><strong>{data?.data_quality.route_resolution_pct == null ? "—" : `${data.data_quality.route_resolution_pct}%`}</strong></article>
+              </div>
+            </div>
+
+            <div className="admin-bi-health-group">
+              <h4>Freshness</h4>
+              <div className="admin-bi-health-grid">
+                <article><span>Last aggregation</span><strong>{freshnessLabel(data?.data_quality.last_aggregation)}</strong></article>
+                <article><span>Data as of</span><strong>{freshnessLabel(data?.data_as_of)}</strong></article>
+              </div>
             </div>
           </Section>
         </>
