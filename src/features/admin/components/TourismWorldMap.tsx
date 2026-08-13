@@ -183,7 +183,7 @@ export function TourismWorldMap({
             pathOptions={{
               color: "#ffffff",
               weight: 1.5,
-              fillColor: "#0071e3",
+              fillColor: "#3b82f6",
               fillOpacity: marker.opacity,
             }}
             eventHandlers={{
