@@ -553,6 +553,14 @@
   animation: admin-route-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* The embedded Scalar API reference is its own 3-pane tool (endpoint nav +
+   docs + try-it panel) — it needs real width to be usable, so this one
+   route opts out of the standard 1180px content cap. */
+.admin-console__route:has(.admin-api-docs) {
+  width: 100%;
+  max-width: none;
+}
+
 @keyframes admin-route-in {
   from {
     opacity: 0;
@@ -616,8 +624,10 @@
 .admin-section-stack > .admin-metric-group,
 .admin-section-stack > .admin-executive-section,
 .admin-section-stack > .admin-command-strip,
-.admin-section-stack > .admin-bi-breadcrumb {
+.admin-section-stack > .admin-bi-breadcrumb,
+.admin-section-stack > .admin-decision-brief {
   margin-bottom: 0;
+  margin-top: 0;
 }
 
 .admin-eyebrow {

@@ -81,6 +81,20 @@ const SOURCES = ["all", "mobile", "web", "backend", "admin"] as const;
 const CONTENT_TYPES = ["all", "video", "place", "route", "profile"] as const;
 const CONTENT_TABS: ContentTab[] = ["videos", "places", "routes", "profiles"];
 
+/** The page has 8 dense sections; grouping them into tabs keeps each view
+ *  scannable instead of one long stacked scroll (same pattern as the
+ *  Business Intelligence tabs). No section, chart, or metric is removed —
+ *  only which ones render at once changes. */
+type DataTab = "overview" | "growth" | "content" | "investor" | "quality";
+
+const DATA_TABS: Array<{ value: DataTab; label: string }> = [
+  { value: "overview", label: "Overview" },
+  { value: "growth", label: "Growth & engagement" },
+  { value: "content", label: "Content & demand" },
+  { value: "investor", label: "Investor" },
+  { value: "quality", label: "Data quality" },
+];
+
 function initialSectionState<T>(): SectionState<T> {
   return { data: null, loading: true, error: null, requestId: null, warnings: [] };
 }
@@ -230,6 +244,7 @@ function AdminBusinessInsightsContent() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<DataTab>("overview");
 
   const [overview, setOverview] = useState<SectionState<OverviewData>>(initialSectionState);
   const [growth, setGrowth] = useState<SectionState<GrowthData>>(initialSectionState);
@@ -565,6 +580,22 @@ function AdminBusinessInsightsContent() {
       </div>
       {copyMessage && <p className="admin-copy-feedback" role="status">{copyMessage}</p>}
 
+      <nav className="admin-report-tabs admin-bi-tabs" aria-label="App data sections">
+        {DATA_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            type="button"
+            className={activeTab === tab.value ? "is-active" : ""}
+            aria-pressed={activeTab === tab.value}
+            onClick={() => setActiveTab(tab.value)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+
+      {activeTab === "overview" && (
+      <>
       <DecisionBrief items={decisionItems} confidence={dataConfidence} />
 
       <ExecutiveSection
@@ -620,7 +651,11 @@ function AdminBusinessInsightsContent() {
           </>
         )}
       </ExecutiveSection>
+      </>
+      )}
 
+      {activeTab === "growth" && (
+      <>
       <ExecutiveSection
         kicker="Growth"
         title="Is usage accelerating?"
@@ -723,7 +758,11 @@ function AdminBusinessInsightsContent() {
         )}
         {funnel.warnings.map((item) => <InsightCallout key={item.code} code={item.code} message={item.message} />)}
       </ExecutiveSection>
+      </>
+      )}
 
+      {activeTab === "content" && (
+      <>
       <ExecutiveSection
         kicker="Content"
         title="What earns attention"
@@ -816,7 +855,11 @@ function AdminBusinessInsightsContent() {
           )}
         </div>
       </ExecutiveSection>
+      </>
+      )}
 
+      {activeTab === "investor" && (
+      <>
       <ExecutiveSection
         kicker="Investor"
         title="A presentation-ready snapshot"
@@ -833,7 +876,11 @@ function AdminBusinessInsightsContent() {
           />
         )}
       </ExecutiveSection>
+      </>
+      )}
 
+      {activeTab === "quality" && (
+      <>
       <ExecutiveSection
         kicker="Trust"
         title="Can we trust this read?"
@@ -850,6 +897,8 @@ function AdminBusinessInsightsContent() {
           <p className="admin-quality-clear">No major data-quality blockers were detected in this period.</p>
         )}
       </ExecutiveSection>
+      </>
+      )}
     </AdminPageShell>
   );
 }

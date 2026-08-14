@@ -3866,8 +3866,8 @@
 
 .admin-funnel-layout {
   display: grid;
-  grid-template-columns: minmax(320px, 0.9fr) minmax(380px, 1.1fr);
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
   align-items: center;
 }
 
@@ -4182,19 +4182,37 @@
 }
 
 .admin-insight-callout {
-  display: grid;
-  grid-template-columns: 4px minmax(0, 1fr);
-  gap: 0.75rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
   margin-top: 0.75rem;
-  padding: 0.85rem;
-  border: 1px solid #f1d28a;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--admin-border-soft);
+  border-left: 3px solid var(--admin-amber, var(--admin-warning));
   border-radius: var(--admin-radius-sm);
-  background: #fffbef;
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow);
 }
 
 .admin-insight-callout__mark {
-  border-radius: 4px;
-  background: var(--admin-warning);
+  position: relative;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin-top: 0.05rem;
+  border-radius: 999px;
+  background: var(--admin-amber-soft, #fffbeb);
+}
+
+.admin-insight-callout__mark::before {
+  content: "!";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--admin-amber, var(--admin-warning));
+  font-size: 0.72rem;
+  font-weight: 800;
 }
 
 .admin-insight-callout strong,
@@ -4205,16 +4223,17 @@
 }
 
 .admin-insight-callout strong {
-  color: #744500;
-  font-size: 0.82rem;
+  color: var(--admin-ink);
+  font-size: 0.84rem;
+  font-weight: 650;
 }
 
 .admin-insight-callout p,
 .admin-insight-callout small {
-  margin-top: 0.22rem;
-  color: #7c5b25;
-  font-size: 0.75rem;
-  line-height: 1.45;
+  margin-top: 0.2rem;
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
 }
 
 .admin-quality-clear {

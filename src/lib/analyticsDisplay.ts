@@ -623,7 +623,8 @@ export function formatNumber(value: unknown) {
 
 export function formatPercent(value: unknown) {
   if (value == null || typeof value !== "number" || Number.isNaN(value)) return "0%";
-  return `${value}%`;
+  const rounded = Math.round(value * 100) / 100;
+  return `${rounded}%`;
 }
 
 export function formatCompact(value: unknown) {
