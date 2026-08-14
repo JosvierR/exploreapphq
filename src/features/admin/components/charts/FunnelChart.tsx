@@ -17,7 +17,7 @@ export function FunnelChart({ data }: { data: FunnelDatum[] }) {
     <div className="admin-funnel-layout">
       <div className="admin-funnel-chart" role="img" aria-label="Engagement funnel by step">
         <ResponsiveContainer width="100%" height="100%">
-          <RechartsFunnelChart>
+          <RechartsFunnelChart margin={{ top: 8, right: 72, bottom: 8, left: 8 }}>
             <Tooltip
               contentStyle={chartTooltipStyle}
               formatter={(value) => [formatChartValue(value), "Events"]}

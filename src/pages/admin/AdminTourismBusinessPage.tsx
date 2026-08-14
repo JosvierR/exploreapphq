@@ -601,7 +601,7 @@ function BusinessIntelligenceContent() {
         <aside key={warning.code} className="admin-insight-callout">
           <span className="admin-insight-callout__mark" aria-hidden="true" />
           <div>
-            <strong>{warning.code}</strong>
+            <strong>{titleCase(warning.code)}</strong>
             <p>{warning.message}</p>
           </div>
         </aside>

@@ -136,8 +136,10 @@ function ApiDocsContent() {
   return (
     <div className="admin-api-docs">
       <div className="admin-api-docs__intro">
-        <p>
-          Live PostgREST · Admin HTTP contract · Edge pin{" "}
+        <span className="admin-api-docs__pill">PostgREST</span>
+        <span className="admin-api-docs__pill">Admin HTTP</span>
+        <span className="admin-api-docs__pill admin-api-docs__pill--pin">
+          Edge{" "}
           {edgePin ? (
             edgePin.url ? (
               <a href={edgePin.url} target="_blank" rel="noreferrer">
@@ -149,7 +151,7 @@ function ApiDocsContent() {
           ) : (
             <span className="admin-muted">loading…</span>
           )}
-        </p>
+        </span>
       </div>
 
       {loading && (
@@ -170,7 +172,7 @@ function ApiDocsContent() {
       )}
 
       {!loading && warnings.length > 0 && configuration && (
-        <div className="admin-api-docs__status admin-api-docs__status--error" role="status">
+        <div className="admin-api-docs__status admin-api-docs__status--warning" role="status">
           <strong>Some surfaces failed to load.</strong>
           <ul>
             {warnings.map((warning) => (
