@@ -4,6 +4,7 @@ import { AdminAuthGate } from "@/features/admin/components/AdminAuthGate";
 import { AdminDataTable, AdminPageShell, EmptyState, ErrorState } from "@/features/admin/components/AdminPrimitives";
 import { AreaTrendChart } from "@/features/admin/components/charts/AreaTrendChart";
 import { ChartCard } from "@/features/admin/components/charts/ChartCard";
+import { DonutBreakdownChart } from "@/features/admin/components/charts/DonutBreakdownChart";
 import { HorizontalBarChart } from "@/features/admin/components/charts/HorizontalBarChart";
 import { chartColors } from "@/features/admin/components/charts/chartTheme";
 import {
@@ -128,6 +129,14 @@ const SECTION_TAB: Record<string, BiTab> = {
   "analytics-health": "insights",
 };
 
+function titleCase(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .split(" ")
+    .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : word))
+    .join(" ");
+}
+
 function Section({
   id,
   kicker,
@@ -184,6 +193,103 @@ function MetricEmpty({ label }: { label: string }) {
       <strong>No {label} recorded</strong>
       <span>There isn&apos;t enough activity in this market during the selected period.</span>
     </div>
+  );
+}
+
+/** Colored ↑/↓ pill for a trend percentage — used anywhere a table shows growth/decline. */
+function TrendBadge({ value }: { value: number | null | undefined }) {
+  if (value == null) return <span className="admin-bi-trend admin-bi-trend--flat">—</span>;
+  const up = value > 0;
+  const flat = value === 0;
+  return (
+    <span className={`admin-bi-trend${flat ? " admin-bi-trend--flat" : up ? " admin-bi-trend--up" : " admin-bi-trend--down"}`}>
+      {flat ? "→" : up ? "↑" : "↓"} {Math.abs(value)}%
+    </span>
+  );
+}
+
+/** Tiered "X/100" badge — green/amber/red by threshold, for benchmark-style scores. */
+function ScoreBadge({ value, max = 100 }: { value: number | null | undefined; max?: number }) {
+  if (value == null) return <span className="admin-bi-score admin-bi-score--empty">—</span>;
+  const ratio = value / max;
+  const tier = ratio >= 0.7 ? "high" : ratio >= 0.4 ? "mid" : "low";
+  return (
+    <span className={`admin-bi-score admin-bi-score--${tier}`}>
+      {value}
+      <small>/{max}</small>
+    </span>
+  );
+}
+
+/** Compact inline bar for a 0-max metric shown inside a dense table cell. */
+function CellBar({ value, max = 100 }: { value: number | null | undefined; max?: number }) {
+  if (value == null) return <span className="admin-bi-cellbar admin-bi-cellbar--empty">—</span>;
+  const pct = Math.max(0, Math.min(100, (value / max) * 100));
+  const tier = pct >= 70 ? "high" : pct >= 40 ? "mid" : "low";
+  return (
+    <span className={`admin-bi-cellbar admin-bi-cellbar--${tier}`}>
+      <span className="admin-bi-cellbar__track">
+        <span className="admin-bi-cellbar__fill" style={{ width: `${pct}%` }} />
+      </span>
+      <span className="admin-bi-cellbar__value">{value}</span>
+    </span>
+  );
+}
+
+function RatingStars({ value }: { value: number | null | undefined }) {
+  if (value == null) return <span className="admin-bi-rating admin-bi-rating--empty">—</span>;
+  return (
+    <span className="admin-bi-rating">
+      <span className="admin-bi-rating__star" aria-hidden="true">★</span>
+      {Number(value).toFixed(1)}
+    </span>
+  );
+}
+
+/** Drop-in replacement for Section that adds a collapse/expand toggle — same header
+ *  typography as every other section, so collapsing content never changes what the
+ *  page looks like visually, only how much of it is shown at once. */
+function CollapsibleSection({
+  id,
+  kicker,
+  title,
+  subtitle,
+  meta,
+  defaultOpen = true,
+  children,
+}: {
+  id?: string;
+  kicker: string;
+  title: string;
+  subtitle: string;
+  meta?: ReactNode;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Section
+      id={id}
+      kicker={kicker}
+      title={title}
+      subtitle={subtitle}
+      action={
+        <div className="admin-bi-collapsible-actions">
+          {meta}
+          <button
+            type="button"
+            className="admin-btn admin-btn--ghost admin-btn--sm admin-bi-collapse-toggle"
+            onClick={() => setOpen((value) => !value)}
+            aria-expanded={open}
+          >
+            <span className={`admin-bi-collapse-toggle__chevron${open ? " is-open" : ""}`} aria-hidden="true" />
+            {open ? "Collapse" : "Expand"}
+          </button>
+        </div>
+      }
+    >
+      {open ? children : null}
+    </Section>
   );
 }
 
@@ -326,6 +432,28 @@ function BusinessIntelligenceContent() {
     1,
     ...Object.values(data?.peak_demand.matrix || {}).flatMap((row) => row),
   );
+
+  const travelerMixDonut =
+    (data?.audience.traveler_mix || []).map((item) => ({
+      label: titleCase(item.segment),
+      value: item.count,
+    })) || [];
+
+  const placesTracked = data?.places.length || 0;
+  const routesTracked = data?.routes.length || 0;
+  const contentTracked = data?.content_attribution.items.length || 0;
+  const scoredPlaces = (data?.places || []).filter((row) => {
+    const benchmark = (row.benchmark || {}) as { score?: number | null };
+    return benchmark.score != null;
+  });
+  const avgBusinessScore = scoredPlaces.length
+    ? Math.round(
+        scoredPlaces.reduce((sum, row) => {
+          const benchmark = (row.benchmark || {}) as { score?: number | null };
+          return sum + (benchmark.score || 0);
+        }, 0) / scoredPlaces.length,
+      )
+    : null;
 
   return (
     <AdminPageShell
@@ -927,7 +1055,26 @@ function BusinessIntelligenceContent() {
 
       {activeTab === "places" ? (
         <>
-          <Section id="places" kicker="Places & competitive landscape" title="Who is capturing demand" subtitle="Names from catalog metadata — never UUIDs as primary text. Click a row for Place 360.">
+          <div className="admin-bi-glance">
+            <article>
+              <span>Places tracked</span>
+              <strong>{formatNumber(placesTracked)}</strong>
+            </article>
+            <article>
+              <span>Routes tracked</span>
+              <strong>{formatNumber(routesTracked)}</strong>
+            </article>
+            <article>
+              <span>Avg. business score</span>
+              <strong>{avgBusinessScore == null ? "—" : `${avgBusinessScore}/100`}</strong>
+            </article>
+            <article>
+              <span>Content pieces attributed</span>
+              <strong>{formatNumber(contentTracked)}</strong>
+            </article>
+          </div>
+
+          <CollapsibleSection id="places" kicker="Places & competitive landscape" title="Who is capturing demand" subtitle="Names from catalog metadata — never UUIDs as primary text. Click a row for Place 360.">
             {loading ? (
               <div className="admin-skeleton admin-skeleton--block" aria-label="Loading places" />
             ) : !data?.places?.length ? (
@@ -940,12 +1087,12 @@ function BusinessIntelligenceContent() {
                     <th>Place</th>
                     <th>Category</th>
                     <th>Location</th>
-                    <th>Views</th>
+                    <th className="admin-table__group-start">Views</th>
                     <th>Visitors</th>
                     <th>Saves</th>
                     <th>Shares</th>
                     <th>Directions</th>
-                    <th>Intent rate</th>
+                    <th className="admin-table__group-start">Intent rate</th>
                     <th>Rating</th>
                     <th>Trend</th>
                   </tr>
@@ -962,22 +1109,27 @@ function BusinessIntelligenceContent() {
                       </td>
                       <td>{String(row.category || "—")}</td>
                       <td>{String(row.location || "—")}</td>
-                      <td>{formatNumber(row.views)}</td>
+                      <td className="admin-table__group-start">{formatNumber(row.views)}</td>
                       <td>{formatNumber(row.unique_visitors)}</td>
                       <td>{formatNumber(row.saves)}</td>
                       <td>{formatNumber(row.shares)}</td>
                       <td>{formatNumber(row.directions)}</td>
-                      <td>{row.intent_rate == null ? "—" : formatPercent(row.intent_rate)}</td>
-                      <td>{row.rating == null ? "—" : Number(row.rating).toFixed(1)}</td>
-                      <td>{row.trend_pct == null ? "—" : `${Number(row.trend_pct) > 0 ? "+" : ""}${row.trend_pct}%`}</td>
+                      <td className="admin-table__group-start">{row.intent_rate == null ? "—" : formatPercent(row.intent_rate)}</td>
+                      <td><RatingStars value={row.rating as number | null | undefined} /></td>
+                      <td><TrendBadge value={row.trend_pct as number | null | undefined} /></td>
                     </tr>
                   ))}
                 </tbody>
               </AdminDataTable>
             )}
-          </Section>
+          </CollapsibleSection>
 
-          <Section id="business-performance" kicker="Business performance" title="Places vs aggregated market cohorts" subtitle="Explore Business Score is performance; Opportunity Score is market potential. They are intentionally separate.">
+          <CollapsibleSection
+            id="business-performance"
+            kicker="Business performance"
+            title="Places vs aggregated market cohorts"
+            subtitle="Explore Business Score is performance; Opportunity Score is market potential. They are intentionally separate."
+          >
             {loading ? (
               <div className="admin-skeleton admin-skeleton--block" aria-label="Loading benchmarks" />
             ) : !data?.places.length ? (
@@ -987,13 +1139,13 @@ function BusinessIntelligenceContent() {
                 <thead>
                   <tr>
                     <th>Business</th>
-                    <th>Business Score</th>
-                    <th>Discovery</th>
+                    <th className="admin-table__group-start">Business Score</th>
+                    <th className="admin-table__group-start">Discovery</th>
                     <th>Engagement</th>
                     <th>Intent</th>
                     <th>Growth</th>
                     <th>Reputation</th>
-                    <th>Cohort</th>
+                    <th className="admin-table__group-start">Cohort</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1007,22 +1159,22 @@ function BusinessIntelligenceContent() {
                     return (
                       <tr key={String(row.place_id)} onClick={() => setSelectedPlace(row)} style={{ cursor: "pointer" }}>
                         <td><strong>{String(row.place_name)}</strong><small className="admin-bi-quality"> · {String(row.category || "Uncategorized")}</small></td>
-                        <td><strong>{benchmark.score == null ? "—" : `${benchmark.score}/100`}</strong></td>
-                        <td>{benchmark.components?.discovery ?? "—"}</td>
-                        <td>{benchmark.components?.engagement ?? "—"}</td>
-                        <td>{benchmark.components?.intent ?? "—"}</td>
-                        <td>{benchmark.components?.growth ?? "—"}</td>
-                        <td>{benchmark.components?.reputation ?? "—"}</td>
-                        <td>{benchmark.cohort_size ?? "—"}</td>
+                        <td className="admin-table__group-start"><ScoreBadge value={benchmark.score} /></td>
+                        <td className="admin-table__group-start"><CellBar value={benchmark.components?.discovery} /></td>
+                        <td><CellBar value={benchmark.components?.engagement} /></td>
+                        <td><CellBar value={benchmark.components?.intent} /></td>
+                        <td><CellBar value={benchmark.components?.growth} /></td>
+                        <td><CellBar value={benchmark.components?.reputation} /></td>
+                        <td className="admin-table__group-start">{benchmark.cohort_size ?? "—"}</td>
                       </tr>
                     );
                   })}
                 </tbody>
               </AdminDataTable>
             )}
-          </Section>
+          </CollapsibleSection>
 
-          <Section id="routes" kicker="Routes & experiences" title="Which experiences work" subtitle="Tour and experience routes with completion quality, drop-off, and generated business intent.">
+          <CollapsibleSection id="routes" kicker="Routes & experiences" title="Which experiences work" subtitle="Tour and experience routes with completion quality, drop-off, and generated business intent.">
             {loading ? (
               <div className="admin-skeleton admin-skeleton--block" aria-label="Loading routes" />
             ) : !data?.routes?.length ? (
@@ -1035,11 +1187,11 @@ function BusinessIntelligenceContent() {
                     <th>Route</th>
                     <th>Area</th>
                     <th>Stops</th>
-                    <th>Views</th>
+                    <th className="admin-table__group-start">Views</th>
                     <th>Saves</th>
                     <th>Starts</th>
                     <th>Completes</th>
-                    <th>Completion</th>
+                    <th className="admin-table__group-start">Completion</th>
                     <th>Intent generated</th>
                     <th>Trend</th>
                   </tr>
@@ -1056,21 +1208,21 @@ function BusinessIntelligenceContent() {
                       </td>
                       <td>{String(row.area || "—")}</td>
                       <td>{row.stops == null ? "—" : formatNumber(row.stops)}</td>
-                      <td>{formatNumber(row.views)}</td>
+                      <td className="admin-table__group-start">{formatNumber(row.views)}</td>
                       <td>{formatNumber(row.saves)}</td>
                       <td>{formatNumber(row.starts)}</td>
                       <td>{formatNumber(row.completes)}</td>
-                      <td>{row.completion_rate == null ? "—" : formatPercent(row.completion_rate)}</td>
+                      <td className="admin-table__group-start">{row.completion_rate == null ? "—" : formatPercent(row.completion_rate)}</td>
                       <td>{formatNumber(row.commercial_actions)}</td>
-                      <td>{row.trend_pct == null ? "—" : `${Number(row.trend_pct) > 0 ? "+" : ""}${row.trend_pct}%`}</td>
+                      <td><TrendBadge value={row.trend_pct as number | null | undefined} /></td>
                     </tr>
                   ))}
                 </tbody>
               </AdminDataTable>
             )}
-          </Section>
+          </CollapsibleSection>
 
-          <Section id="content-attribution" kicker="Content → business" title="Content driving discovery" subtitle="Explicit source links and same-session paths from content to place/route demand.">
+          <CollapsibleSection id="content-attribution" kicker="Content → business" title="Content driving discovery" subtitle="Explicit source links and same-session paths from content to place/route demand.">
             {!loading && !data?.content_attribution.available ? (
               <EmptyState title="No content attribution yet" message={data?.content_attribution.note || "Video entities with engagement unlock this section."} />
             ) : (
@@ -1078,12 +1230,12 @@ function BusinessIntelligenceContent() {
                 <thead>
                   <tr>
                     <th>Content</th>
-                    <th>Views</th>
+                    <th className="admin-table__group-start">Views</th>
                     <th>Place visits</th>
                     <th>Route visits</th>
                     <th>Intent</th>
                     <th>Directions</th>
-                    <th>Attribution</th>
+                    <th className="admin-table__group-start">Attribution</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1092,19 +1244,19 @@ function BusinessIntelligenceContent() {
                       <td>
                         <strong>{String(row.content_name)}</strong>
                       </td>
-                      <td>{formatNumber(row.views)}</td>
+                      <td className="admin-table__group-start">{formatNumber(row.views)}</td>
                       <td>{formatNumber(row.place_visits)}</td>
                       <td>{formatNumber(row.route_visits)}</td>
                       <td>{formatNumber(row.intent_actions)}</td>
                       <td>{formatNumber(row.directions)}</td>
-                      <td>{String(row.attribution || "—")}</td>
+                      <td className="admin-table__group-start">{String(row.attribution || "—")}</td>
                     </tr>
                   ))}
                 </tbody>
               </AdminDataTable>
             )}
             {data?.content_attribution.note ? <p className="admin-bi-note">{data.content_attribution.note}</p> : null}
-          </Section>
+          </CollapsibleSection>
         </>
       ) : null}
 
@@ -1130,18 +1282,14 @@ function BusinessIntelligenceContent() {
                 emptyTitle="Audience mix unavailable"
                 emptyMessage="Origin-country or explicit traveler_segment instrumentation is required."
               >
-                <HorizontalBarChart
-                  data={(data?.audience.traveler_mix || []).map((item) => ({ label: `${item.segment.replaceAll("_", " ")} — ${item.share_pct}%`, value: item.count }))}
-                  valueLabel="Events"
-                  ariaLabel="Traveler mix"
-                />
+                <DonutBreakdownChart data={travelerMixDonut} valueLabel="Events" ariaLabel="Traveler mix" />
               </ChartCard>
             </div>
             {(data?.audience.behavior || []).length ? (
               <div className="admin-bi-source-grid">
-                {data?.audience.behavior.map((item) => (
-                  <article key={item.segment}>
-                    <span>{item.segment}</span>
+                {data?.audience.behavior.map((item, index) => (
+                  <article key={item.segment} className={`admin-bi-source-card admin-bi-source-card--${index % 6}`}>
+                    <span>{item.segment.replaceAll("_", " ")}</span>
                     <strong>{item.share_pct}%</strong>
                     <small>{formatNumber(item.count)} demand signals</small>
                   </article>
@@ -1155,8 +1303,8 @@ function BusinessIntelligenceContent() {
               <EmptyState title="Discovery source tracking is missing" message="Send source_type / discovery_source on place and route interactions to unlock attribution." />
             ) : (
               <div className="admin-bi-source-grid">
-                {data?.discovery_attribution.sources.map((item) => (
-                  <article key={item.source}>
+                {data?.discovery_attribution.sources.map((item, index) => (
+                  <article key={item.source} className={`admin-bi-source-card admin-bi-source-card--${index % 6}`}>
                     <span>{item.source.replaceAll("_", " ")}</span>
                     <strong>{item.share_pct}%</strong>
                     <small>{formatNumber(item.count)} attributed interactions</small>
