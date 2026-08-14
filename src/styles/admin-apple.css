@@ -1092,6 +1092,28 @@
   max-width: 42rem;
 }
 
+/* Collapse/expand toggle used by CollapsibleSection — sits in a Section's
+   action slot, so it inherits the same header alignment as every other
+   section action (a select, a button row, etc). */
+.admin-bi-collapsible-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.admin-bi-collapse-toggle__chevron {
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 160ms ease;
+}
+
+.admin-bi-collapse-toggle__chevron.is-open {
+  transform: rotate(45deg);
+}
+
 .admin-growth-grid,
 .admin-demand-grid {
   display: grid;
@@ -1153,6 +1175,14 @@
 
 .admin-table__interactive-row {
   cursor: pointer;
+}
+
+/* Subtle vertical divider marking the start of a new logical column group
+   (e.g. identity vs. engagement vs. performance) in a wide, dense table —
+   groups columns visually without needing a second spanning header row. */
+.admin-table th.admin-table__group-start,
+.admin-table td.admin-table__group-start {
+  border-left: 1px solid var(--admin-border-soft);
 }
 
 /* —— Status badges / pills —— */
@@ -2423,6 +2453,185 @@
   font-weight: 650;
   color: var(--admin-ink);
   font-variant-numeric: tabular-nums;
+}
+
+/* Colored accent per source/behavior card — ties each card to a fixed spot
+   in the rotating chart palette instead of every card looking identical. */
+.admin-bi-source-card {
+  position: relative;
+  padding-left: 1.1rem;
+}
+
+.admin-bi-source-card::before {
+  content: "";
+  position: absolute;
+  top: 0.9rem;
+  left: 0.9rem;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+}
+
+.admin-bi-source-card--0::before { background: var(--admin-blue); }
+.admin-bi-source-card--1::before { background: var(--admin-cyan); }
+.admin-bi-source-card--2::before { background: var(--admin-green); }
+.admin-bi-source-card--3::before { background: var(--admin-amber); }
+.admin-bi-source-card--4::before { background: var(--admin-muted-2); }
+.admin-bi-source-card--5::before { background: var(--admin-violet); }
+
+/* "At a glance" strip — Places & routes tab opener, lighter-weight than the
+   Market Pulse KPI cards on Overview so it reads as context, not a second
+   headline metric row. */
+.admin-bi-glance {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.7rem;
+}
+
+.admin-bi-glance article {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: var(--admin-radius-sm);
+  background: var(--admin-surface);
+}
+
+.admin-bi-glance span {
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+}
+
+.admin-bi-glance strong {
+  color: var(--admin-ink);
+  font-size: 1.05rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Trend pill — used in tables wherever a bare "+12% / -4%" would otherwise
+   sit as plain text; makes rising/falling scannable across many rows. */
+.admin-bi-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.admin-bi-trend--up {
+  background: var(--admin-green-soft);
+  color: var(--admin-green);
+}
+
+.admin-bi-trend--down {
+  background: var(--admin-red-soft);
+  color: var(--admin-red);
+}
+
+.admin-bi-trend--flat {
+  background: var(--admin-surface-soft);
+  color: var(--admin-muted);
+}
+
+/* Tiered "score/100" badge — green/amber/red by threshold. */
+.admin-bi-score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.1rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-bi-score small {
+  font-size: 0.68rem;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+.admin-bi-score--high {
+  background: var(--admin-green-soft);
+  color: var(--admin-green);
+}
+
+.admin-bi-score--mid {
+  background: var(--admin-amber-soft);
+  color: var(--admin-amber);
+}
+
+.admin-bi-score--low {
+  background: var(--admin-red-soft);
+  color: var(--admin-red);
+}
+
+.admin-bi-score--empty {
+  color: var(--admin-muted-2);
+}
+
+/* Compact inline bar for a component score inside a dense table cell. */
+.admin-bi-cellbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 5.5rem;
+}
+
+.admin-bi-cellbar--empty {
+  color: var(--admin-muted-2);
+}
+
+.admin-bi-cellbar__track {
+  position: relative;
+  width: 3.2rem;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--admin-surface-soft);
+  overflow: hidden;
+}
+
+.admin-bi-cellbar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+}
+
+.admin-bi-cellbar--high .admin-bi-cellbar__fill { background: var(--admin-green); }
+.admin-bi-cellbar--mid .admin-bi-cellbar__fill { background: var(--admin-amber); }
+.admin-bi-cellbar--low .admin-bi-cellbar__fill { background: var(--admin-red); }
+
+.admin-bi-cellbar__value {
+  color: var(--admin-ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Star rating — replaces a bare "4.7" with a quick visual anchor. */
+.admin-bi-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--admin-ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-bi-rating__star {
+  color: var(--admin-amber);
+}
+
+.admin-bi-rating--empty {
+  color: var(--admin-muted-2);
 }
 
 /* Insights */
