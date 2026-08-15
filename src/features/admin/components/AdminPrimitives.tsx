@@ -102,10 +102,18 @@ export function RiskBadge({ risk }: { risk: "low" | "medium" | "high" | "critica
   return <StatusBadge label={risk === "unknown" ? "Unknown risk" : `${capitalize(risk)} risk`} tone={tone} />;
 }
 
-export function AdminDataTable({ children, label }: { children: ReactNode; label: string }) {
+export function AdminDataTable({
+  children,
+  label,
+  className,
+}: {
+  children: ReactNode;
+  label: string;
+  className?: string;
+}) {
   return (
     <div className="admin-table-wrap" role="region" aria-label={label}>
-      <table className="admin-table">{children}</table>
+      <table className={className ? `admin-table ${className}` : "admin-table"}>{children}</table>
     </div>
   );
 }

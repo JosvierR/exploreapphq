@@ -1,4 +1,4 @@
-import { Funnel, FunnelChart as RechartsFunnelChart, LabelList, ResponsiveContainer, Tooltip } from "recharts";
+import { Funnel, FunnelChart as RechartsFunnelChart, ResponsiveContainer, Tooltip } from "recharts";
 import { formatNumber } from "@/lib/analyticsDisplay";
 import { chartPalette, chartTooltipStyle, formatChartValue } from "./chartTheme";
 
@@ -17,14 +17,12 @@ export function FunnelChart({ data }: { data: FunnelDatum[] }) {
     <div className="admin-funnel-layout">
       <div className="admin-funnel-chart" role="img" aria-label="Engagement funnel by step">
         <ResponsiveContainer width="100%" height="100%">
-          <RechartsFunnelChart margin={{ top: 8, right: 72, bottom: 8, left: 8 }}>
+          <RechartsFunnelChart margin={{ top: 8, right: 16, bottom: 8, left: 16 }}>
             <Tooltip
               contentStyle={chartTooltipStyle}
-              formatter={(value) => [formatChartValue(value), "Events"]}
+              formatter={(value, name) => [formatChartValue(value), String(name)]}
             />
-            <Funnel dataKey="value" data={chartData} nameKey="label" isAnimationActive={false}>
-              <LabelList position="right" fill="#101828" stroke="none" dataKey="label" />
-            </Funnel>
+            <Funnel dataKey="value" data={chartData} nameKey="label" isAnimationActive={false} />
           </RechartsFunnelChart>
         </ResponsiveContainer>
       </div>
