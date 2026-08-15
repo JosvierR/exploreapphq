@@ -1153,6 +1153,50 @@
   font-size: 0.84rem;
 }
 
+.admin-table--compact {
+  min-width: 0;
+}
+
+.admin-table-cell--id {
+  display: block;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-table-cell--muted {
+  color: var(--admin-muted);
+  white-space: nowrap;
+}
+
+.admin-table-cell--sub {
+  display: block;
+  font-size: 0.72rem;
+  margin-top: 0.15rem;
+}
+
+.admin-table-cell--num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.admin-table-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.76rem;
+  color: var(--admin-muted);
+}
+
+/* Some admin-dashboard-layout grids render a variable number of equal-weight
+   cards (not the fixed 3-column + span-2 layouts used on Dashboard/System),
+   so a straight repeat(3, 1fr) leaves a lone card stranded on its own row.
+   This modifier keeps those specific grids responsive without touching the
+   base rule other pages rely on for their span math. */
+.admin-dashboard-layout--flow {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  align-items: stretch;
+}
+
 .admin-table th {
   position: static !important;
   background: var(--admin-surface-soft) !important;
@@ -1174,6 +1218,20 @@
 
 .admin-table tbody tr:last-child td {
   border-bottom: 0;
+}
+
+/* Must come after the base th/td padding rules above (same specificity,
+   source order decides) so compact tables (e.g. the 4-across Top content
+   grid on Analytics Ops) actually get the tighter padding. */
+.admin-table--compact th,
+.admin-table--compact td {
+  padding: 0.45rem 0.5rem;
+}
+
+.admin-table--compact .admin-rank {
+  width: 20px;
+  height: 20px;
+  font-size: 0.62rem;
 }
 
 .admin-table tbody tr:hover td,

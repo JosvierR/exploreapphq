@@ -43,6 +43,7 @@ import {
   filterLabel,
   metricLabel,
   platformLabel,
+  shortenId,
   sourceLabel,
   warningCodeLabel,
   warningCopy,
@@ -71,12 +72,17 @@ function formatNumber(value: number | string | null | undefined) {
 
 function formatPercent(value: number | null | undefined) {
   if (value == null) return "Not available";
-  return `${value}%`;
+  return `${Math.round(value * 100) / 100}%`;
 }
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "Not available";
   return new Date(value).toLocaleString();
+}
+
+function formatDateCompact(value: string | null | undefined) {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function healthTone(status: string) {
@@ -140,30 +146,39 @@ function WarningMeta({ warnings }: { warnings?: AnalyticsWarning[] }) {
   return <StatusBadge label={`${warnings.length} warning${warnings.length === 1 ? "" : "s"}`} tone="amber" />;
 }
 
+const TOP_CONTENT_ROW_LIMIT = 6;
+
 function TopContentTable({ items, loading }: { items: TopContentItem[]; loading: boolean }) {
   if (loading) return <LoadingState rows={4} />;
   if (items.length === 0) return <EmptyState title="No top content" message="Entity events will appear here." />;
+  const rows = items.slice(0, TOP_CONTENT_ROW_LIMIT);
   return (
-    <AdminDataTable label="Top content">
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Entity ID</th>
-          <th>Events</th>
-          <th>Last event</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((item) => (
-          <tr key={`${item.entity_type}-${item.entity_id}`}>
-            <td>{entityLabel(item.entity_type)}</td>
-            <td><code>{item.entity_id}</code></td>
-            <td>{formatNumber(item.event_count ?? item.impressions ?? item.clicks)}</td>
-            <td>{formatDate(item.last_event_at)}</td>
+    <>
+      <AdminDataTable label="Top content" className="admin-table--compact">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Entity ID</th>
+            <th>Events</th>
           </tr>
-        ))}
-      </tbody>
-    </AdminDataTable>
+        </thead>
+        <tbody>
+          {rows.map((item, index) => (
+            <tr key={`${item.entity_type}-${item.entity_id}`}>
+              <td><span className="admin-rank">{index + 1}</span></td>
+              <td>
+                <code className="admin-table-cell--id" title={String(item.entity_id)}>{shortenId(item.entity_id)}</code>
+                <span className="admin-table-cell--muted admin-table-cell--sub">{formatDateCompact(item.last_event_at)}</span>
+              </td>
+              <td className="admin-table-cell--num">{formatNumber(item.event_count ?? item.impressions ?? item.clicks)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </AdminDataTable>
+      {items.length > TOP_CONTENT_ROW_LIMIT && (
+        <p className="admin-table-note">Showing top {TOP_CONTENT_ROW_LIMIT} of {formatNumber(items.length)}.</p>
+      )}
+    </>
   );
 }
 
@@ -463,7 +478,7 @@ function AdminAnalyticsContent() {
         )}
       </section>
 
-      <div className="admin-dashboard-layout">
+      <div className="admin-dashboard-layout admin-dashboard-layout--flow">
         <section className="admin-panel">
           <SectionHeader kicker="Timeseries" title="Events by day" meta={<WarningMeta warnings={timeseries.warnings} />} />
           {timeseries.error ? <ErrorState title="Timeseries unavailable" message={joinErrorMessage(timeseries.error, timeseries.requestId)} /> : (
@@ -490,11 +505,23 @@ function AdminAnalyticsContent() {
       <section className="admin-panel">
         <SectionHeader kicker="Top content" title="Videos, places, routes, profiles" />
         {topContent.error ? <ErrorState title="Top content unavailable" message={joinErrorMessage(topContent.error, topContent.requestId)} /> : (
-          <div className="admin-dashboard-layout">
-            <TopContentTable items={topContent.data?.videos || []} loading={topContent.loading} />
-            <TopContentTable items={topContent.data?.places || []} loading={topContent.loading} />
-            <TopContentTable items={topContent.data?.routes || []} loading={topContent.loading} />
-            <TopContentTable items={topContent.data?.profiles || []} loading={topContent.loading} />
+          <div className="admin-dashboard-layout admin-dashboard-layout--flow">
+            <div className="admin-panel admin-panel--nested">
+              <SectionHeader kicker="Top content" title="Videos" />
+              <TopContentTable items={topContent.data?.videos || []} loading={topContent.loading} />
+            </div>
+            <div className="admin-panel admin-panel--nested">
+              <SectionHeader kicker="Top content" title="Places" />
+              <TopContentTable items={topContent.data?.places || []} loading={topContent.loading} />
+            </div>
+            <div className="admin-panel admin-panel--nested">
+              <SectionHeader kicker="Top content" title="Routes" />
+              <TopContentTable items={topContent.data?.routes || []} loading={topContent.loading} />
+            </div>
+            <div className="admin-panel admin-panel--nested">
+              <SectionHeader kicker="Top content" title="Profiles" />
+              <TopContentTable items={topContent.data?.profiles || []} loading={topContent.loading} />
+            </div>
           </div>
         )}
       </section>
