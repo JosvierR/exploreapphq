@@ -99,6 +99,16 @@
   color: #92400e;
 }
 
+.admin-api-docs__status--security {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.admin-api-docs__status--security strong,
+.admin-api-docs__status--security p {
+  color: #1e3a8a;
+}
+
 .admin-api-docs__scalar {
   flex: 1;
   min-height: calc(100dvh - 9rem);

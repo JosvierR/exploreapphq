@@ -1,7 +1,9 @@
-# Redocly / Spectral lint for hand-authored Admin HTTP OpenAPI (EXPLORE-325).
+# Redocly governance for all three API documentation surfaces.
 apis:
   explore-admin:
     root: server/api-lib/docs/openapi.admin.yaml
+  explore-edge:
+    root: server/api-lib/docs/openapi.edge.yaml
 
 extends:
   - recommended

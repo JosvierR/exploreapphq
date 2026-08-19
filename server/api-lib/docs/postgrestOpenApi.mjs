@@ -172,6 +172,51 @@ export function normalizeOpenApi31(doc) {
 }
 
 /**
+ * Attach the public Data API base URL used by generated PostgREST operations.
+ * The project URL is public configuration; no API key is ever copied into the
+ * document returned to the browser.
+ *
+ * @param {Record<string, unknown>} spec
+ * @param {string} supabaseUrl
+ * @returns {Record<string, unknown>}
+ */
+export function withPostgrestServer(spec, supabaseUrl) {
+  const baseUrl = sanitizeSupabaseEnvValue(supabaseUrl).replace(/\/+$/, "");
+  if (!baseUrl) {
+    throw Object.assign(new Error("PostgREST OpenAPI requires a Supabase project URL"), {
+      status: 503,
+      code: "postgrest_openapi_config_missing",
+    });
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(baseUrl);
+  } catch {
+    throw Object.assign(new Error("PostgREST OpenAPI received an invalid Supabase project URL"), {
+      status: 503,
+      code: "postgrest_openapi_config_invalid",
+    });
+  }
+  if (!/^https?:$/.test(parsed.protocol) || parsed.username || parsed.password) {
+    throw Object.assign(new Error("PostgREST OpenAPI received an unsafe Supabase project URL"), {
+      status: 503,
+      code: "postgrest_openapi_config_invalid",
+    });
+  }
+
+  return {
+    ...spec,
+    servers: [
+      {
+        url: `${parsed.toString().replace(/\/$/, "")}/rest/v1`,
+        description: "Supabase PostgREST Data API",
+      },
+    ],
+  };
+}
+
+/**
  * @param {unknown} value
  * @returns {unknown}
  */
@@ -387,7 +432,7 @@ export async function fetchLivePostgrestOpenApi(options = {}) {
 
   const prepared = prepareUpstreamDocument(/** @type {Record<string, unknown>} */ (document));
   const { spec: converted, converter } = await convertSwaggerToOpenApi31(prepared);
-  const fitted = fitOpenApiForServerless(converted);
+  const fitted = fitOpenApiForServerless(withPostgrestServer(converted, url));
   cache = { spec: fitted.spec, json: fitted.json, expiresAt: at + CACHE_TTL_MS };
   logger.info("PostgREST OpenAPI ready", {
     converter,

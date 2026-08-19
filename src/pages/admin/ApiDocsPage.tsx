@@ -3,13 +3,21 @@ import { ApiReferenceReact } from "@scalar/api-reference-react";
 import "@scalar/api-reference-react/style.css";
 import { AdminAuthGate } from "@/features/admin/components/AdminAuthGate";
 import { useModerationAdmin } from "@/features/admin/ModerationAdminProvider";
+import {
+  getSupabaseBrowserPublishableKey,
+  getSupabaseBrowserUrl,
+} from "@/lib/supabaseClient";
 import "@/styles/admin-api-docs.css";
+import {
+  authorizeApiDocsRequest,
+  buildAuthorizedApiDocsRequest,
+  buildTryItOutRules,
+  prepareApiDocsSource,
+  scalarAuthentication,
+  type ApiDocsSource,
+} from "./apiDocsSecurity";
 
-type SpecSource = {
-  title: string;
-  slug: string;
-  content: Record<string, unknown>;
-};
+type SpecSource = ApiDocsSource;
 
 const SOURCE_META = [
   { title: "PostgREST", slug: "postgrest", path: "/api/admin/openapi/postgrest" },
@@ -70,11 +78,11 @@ function ApiDocsContent() {
                   : `${meta.title} returned an invalid OpenAPI document`,
               );
             }
-            return {
+            return prepareApiDocsSource({
               title: meta.title,
               slug: meta.slug,
               content: data,
-            } satisfies SpecSource;
+            });
           }),
         );
 
@@ -122,6 +130,13 @@ function ApiDocsContent() {
 
   const configuration = useMemo(() => {
     if (!sources?.length) return null;
+    const supabaseUrl = getSupabaseBrowserUrl();
+    const publishableKey = getSupabaseBrowserPublishableKey();
+    if (!supabaseUrl || !publishableKey || !accessToken) return null;
+    const rules = buildTryItOutRules(sources, {
+      appOrigin: window.location.origin,
+      supabaseUrl,
+    });
     return {
       sources: sources.map((source) => ({
         title: source.title,
@@ -130,8 +145,30 @@ function ApiDocsContent() {
       })),
       hideModels: true,
       hideClientButton: true,
+      persistAuth: false,
+      authentication: scalarAuthentication(accessToken, publishableKey),
+      onBeforeRequest: ({ request, requestBuilder }: { request: Request; requestBuilder: unknown }) => {
+        authorizeApiDocsRequest({
+          request,
+          requestBuilder,
+          accessToken,
+          publishableKey,
+          rules,
+        });
+      },
+      customFetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = input instanceof Request && init === undefined ? input : new Request(input, init);
+        return fetch(
+          buildAuthorizedApiDocsRequest({
+            request,
+            accessToken,
+            publishableKey,
+            rules,
+          }),
+        );
+      },
     };
-  }, [sources]);
+  }, [accessToken, sources]);
 
   return (
     <div className="admin-api-docs">
@@ -152,6 +189,15 @@ function ApiDocsContent() {
             <span className="admin-muted">loading…</span>
           )}
         </span>
+      </div>
+
+      <div className="admin-api-docs__status admin-api-docs__status--security" role="note">
+        <strong>Authenticated Try it out</strong>
+        <p>
+          Allowed requests use your current Supabase admin session. Destructive, privileged, webhook,
+          cron-secret, and raw PostgREST write operations are reference-only and are blocked before the
+          network.
+        </p>
       </div>
 
       {loading && (

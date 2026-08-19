@@ -9,6 +9,7 @@ import {
   fitOpenApiForServerless,
   getPostgrestSecretKey,
   sanitizeSupabaseEnvValue,
+  withPostgrestServer,
 } from "./postgrestOpenApi.mjs";
 
 const SAMPLE_SWAGGER = {
@@ -64,6 +65,30 @@ test("sanitizeSupabaseEnvValue strips quotes and Bearer prefix", () => {
   assert.equal(sanitizeSupabaseEnvValue("Bearer eyJabc.def"), "eyJabc.def");
 });
 
+test("withPostgrestServer declares the normalized public Data API server", () => {
+  const spec = withPostgrestServer(
+    { openapi: "3.1.0", info: { title: "t", version: "1" }, paths: {} },
+    "https://example.supabase.co///",
+  );
+  assert.deepEqual(spec.servers, [
+    {
+      url: "https://example.supabase.co/rest/v1",
+      description: "Supabase PostgREST Data API",
+    },
+  ]);
+  assert.doesNotMatch(JSON.stringify(spec), /secret|service_role/i);
+});
+
+test("withPostgrestServer supports local Supabase and rejects unsafe URLs", () => {
+  const spec = withPostgrestServer(
+    { openapi: "3.1.0", info: { title: "t", version: "1" }, paths: {} },
+    "http://127.0.0.1:54321",
+  );
+  assert.equal(spec.servers[0].url, "http://127.0.0.1:54321/rest/v1");
+  assert.throws(() => withPostgrestServer({}, "javascript:alert(1)"), /unsafe/i);
+  assert.throws(() => withPostgrestServer({}, "https://user:password@example.com"), /unsafe/i);
+});
+
 test("secret auth attempts match boardAdminProvision for JWT service_role", () => {
   const attempts = buildPostgrestSecretAuthAttempts("eyJservice");
   assert.equal(attempts[0].apikey, "eyJservice");
@@ -106,6 +131,7 @@ test("fetchLivePostgrestOpenApi uses SUPABASE_SECRET_KEY like analytics", async 
     assert.equal(getPostgrestSecretKey(), "eyJservice-role");
     const result = await fetchLivePostgrestOpenApi({ fetchImpl, now: () => 1_000 });
     assert.equal(result.spec.openapi, "3.1.0");
+    assert.equal(result.spec.servers[0].url, "https://example.supabase.co/rest/v1");
     assert.match(result.json, /"openapi":"3\.1\.0"/);
   } finally {
     clearPostgrestOpenApiCache();

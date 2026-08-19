@@ -1,0 +1,50 @@
+name: OpenAPI lint
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "server/api-lib/docs/**"
+      - "src/pages/admin/ApiDocsPage.tsx"
+      - "src/pages/admin/apiDocsSecurity.ts"
+      - "src/pages/admin/apiDocsSecurity.test.ts"
+      - "scripts/lint-openapi-surfaces.mjs"
+      - "scripts/lint-openapi-surfaces.test.mjs"
+      - "redocly.yaml"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/openapi-lint.yml"
+  push:
+    branches: [main]
+    paths:
+      - "server/api-lib/docs/**"
+      - "src/pages/admin/ApiDocsPage.tsx"
+      - "src/pages/admin/apiDocsSecurity.ts"
+      - "src/pages/admin/apiDocsSecurity.test.ts"
+      - "scripts/lint-openapi-surfaces.mjs"
+      - "scripts/lint-openapi-surfaces.test.mjs"
+      - "redocly.yaml"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/openapi-lint.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint all API surfaces
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint Admin, Edge, and PostgREST OpenAPI
+        run: npm run openapi:lint

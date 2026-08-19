@@ -14,7 +14,7 @@ Browser (Vite React SPA)
                          ├─ moderation/   reports, ops, admin auth
                          ├─ analytics/    events ingest + insights
                          ├─ system/       health, metrics, bootstrap
-                         ├─ docs/         admin OpenAPI skeletons (Scalar)
+                         ├─ docs/         governed Admin, Edge, and PostgREST OpenAPI (Scalar)
                          └─ netlify/functions/* (waitlist/feedback handlers)
 ```
 
@@ -97,7 +97,7 @@ Mobile / Stream integrations live in the separate repo `AngRodSt/Explore-V2`
 | `cleanup-soft-deleted` | cron/internal | service role | Purge soft-deleted videos / Stream assets |
 | `finalize-account-deletion` | internal | service role | Finish account deletion cleanup |
 
-Admin viewer: `/admin/api-docs` → **Edge Functions** tab (`GET /api/admin/openapi/edge`).
+Admin viewer: `/admin/api-docs` exposes PostgREST, Edge Functions, and Admin HTTP as separate Scalar sources. The logged-in admin JWT is kept in memory and injected only for allowlisted Try-it-out requests. Destructive or non-user-secret operations remain documented but cannot be dispatched from the viewer.
 
 ## Docs map
 
@@ -113,14 +113,14 @@ Admin viewer: `/admin/api-docs` → **Edge Functions** tab (`GET /api/admin/open
 | `docs/ANALYTICS_EVENTS_API.md` | Events ingestion |
 | `docs/DATA-004_ADMIN_INSIGHTS_DASHBOARD.md` | Admin analytics UI/API |
 
-**Reviewed:** 2026-08-10
+**Reviewed:** 2026-08-19
 
 ## Adding a new API route
 
 1. Put handler code in the correct domain folder under `server/api-lib/`.
 2. Wire it in `server/api-lib/router.mjs`.
 3. Mirror the route in `server/index.ts` for local Express.
-4. Document the path in `server/api-lib/docs/openapi.admin.yaml` and keep anti-drift green (`npm test` + `npm run openapi:lint`).
+4. Document the path in `server/api-lib/docs/openapi.admin.yaml`, classify privileged/destructive operations in the API-docs guard, and keep anti-drift plus all-surface lint green (`npm test` + `npm run openapi:lint`).
 5. Do **not** add new files under `api/` (Hobby function limit).
 6. Add admin-only auth with `requireAdmin` when the route is admin.
 7. Emit metrics/logs with `recordApiRequest` (automatic via router) and domain-specific counters when useful.

@@ -26,7 +26,7 @@ Current frontend entry points:
 - `/admin?section=admins` - admin roster (`admin_users`) management.
 - `/admin/reports` - moderation reports and video moderation lifecycle.
 - `/admin/waitlist` - waitlist operations.
-- `/admin/api-docs` - Scalar UI over admin OpenAPI (live PostgREST, Admin HTTP contract, Edge skeleton).
+- `/admin/api-docs` - Scalar UI over the three governed OpenAPI surfaces (live PostgREST, commit-pinned Edge Functions, and Admin HTTP).
 
 ## Admin OpenAPI (docs)
 
@@ -42,11 +42,17 @@ Handlers live in `server/api-lib/docs/` and are wired through `server/api-lib/ro
 
 PostgREST live docs fetch `${SUPABASE_URL}/rest/v1/` with the same `SUPABASE_SECRET_KEY` used by admin analytics/moderation. Supabase rejects publishable/anon keys for that OpenAPI root (`Secret API key required`).
 
-Admin HTTP contract (`server/api-lib/docs/openapi.admin.yaml`) is linted with Redocly (`npm run openapi:lint`) and guarded by an anti-drift test that requires 100% coverage of `router.mjs` plus parity with Express mounts (except explicit local-only paths).
+All three surfaces are linted with Redocly through `npm run openapi:lint`. Admin HTTP and Edge lint their checked-in canonical files; PostgREST lints a deterministic document generated through the same conversion and server-normalization code used at runtime. `.github/workflows/openapi-lint.yml` enforces the command on relevant pull requests and changes to `main`. The Admin HTTP anti-drift test still requires 100% coverage of `router.mjs` plus parity with Express mounts (except explicit local-only paths).
 
 Edge OpenAPI is authored in Explore-V2 and synced with `npm run openapi:sync-edge -- --commit <sha>` (never a floating branch). The pin is stored in `edgeOpenApi.pin.json` and surfaced in `/admin/api-docs`.
 
-**Reviewed:** 2026-08-10
+Each served document declares its execution base: Admin HTTP uses same-origin `/`, Edge uses the commit-pinned Supabase Functions server template, and PostgREST is decorated server-side with the configured public `${SUPABASE_URL}/rest/v1` base. Server secrets are never included in a served document.
+
+Scalar's Try it out uses the current `session.access_token` from the authenticated admin provider and the browser-safe Supabase publishable key where the Supabase gateway requires `apikey`. Auth persistence is disabled. Requests are allowlisted to the exact Explore origin or configured Supabase origin; raw PostgREST writes plus destructive, privileged, webhook, cron-secret, metrics-token, bootstrap, and broadcast operations are marked reference-only and rejected before network dispatch.
+
+Notion is an index, not a contract source: `03 · Ingeniería & Proceso`, `02 · Arquitectura`, and `04 · Funcionalidades` should link to the live `/admin/api-docs` route and must not copy endpoint schemas or request/response definitions.
+
+**Reviewed:** 2026-08-19
 
 ## Backend Routing
 
@@ -94,4 +100,4 @@ scoring and remain separately gated.
 Infrastructure metrics remain available through request logs, request ids, health endpoints, and
 in-memory instance metrics.
 
-**Reviewed:** 2026-08-10
+**Reviewed:** 2026-08-19
