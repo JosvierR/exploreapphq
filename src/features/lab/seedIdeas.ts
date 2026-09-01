@@ -3,7 +3,7 @@ import type {
   FeedbackComment,
   FeedbackIdea,
   FeedbackUpdate,
-} from "../types";
+} from "./types";
 
 const now = Date.now();
 const days = (n: number) => new Date(now - n * 86_400_000).toISOString();

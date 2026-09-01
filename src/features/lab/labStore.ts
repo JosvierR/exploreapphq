@@ -1,5 +1,5 @@
 import { SEED_BUILD_MESSAGES, SEED_COMMENTS, SEED_IDEAS, SEED_UPDATES } from "./seedIdeas";
-import { slugify } from "../lib/status";
+import { slugify } from "./lib/status";
 import type {
   FeedbackBuildMessage,
   FeedbackCategory,
@@ -10,7 +10,7 @@ import type {
   LabSession,
   LabSnapshot,
   LabTab,
-} from "../types";
+} from "./types";
 
 const STORAGE_KEY = "explore-lab-v3";
 
