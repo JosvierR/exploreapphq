@@ -1,12 +1,22 @@
 import type { FeedbackCategory, FeedbackStatus, LabTab } from "../types";
 
+/** Interview-style pipeline labels (EN). ES via i18n on UI. */
 export const STATUS_LABELS: Record<FeedbackStatus, string> = {
-  listening: "Listening",
+  listening: "Submitted",
   considering: "Under review",
-  planned: "Planned",
+  planned: "Shortlisted",
   building: "Building",
   shipped: "Shipped",
-  not_now: "Not right now",
+  not_now: "Not moving forward",
+};
+
+export const STATUS_LABELS_ES: Record<FeedbackStatus, string> = {
+  listening: "Enviado",
+  considering: "En revisión",
+  planned: "Preseleccionado",
+  building: "En construcción",
+  shipped: "Lanzado",
+  not_now: "No seguimos",
 };
 
 export const CATEGORY_LABELS: Record<FeedbackCategory, string> = {
@@ -20,13 +30,32 @@ export const CATEGORY_LABELS: Record<FeedbackCategory, string> = {
   other: "Other",
 };
 
-/** Forum feed filters */
+export const CATEGORY_LABELS_ES: Record<FeedbackCategory, string> = {
+  discover: "Descubrir",
+  places: "Lugares",
+  routes: "Rutas",
+  community: "Comunidad",
+  ai: "IA",
+  profile: "Perfil",
+  events: "Eventos",
+  other: "Otro",
+};
+
 export const LAB_TABS: { id: LabTab; label: string }[] = [
   { id: "trending", label: "Trending" },
   { id: "newest", label: "Newest" },
 ];
 
-export const PROGRESS_STEPS: FeedbackStatus[] = ["listening", "planned", "building", "shipped"];
+/** Public pipeline stages after Accept (like an interview process). */
+export const PIPELINE_STEPS: FeedbackStatus[] = [
+  "listening",
+  "considering",
+  "planned",
+  "building",
+  "shipped",
+];
+
+export const PROGRESS_STEPS = PIPELINE_STEPS;
 
 export function slugify(title: string): string {
   return title

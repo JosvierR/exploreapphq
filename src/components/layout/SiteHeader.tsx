@@ -72,7 +72,7 @@ export function SiteHeader() {
               </Link>
             )}
             <Link to="/lab" className="nav-link-muted">
-              Explore Lab
+              <T k="lab.nav" />
             </Link>
           </nav>
           <div className="header-actions">
@@ -123,7 +123,7 @@ export function SiteHeader() {
           </Link>
         )}
         <Link to="/lab" onClick={closeMobile}>
-          Explore Lab
+          <T k="lab.nav" />
         </Link>
         <a href={ctaHref} className="btn btn-primary" onClick={closeMobile}>
           <T k={ctaKey} />

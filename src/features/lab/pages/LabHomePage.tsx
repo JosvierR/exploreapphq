@@ -1,158 +1,180 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { IdeaCard } from "../components/IdeaCard";
+import { FormEvent, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { LabPageShell } from "../components/LabPageShell";
-import { SubmitIdeaModal } from "../components/SubmitIdeaModal";
-import { listIdeas, userBoosted } from "../labStore";
+import { createIdea } from "../labStore";
 import { trackLab } from "../lib/analytics";
 import { LAB_BUILDING_PATH, LAB_PATH } from "../lib/paths";
-import { CATEGORY_LABELS, LAB_TABS } from "../lib/status";
-import { useLabStore } from "../lib/useLabStore";
-import type { FeedbackCategory, LabTab } from "../types";
+import { CATEGORY_LABELS, CATEGORY_LABELS_ES } from "../lib/status";
+import type { FeedbackCategory } from "../types";
+import { useI18n } from "@/features/i18n/I18nProvider";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { submitFeedback } from "@/lib/feedbackSubmit";
 
-function isLabTab(v: string | null): v is LabTab {
-  return LAB_TABS.some((t) => t.id === v);
-}
+const CATEGORIES = Object.keys(CATEGORY_LABELS) as FeedbackCategory[];
 
 export function LabHomePage() {
-  const [params, setParams] = useSearchParams();
-  const snap = useLabStore();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [searchDraft, setSearchDraft] = useState(params.get("q") ?? "");
+  const { t, locale } = useI18n();
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [email, setEmail] = useState("");
+  const [category, setCategory] = useState<FeedbackCategory>("other");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   usePageMeta({
-    title: "Explore Lab · Forum",
-    description: "Share ideas and Boost what matters for Explore.",
+    title: t("lab.meta.title"),
+    description: t("lab.meta.description"),
     path: LAB_PATH,
   });
-
-  const tab: LabTab = isLabTab(params.get("sort")) ? (params.get("sort") as LabTab) : "trending";
-  const category = (params.get("category") as FeedbackCategory | "all" | null) ?? "all";
-  const q = params.get("q") ?? "";
 
   useEffect(() => {
     trackLab("explore_lab_view", { source: "lab_forum" });
   }, []);
 
-  useEffect(() => {
-    const trimmed = searchDraft.trim();
-    if (trimmed === q) return;
-    const t = window.setTimeout(() => {
-      setParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          if (trimmed) next.set("q", trimmed);
-          else next.delete("q");
-          return next;
-        },
-        { replace: true },
-      );
-      if (trimmed) trackLab("feedback_search", { source: "lab_forum" });
-    }, 300);
-    return () => window.clearTimeout(t);
-  }, [searchDraft, q, setParams]);
+  const categoryLabels = locale === "es" ? CATEGORY_LABELS_ES : CATEGORY_LABELS;
 
-  const { items } = useMemo(
-    () => listIdeas({ tab, category: category === "all" ? "all" : category, query: q, pageSize: 20 }),
-    [tab, category, q, snap],
-  );
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const local = createIdea({ title, description, category, email });
+      if (!local.ok) {
+        setError(local.error);
+        return;
+      }
 
-  const setTab = (next: LabTab) => {
-    const p = new URLSearchParams(params);
-    if (next === "trending") p.delete("sort");
-    else p.set("sort", next);
-    setParams(p);
-    trackLab("feedback_filter_changed", { status: next, source: "lab_forum" });
-  };
+      await submitFeedback({
+        message: `${title.trim()}\n\n${description.trim()}`,
+        email: email.trim(),
+        category: "idea",
+        name: email.trim().split("@")[0],
+        source: "lab",
+      }).catch((err) => {
+        console.warn("[lab] feedback API notify failed", err);
+      });
+
+      trackLab("feedback_idea_created", {
+        idea_id: local.idea.id,
+        category: local.idea.category,
+        status: local.idea.status,
+        source: "lab_forum",
+      });
+
+      setSuccess(true);
+      setTitle("");
+      setDescription("");
+      setEmail("");
+      setCategory("other");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("lab.form.error"));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <LabPageShell>
       <header className="lab-intro">
-        <p className="lab-intro__label">Explore Lab</p>
-        <h1>Forum</h1>
-        <p>
-          Share ideas and Boost what you care about. When Explore accepts one, it moves to{" "}
-          <Link to={LAB_BUILDING_PATH}>Building</Link> — and we build it with the person who
-          proposed it.
-        </p>
+        <p className="lab-intro__label">{t("lab.label")}</p>
+        <h1>{t("lab.home.title")}</h1>
+        <p>{t("lab.home.lead")}</p>
         <div className="lab-actions">
-          <button type="button" className="lab-btn lab-btn--primary" onClick={() => setModalOpen(true)}>
-            Share an idea
-          </button>
           <Link to={LAB_BUILDING_PATH} className="lab-btn lab-btn--ghost">
-            See what we&apos;re building
+            {t("lab.home.cta.building")}
           </Link>
         </div>
       </header>
 
-      <div className="lab-tabs" role="tablist" aria-label="Sort">
-        {LAB_TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.id}
-            className="lab-tab"
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="lab-empty" style={{ marginBottom: "1.25rem" }}>
+        <h3>{t("lab.empty.title")}</h3>
+        <p>{t("lab.empty.body")}</p>
       </div>
 
-      <div className="lab-toolbar">
-        <input
-          className="lab-input"
-          type="search"
-          placeholder="Search ideas…"
-          value={searchDraft}
-          onChange={(e) => setSearchDraft(e.target.value)}
-          aria-label="Search ideas"
-        />
-        <select
-          className="lab-select"
-          value={category}
-          aria-label="Category"
-          onChange={(e) => {
-            const p = new URLSearchParams(params);
-            const v = e.target.value;
-            if (v === "all") p.delete("category");
-            else p.set("category", v);
-            setParams(p);
-          }}
-        >
-          <option value="all">All categories</option>
-          {(Object.keys(CATEGORY_LABELS) as FeedbackCategory[]).map((c) => (
-            <option key={c} value={c}>
-              {CATEGORY_LABELS[c]}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {items.length === 0 ? (
-        <div className="lab-empty">
-          <h3>{q ? "No ideas found." : "No ideas yet."}</h3>
-          <p>{q ? "Try another search." : "Be the first to share one."}</p>
-          <button type="button" className="lab-btn lab-btn--primary" onClick={() => setModalOpen(true)}>
-            Share an idea
-          </button>
+      {success ? (
+        <div className="lab-note" role="status">
+          <strong style={{ display: "block", marginBottom: "0.35rem", color: "#fff" }}>
+            {t("lab.form.successTitle")}
+          </strong>
+          {t("lab.form.successBody")}
+          <div className="lab-actions" style={{ marginTop: "0.85rem" }}>
+            <button type="button" className="lab-btn lab-btn--primary lab-btn--sm" onClick={() => setSuccess(false)}>
+              {t("lab.form.another")}
+            </button>
+          </div>
         </div>
       ) : (
-        <div className="lab-feed" aria-live="polite">
-          {items.map((idea) => (
-            <IdeaCard
-              key={idea.id}
-              idea={idea}
-              boosted={userBoosted(idea.id, snap.session?.userId ?? "demo-user")}
-              showAuthor
+        <form className="lab-form" onSubmit={(e) => void handleSubmit(e)} style={{ maxWidth: 520 }}>
+          <div className="lab-field">
+            <label htmlFor="lab-email">{t("lab.form.email")}</label>
+            <input
+              id="lab-email"
+              className="lab-input"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder={t("lab.form.emailPlaceholder")}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
-          ))}
-        </div>
-      )}
+          </div>
 
-      <SubmitIdeaModal open={modalOpen} onClose={() => setModalOpen(false)} />
+          <div className="lab-field">
+            <label htmlFor="lab-title">{t("lab.form.title")}</label>
+            <input
+              id="lab-title"
+              className="lab-input"
+              required
+              maxLength={80}
+              placeholder={t("lab.form.titlePlaceholder")}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <div className="lab-field__hint">{title.length}/80</div>
+          </div>
+
+          <div className="lab-field">
+            <label htmlFor="lab-category">{t("lab.form.category")}</label>
+            <select
+              id="lab-category"
+              className="lab-select"
+              value={category}
+              onChange={(e) => setCategory(e.target.value as FeedbackCategory)}
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {categoryLabels[c]}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="lab-field">
+            <label htmlFor="lab-desc">{t("lab.form.description")}</label>
+            <textarea
+              id="lab-desc"
+              required
+              rows={5}
+              maxLength={500}
+              placeholder={t("lab.form.descriptionPlaceholder")}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+            <div className="lab-field__hint">{description.length}/500</div>
+          </div>
+
+          {error ? (
+            <p className="lab-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+
+          <button type="submit" className="lab-btn lab-btn--primary" disabled={loading}>
+            {loading ? t("lab.form.sending") : t("lab.form.submit")}
+          </button>
+        </form>
+      )}
     </LabPageShell>
   );
 }

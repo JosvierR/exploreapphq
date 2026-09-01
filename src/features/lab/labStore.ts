@@ -1,4 +1,3 @@
-import { SEED_BUILD_MESSAGES, SEED_COMMENTS, SEED_IDEAS, SEED_UPDATES } from "./seedIdeas";
 import { slugify } from "./lib/status";
 import type {
   FeedbackBuildMessage,
@@ -12,7 +11,7 @@ import type {
   LabTab,
 } from "./types";
 
-const STORAGE_KEY = "explore-lab-v3";
+const STORAGE_KEY = "explore-lab-v4";
 
 type LabState = {
   ideas: FeedbackIdea[];
@@ -26,6 +25,7 @@ type LabState = {
 function normalizeIdea(idea: FeedbackIdea): FeedbackIdea {
   return {
     ...idea,
+    email: idea.email ?? "",
     isFeatured: Boolean(idea.isFeatured),
     isVisible: idea.isVisible !== false,
   };
@@ -33,13 +33,11 @@ function normalizeIdea(idea: FeedbackIdea): FeedbackIdea {
 
 function defaultState(): LabState {
   return {
-    ideas: structuredClone(SEED_IDEAS).map(normalizeIdea),
-    comments: structuredClone(SEED_COMMENTS),
-    updates: structuredClone(SEED_UPDATES),
-    buildMessages: structuredClone(SEED_BUILD_MESSAGES),
-    boostsByUser: {
-      "demo-user": ["idea-collaborative-routes", "idea-save-routes", "idea-smart-itineraries"],
-    },
+    ideas: [],
+    comments: [],
+    updates: [],
+    buildMessages: [],
+    boostsByUser: {},
     session: null,
   };
 }
@@ -50,12 +48,15 @@ function loadState(): LabState {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultState();
     const parsed = JSON.parse(raw) as Partial<LabState>;
-    if (!Array.isArray(parsed.ideas) || parsed.ideas.length === 0) return defaultState();
     return {
       ...defaultState(),
       ...parsed,
-      ideas: parsed.ideas.map((i) => normalizeIdea(i as FeedbackIdea)),
-      buildMessages: parsed.buildMessages ?? structuredClone(SEED_BUILD_MESSAGES),
+      ideas: Array.isArray(parsed.ideas)
+        ? parsed.ideas.map((i) => normalizeIdea(i as FeedbackIdea))
+        : [],
+      comments: Array.isArray(parsed.comments) ? parsed.comments : [],
+      updates: Array.isArray(parsed.updates) ? parsed.updates : [],
+      buildMessages: Array.isArray(parsed.buildMessages) ? parsed.buildMessages : [],
       boostsByUser: parsed.boostsByUser ?? {},
       session: parsed.session ?? null,
     };
@@ -226,20 +227,32 @@ export function createIdea(input: {
   title: string;
   description: string;
   category: FeedbackCategory;
+  email: string;
 }): { ok: true; idea: FeedbackIdea } | { ok: false; error: string } {
   const title = input.title.trim();
   const description = input.description.trim();
+  const email = input.email.trim().toLowerCase();
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  if (!emailOk) {
+    return { ok: false, error: "Enter a valid email so we can follow up." };
+  }
   if (title.length < 4 || title.length > 80) {
     return { ok: false, error: "Title must be between 4 and 80 characters." };
+  }
+  if (description.length < 3) {
+    return { ok: false, error: "Tell us a little more about your idea." };
   }
   if (description.length > 500) {
     return { ok: false, error: "Description must be 500 characters or less." };
   }
 
-  const session = ensureLabSession();
+  const session = ensureLabSession(email.split("@")[0] || "You");
+  state.session = { ...session, email };
+
   const dayAgo = Date.now() - 86_400_000;
   const recent = state.ideas.filter(
-    (i) => i.userId === session.userId && +new Date(i.createdAt) > dayAgo,
+    (i) => i.email === email && +new Date(i.createdAt) > dayAgo,
   );
   if (recent.length >= 3) {
     return { ok: false, error: "You can share up to 3 ideas per day. Try again tomorrow." };
@@ -257,11 +270,12 @@ export function createIdea(input: {
     slug,
     userId: session.userId,
     authorName: session.displayName,
+    email,
     title,
     description,
     category: input.category,
     status: "listening",
-    boostCount: 1,
+    boostCount: 0,
     commentCount: 0,
     teamResponse: null,
     isVisible: true,
@@ -273,9 +287,6 @@ export function createIdea(input: {
   };
 
   state.ideas.unshift(idea);
-  const boosts = new Set(state.boostsByUser[session.userId] ?? []);
-  boosts.add(idea.id);
-  state.boostsByUser[session.userId] = [...boosts];
   emit();
   return { ok: true, idea };
 }
@@ -365,6 +376,7 @@ export function buildingBoardIdeas() {
       .sort((a, b) => b.boostCount - a.boostCount);
 
   return {
+    considering: by("considering"),
     planned: by("planned"),
     building: by("building"),
     shipped: by("shipped"),
@@ -441,12 +453,15 @@ export function adminUpdateIdea(
     state.updates.push(update);
   }
   if (patch.isFeatured === true && !wasFeatured) {
+    if (idea.status === "listening" || idea.status === "considering") {
+      idea.status = "considering";
+    }
     state.buildMessages.push({
       id: uid("bm"),
       ideaId,
       userId: "team-explore",
       authorName: "Explore Team",
-      body: "We accepted your idea. You can talk with us here and help shape how we build it.",
+      body: "We accepted your idea. Next steps feel like an interview process — review, shortlist, build, ship. We'll message you here.",
       isTeam: true,
       createdAt: new Date().toISOString(),
     });
@@ -469,7 +484,11 @@ export function adminListIdeas(opts?: {
   if (featured === "inbox") ideas = ideas.filter((i) => !i.isFeatured);
   if (query) {
     ideas = ideas.filter(
-      (i) => i.title.toLowerCase().includes(query) || i.description.toLowerCase().includes(query),
+      (i) =>
+        i.title.toLowerCase().includes(query) ||
+        i.description.toLowerCase().includes(query) ||
+        i.email.toLowerCase().includes(query) ||
+        i.authorName.toLowerCase().includes(query),
     );
   }
   return ideas.sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt));

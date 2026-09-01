@@ -4,6 +4,7 @@ import { VercelAnalytics } from "@/features/analytics/VercelAnalytics";
 import { AdminErrorBoundary } from "@/features/admin/components/AdminErrorBoundary";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { MarketingLayout } from "@/components/layout/MarketingLayout";
+import { I18nProvider } from "@/features/i18n/I18nProvider";
 import { AccessPage } from "@/pages/auth/AccessPage";
 import { PioneersPage, ChallengeMissionPage } from "@/features/pioneers";
 import { TermsPage } from "@/pages/marketing/TermsPage";
@@ -30,10 +31,10 @@ const ApiDocsPage = lazy(() => import("@/pages/admin/ApiDocsPage"));
 
 function AppRoot() {
   return (
-    <>
+    <I18nProvider>
       <Outlet />
       <VercelAnalytics />
-    </>
+    </I18nProvider>
   );
 }
 

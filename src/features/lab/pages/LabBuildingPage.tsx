@@ -4,35 +4,39 @@ import { LabPageShell } from "../components/LabPageShell";
 import { buildingBoardIdeas } from "../labStore";
 import { trackLab } from "../lib/analytics";
 import { LAB_BUILDING_PATH, LAB_PATH, labIdeaPath } from "../lib/paths";
-import { STATUS_LABELS } from "../lib/status";
+import { STATUS_LABELS, STATUS_LABELS_ES } from "../lib/status";
 import { useLabStore } from "../lib/useLabStore";
+import { useI18n } from "@/features/i18n/I18nProvider";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import type { FeedbackIdea, FeedbackStatus } from "../types";
+import type { FeedbackIdea } from "../types";
 
-function BuildingCard({ idea }: { idea: FeedbackIdea }) {
+function BuildingCard({ idea, byLabel }: { idea: FeedbackIdea; byLabel: string }) {
   return (
     <Link to={labIdeaPath(idea.slug)} className="lab-roadmap-card">
       <strong>{idea.title}</strong>
       <span>
-        by {idea.authorName} · ↑ {idea.boostCount}
+        {byLabel} {idea.authorName || idea.email}
       </span>
     </Link>
   );
 }
 
-const COLUMNS: { key: FeedbackStatus; label: string }[] = [
-  { key: "planned", label: STATUS_LABELS.planned },
-  { key: "building", label: STATUS_LABELS.building },
-  { key: "shipped", label: STATUS_LABELS.shipped },
-];
-
 export function LabBuildingPage() {
+  const { t, locale } = useI18n();
   const snap = useLabStore();
   const columns = buildingBoardIdeas();
+  const statusLabels = locale === "es" ? STATUS_LABELS_ES : STATUS_LABELS;
+
+  const COLUMNS: { key: keyof typeof columns; label: string }[] = [
+    { key: "considering", label: statusLabels.considering },
+    { key: "planned", label: statusLabels.planned },
+    { key: "building", label: statusLabels.building },
+    { key: "shipped", label: statusLabels.shipped },
+  ];
 
   usePageMeta({
-    title: "Building · Explore Lab",
-    description: "Ideas Explore accepted and is building with the community.",
+    title: t("lab.building.metaTitle"),
+    description: t("lab.building.metaDescription"),
     path: LAB_BUILDING_PATH,
   });
 
@@ -42,36 +46,52 @@ export function LabBuildingPage() {
 
   void snap;
 
+  const total =
+    columns.considering.length +
+    columns.planned.length +
+    columns.building.length +
+    columns.shipped.length;
+
   return (
     <LabPageShell wide>
       <header className="lab-intro">
-        <p className="lab-intro__label">Explore Lab</p>
-        <h1>Building</h1>
+        <p className="lab-intro__label">{t("lab.label")}</p>
+        <h1>{t("lab.building.title")}</h1>
         <p>
-          Ideas Explore accepted. Each one shows who proposed it — and that person can work with us
-          while it ships. Suggest more in the{" "}
-          <Link to={LAB_PATH}>Forum</Link>.
+          {t("lab.building.lead")}{" "}
+          <Link to={LAB_PATH}>{t("lab.building.cta.forum")}</Link>.
         </p>
       </header>
 
-      <div className="lab-roadmap">
-        {COLUMNS.map(({ key, label }) => {
-          const ideas = columns[key as "planned" | "building" | "shipped"];
-          return (
-            <section key={key} className="lab-roadmap-col" aria-labelledby={`building-${key}`}>
-              <h2 id={`building-${key}`}>{label}</h2>
-              {ideas.length === 0 ? (
-                <p className="lab-hint">Nothing here yet.</p>
-              ) : (
-                ideas.map((idea) => <BuildingCard key={idea.id} idea={idea} />)
-              )}
-            </section>
-          );
-        })}
-      </div>
+      {total === 0 ? (
+        <div className="lab-empty">
+          <h3>{t("lab.building.emptyTitle")}</h3>
+          <p>{t("lab.building.emptyBody")}</p>
+          <Link to={LAB_PATH} className="lab-btn lab-btn--primary">
+            {t("lab.building.cta.forum")}
+          </Link>
+        </div>
+      ) : (
+        <div className="lab-roadmap" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
+          {COLUMNS.map(({ key, label }) => {
+            const ideas = columns[key];
+            return (
+              <section key={key} className="lab-roadmap-col" aria-labelledby={`building-${key}`}>
+                <h2 id={`building-${key}`}>{label}</h2>
+                {ideas.length === 0 ? (
+                  <p className="lab-hint">{t("lab.building.columnEmpty")}</p>
+                ) : (
+                  ideas.map((idea) => (
+                    <BuildingCard key={idea.id} idea={idea} byLabel={t("lab.building.by")} />
+                  ))
+                )}
+              </section>
+            );
+          })}
+        </div>
+      )}
     </LabPageShell>
   );
 }
 
-/** Keep old export name for any leftover imports. */
 export const LabRoadmapPage = LabBuildingPage;

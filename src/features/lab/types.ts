@@ -23,6 +23,7 @@ export type FeedbackIdea = {
   slug: string;
   userId: string;
   authorName: string;
+  email: string;
   title: string;
   description: string;
   category: FeedbackCategory;
@@ -31,7 +32,7 @@ export type FeedbackIdea = {
   commentCount: number;
   teamResponse: string | null;
   isVisible: boolean;
-  /** Only starred ideas appear on the public Explore Lab board. */
+  /** Accepted by Explore — appears on Building board. */
   isFeatured: boolean;
   isTeamCreated: boolean;
   duplicateOf: string | null;
@@ -58,7 +59,6 @@ export type FeedbackUpdate = {
   createdAt: string;
 };
 
-/** Private build thread between idea author and Explore team (featured ideas). */
 export type FeedbackBuildMessage = {
   id: string;
   ideaId: string;
@@ -72,6 +72,7 @@ export type FeedbackBuildMessage = {
 export type LabSession = {
   userId: string;
   displayName: string;
+  email?: string;
 };
 
 export type LabSnapshot = {

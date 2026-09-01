@@ -363,13 +363,15 @@ export function LandingSections() {
       <section className="section" id="explore-lab">
         <div className="container">
           <Reveal>
-            <h2 className="section-title">Built with the community</h2>
+            <h2 className="section-title">
+              <T k="lab.landing.title" />
+            </h2>
             <p className="section-lead">
-              Share ideas in the Forum. Follow accepted work on Building.
+              <T k="lab.landing.lead" />
             </p>
             <div className="btn-group" style={{ marginTop: "1.25rem" }}>
               <Link to="/lab" className="btn btn-primary">
-                Explore Lab
+                <T k="lab.nav" />
               </Link>
             </div>
           </Reveal>

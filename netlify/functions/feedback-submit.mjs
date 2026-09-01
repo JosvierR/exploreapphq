@@ -70,12 +70,19 @@ export default async (request) => {
   }
 
   const emailRaw = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+  const source = body?.source === "lab" ? "lab" : "web";
+  if (source === "lab" && (!emailRaw || !EMAIL_RE.test(emailRaw))) {
+    return Response.json(
+      { error: "Email is required so we can follow up." },
+      { status: 400, headers: cors },
+    );
+  }
   const email = emailRaw && EMAIL_RE.test(emailRaw) ? emailRaw : "";
   const name = typeof body?.name === "string" ? body.name.trim().slice(0, 120) : "";
   const category = CATEGORIES.has(body?.category) ? body.category : "idea";
 
   try {
-    const entry = { message, email, name, category, source: "web" };
+    const entry = { message, email, name, category, source };
     const { id } = await saveFeedback(entry);
     await notifyAdmin(entry, id);
     return Response.json(

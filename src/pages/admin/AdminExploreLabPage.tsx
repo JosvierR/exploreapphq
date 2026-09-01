@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { BuildTogether } from "@/features/lab/components/BuildTogether";
 import { adminListIdeas, adminUpdateIdea } from "@/features/lab/labStore";
 import { labIdeaPath } from "@/features/lab/lib/paths";
-import { CATEGORY_LABELS, STATUS_LABELS } from "@/features/lab/lib/status";
+import { CATEGORY_LABELS, PIPELINE_STEPS, STATUS_LABELS } from "@/features/lab/lib/status";
 import { useLabStore } from "@/features/lab/lib/useLabStore";
 import type { FeedbackStatus } from "@/features/lab/types";
 
@@ -39,7 +39,7 @@ export function AdminExploreLabPage() {
           <p className="admin-eyebrow">Community</p>
           <h1>Explore Lab</h1>
           <p style={{ opacity: 0.65, marginTop: "0.35rem" }}>
-            Accept ideas for Building. Update status. Talk with the proposer while you ship.
+            Inbox: email + idea. Accept → Under review → Shortlist → Building → Shipped (like an interview).
           </p>
         </div>
       </header>
@@ -55,13 +55,13 @@ export function AdminExploreLabPage() {
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.85rem" }}>
             <input
               type="search"
-              placeholder="Search…"
+              placeholder="Search title, email…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               style={{ flex: "1 1 160px", minWidth: 0 }}
             />
             <select value={featured} onChange={(e) => setFeatured(e.target.value as typeof featured)}>
-              <option value="inbox">Forum (not accepted)</option>
+              <option value="inbox">Inbox (not accepted)</option>
               <option value="starred">Accepted / Building</option>
               <option value="all">All</option>
             </select>
@@ -105,26 +105,39 @@ export function AdminExploreLabPage() {
                     {idea.isFeatured ? "★ " : ""}
                     {idea.title}
                   </strong>
-                  <span style={{ opacity: 0.6, fontSize: "0.85rem" }}>↑ {idea.boostCount}</span>
+                  <span style={{ opacity: 0.6, fontSize: "0.85rem" }}>
+                    {STATUS_LABELS[idea.status]}
+                  </span>
                 </div>
                 <div style={{ marginTop: 4, fontSize: "0.8rem", opacity: 0.6 }}>
-                  {CATEGORY_LABELS[idea.category]} · {STATUS_LABELS[idea.status]}
+                  {idea.email || "no email"} · {CATEGORY_LABELS[idea.category]}
                 </div>
               </button>
             ))}
-            {ideas.length === 0 ? <p style={{ opacity: 0.6 }}>No ideas match.</p> : null}
+            {ideas.length === 0 ? (
+              <p style={{ opacity: 0.6 }}>
+                Inbox is empty. Submissions from /lab appear here (same browser for now).
+              </p>
+            ) : null}
           </div>
         </section>
 
         <section className="admin-card" style={{ padding: "1rem" }}>
           {!selected ? (
-            <p>Select an idea.</p>
+            <p>Select a submission.</p>
           ) : (
             <>
               <h2 style={{ marginTop: 0, fontSize: "1.15rem", fontWeight: 650 }}>{selected.title}</h2>
               <p style={{ opacity: 0.7, fontSize: "0.9rem" }}>{selected.description}</p>
+              <p style={{ fontSize: "0.85rem", opacity: 0.75, marginTop: "0.75rem" }}>
+                <strong>Email:</strong>{" "}
+                <a href={`mailto:${selected.email}`} style={{ color: "inherit" }}>
+                  {selected.email || "—"}
+                </a>
+              </p>
               <p style={{ fontSize: "0.8rem", opacity: 0.55 }}>
-                {selected.authorName} · ↑ {selected.boostCount} · {selected.commentCount} comments
+                {selected.authorName} · {CATEGORY_LABELS[selected.category]} ·{" "}
+                {new Date(selected.createdAt).toLocaleString()}
               </p>
               <p>
                 <Link to={labIdeaPath(selected.slug)} target="_blank" rel="noreferrer">
@@ -140,19 +153,16 @@ export function AdminExploreLabPage() {
                     const nextFeatured = !selected.isFeatured;
                     adminUpdateIdea(selected.id, {
                       isFeatured: nextFeatured,
-                      ...(nextFeatured &&
-                      (selected.status === "listening" || selected.status === "considering")
-                        ? { status: "planned" as const }
-                        : {}),
+                      ...(nextFeatured ? { status: "considering" as const } : {}),
                     });
                     setMessage(
                       nextFeatured
-                        ? "Accepted — now on Building."
+                        ? "Accepted — moved to Under review on Building."
                         : "Removed from Building.",
                     );
                   }}
                 >
-                  {selected.isFeatured ? "Unaccept" : "Accept"}
+                  {selected.isFeatured ? "Unaccept" : "Accept → Under review"}
                 </button>
                 <button
                   type="button"
@@ -164,6 +174,45 @@ export function AdminExploreLabPage() {
                 >
                   {selected.isVisible ? "Hide" : "Restore"}
                 </button>
+              </div>
+
+              <div style={{ marginTop: "1.25rem" }}>
+                <p style={{ fontSize: "0.8rem", opacity: 0.65, marginBottom: "0.5rem" }}>
+                  Advance phases (interview pipeline)
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+                  {PIPELINE_STEPS.map((step) => (
+                    <button
+                      key={step}
+                      type="button"
+                      className="btn"
+                      disabled={!selected.isFeatured && step !== "listening"}
+                      style={{
+                        opacity: selected.status === step ? 1 : 0.7,
+                        outline: selected.status === step ? "1px solid rgba(0,155,255,0.6)" : undefined,
+                      }}
+                      onClick={() => {
+                        adminUpdateIdea(selected.id, {
+                          status: step,
+                          ...(step !== "listening" ? { isFeatured: true } : {}),
+                        });
+                        setMessage(`Moved to ${STATUS_LABELS[step]}.`);
+                      }}
+                    >
+                      {STATUS_LABELS[step]}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      adminUpdateIdea(selected.id, { status: "not_now", isFeatured: false });
+                      setMessage("Marked as not moving forward.");
+                    }}
+                  >
+                    {STATUS_LABELS.not_now}
+                  </button>
+                </div>
               </div>
 
               <label style={{ display: "grid", gap: 6, marginTop: "1rem" }}>
@@ -209,7 +258,7 @@ export function AdminExploreLabPage() {
                 </div>
               ) : (
                 <p style={{ marginTop: "1rem", opacity: 0.65, fontSize: "0.875rem" }}>
-                  Accept this idea to put it on Building and open the build thread.
+                  Accept to put this on Building and open the build thread with the proposer.
                 </p>
               )}
 

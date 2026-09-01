@@ -5,6 +5,7 @@ export type FeedbackInput = {
   email?: string;
   name?: string;
   category?: "idea" | "bug" | "love" | "other";
+  source?: "lab" | "web";
 };
 
 export type FeedbackResult = {

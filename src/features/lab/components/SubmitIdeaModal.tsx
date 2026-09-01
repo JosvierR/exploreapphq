@@ -19,6 +19,7 @@ export function SubmitIdeaModal({ open, onClose }: Props) {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [email, setEmail] = useState("");
   const [category, setCategory] = useState<FeedbackCategory>("routes");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -57,7 +58,7 @@ export function SubmitIdeaModal({ open, onClose }: Props) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
-    const result = createIdea({ title, description, category });
+    const result = createIdea({ title, description, category, email });
     setSubmitting(false);
     if (!result.ok) {
       setError(result.error);
@@ -72,6 +73,7 @@ export function SubmitIdeaModal({ open, onClose }: Props) {
     onClose();
     setTitle("");
     setDescription("");
+    setEmail("");
     navigate(labIdeaPath(result.idea.slug));
   };
 
@@ -81,10 +83,23 @@ export function SubmitIdeaModal({ open, onClose }: Props) {
       <div className="lab-modal" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <h2 id={titleId}>Share an idea</h2>
         <p className="lab-modal__lead">
-          Ideas go to the Forum. If Explore accepts yours, it moves to Building and you can help ship
-          it with us.
+          Leave your email and idea. If Explore accepts it, it moves through review → shortlist →
+          build → ship.
         </p>
         <form className="lab-form" onSubmit={submit}>
+          <div className="lab-field">
+            <label htmlFor="lab-idea-email">Your email</label>
+            <input
+              id="lab-idea-email"
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              placeholder="you@email.com"
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+
           <div className="lab-field">
             <label htmlFor="lab-idea-title">What should Explore do better?</label>
             <input
