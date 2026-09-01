@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { IdeaCard } from "../components/IdeaCard";
 import { LabPageShell } from "../components/LabPageShell";
-import { ensureLabSession, myBoostedIdeas, myIdeas, userBoosted } from "../data/labStore";
+import { ensureLabSession, myBoostedIdeas, myIdeas, userBoosted } from "../labStore";
 import { LAB_MINE_PATH, LAB_PATH } from "../lib/paths";
 import { useLabStore } from "../lib/useLabStore";
 import { usePageMeta } from "@/hooks/usePageMeta";

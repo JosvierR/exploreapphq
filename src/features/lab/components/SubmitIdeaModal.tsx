@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { createIdea, findSimilarIdeas, toggleBoost } from "../data/labStore";
+import { createIdea, findSimilarIdeas, toggleBoost } from "../labStore";
 import { trackLab } from "../lib/analytics";
 import { labIdeaPath } from "../lib/paths";
 import { CATEGORY_LABELS } from "../lib/status";

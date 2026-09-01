@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { LabPageShell } from "../components/LabPageShell";
-import { buildingBoardIdeas } from "../data/labStore";
+import { buildingBoardIdeas } from "../labStore";
 import { trackLab } from "../lib/analytics";
 import { LAB_BUILDING_PATH, LAB_PATH, labIdeaPath } from "../lib/paths";
 import { STATUS_LABELS } from "../lib/status";

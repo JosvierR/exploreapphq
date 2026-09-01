@@ -4,7 +4,7 @@ import {
   deleteComment,
   ensureLabSession,
   updateComment,
-} from "../data/labStore";
+} from "../labStore";
 import { trackLab } from "../lib/analytics";
 import { useLabStore } from "../lib/useLabStore";
 

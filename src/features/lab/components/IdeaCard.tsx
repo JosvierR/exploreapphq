@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { toggleBoost } from "../data/labStore";
+import { toggleBoost } from "../labStore";
 import { trackLab } from "../lib/analytics";
 import { labIdeaPath } from "../lib/paths";
 import { CATEGORY_LABELS, STATUS_LABELS } from "../lib/status";

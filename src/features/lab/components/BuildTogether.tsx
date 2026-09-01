@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { addBuildMessage, ensureLabSession, getBuildMessages } from "../data/labStore";
+import { addBuildMessage, ensureLabSession, getBuildMessages } from "../labStore";
 import { useLabStore } from "../lib/useLabStore";
 import type { FeedbackIdea } from "../types";
 

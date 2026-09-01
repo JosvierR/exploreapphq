@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { IdeaCard } from "../components/IdeaCard";
 import { LabPageShell } from "../components/LabPageShell";
 import { SubmitIdeaModal } from "../components/SubmitIdeaModal";
-import { listIdeas, userBoosted } from "../data/labStore";
+import { listIdeas, userBoosted } from "../labStore";
 import { trackLab } from "../lib/analytics";
 import { LAB_BUILDING_PATH, LAB_PATH } from "../lib/paths";
 import { CATEGORY_LABELS, LAB_TABS } from "../lib/status";

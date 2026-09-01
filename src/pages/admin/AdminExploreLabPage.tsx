@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { BuildTogether } from "@/features/lab/components/BuildTogether";
-import { adminListIdeas, adminUpdateIdea } from "@/features/lab/data/labStore";
+import { adminListIdeas, adminUpdateIdea } from "@/features/lab/labStore";
 import { labIdeaPath } from "@/features/lab/lib/paths";
 import { CATEGORY_LABELS, STATUS_LABELS } from "@/features/lab/lib/status";
 import { useLabStore } from "@/features/lab/lib/useLabStore";
