@@ -71,6 +71,9 @@ export function SiteHeader() {
                 <T k="nav.pioneers" />
               </Link>
             )}
+            <Link to="/lab" className="nav-link-muted">
+              Explore Lab
+            </Link>
           </nav>
           <div className="header-actions">
             <div className="lang-switch" role="group" aria-label="Language">
@@ -119,6 +122,9 @@ export function SiteHeader() {
             <T k="nav.pioneers" />
           </Link>
         )}
+        <Link to="/lab" onClick={closeMobile}>
+          Explore Lab
+        </Link>
         <a href={ctaHref} className="btn btn-primary" onClick={closeMobile}>
           <T k={ctaKey} />
         </a>

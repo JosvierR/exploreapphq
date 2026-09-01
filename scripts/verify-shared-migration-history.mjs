@@ -84,6 +84,7 @@ function writeManifest() {
       "20260812210000_business_destination_geography_enrichment.sql",
       "20260812213000_preserve_enriched_geography_on_dimension_backfill.sql",
       "20260812220000_require_explicit_destination_geo_semantics.sql",
+      "20260830120000_explore_lab_feedback.sql",
     ],
   };
 

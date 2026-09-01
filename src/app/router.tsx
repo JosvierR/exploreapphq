@@ -17,8 +17,13 @@ import { AdminDashboardPage } from "@/pages/admin/AdminDashboardPage";
 import { AdminAnalyticsPage } from "@/pages/admin/AdminAnalyticsPage";
 import { AdminBusinessInsightsPage } from "@/pages/admin/AdminBusinessInsightsPage";
 import { AdminTourismBusinessPage } from "@/pages/admin/AdminTourismBusinessPage";
+import { AdminExploreLabPage } from "@/pages/admin/AdminExploreLabPage";
 import { ReportsAdminPage } from "@/pages/admin/ReportsAdminPage";
 import { WaitlistAdminPage } from "@/pages/admin/WaitlistAdminPage";
+import { LabHomePage } from "@/features/lab/pages/LabHomePage";
+import { LabIdeaPage } from "@/features/lab/pages/LabIdeaPage";
+import { LabBuildingPage } from "@/features/lab/pages/LabBuildingPage";
+import { LabMinePage } from "@/features/lab/pages/LabMinePage";
 
 const HomePage = lazy(() => import("@/pages/marketing/HomePage"));
 const ApiDocsPage = lazy(() => import("@/pages/admin/ApiDocsPage"));
@@ -75,6 +80,7 @@ export const router = createBrowserRouter([
           { path: "/admin/analytics/business", element: <AdminTourismBusinessPage /> },
           { path: "/admin/reports", element: <ReportsAdminPage /> },
           { path: "/admin/waitlist", element: <WaitlistAdminPage /> },
+          { path: "/admin/lab", element: <AdminExploreLabPage /> },
           {
             path: "/admin/api-docs",
             element: (
@@ -98,6 +104,11 @@ export const router = createBrowserRouter([
               </LazyMarketingPage>
             ),
           },
+          { path: "/lab", element: <LabHomePage /> },
+          { path: "/lab/building", element: <LabBuildingPage /> },
+          { path: "/lab/roadmap", element: <Navigate to="/lab/building" replace /> },
+          { path: "/lab/mine", element: <LabMinePage /> },
+          { path: "/lab/ideas/:ideaId", element: <LabIdeaPage /> },
           { path: "/terms", element: <TermsPage /> },
           { path: "/privacy", element: <PrivacyPage /> },
           { path: "/safety", element: <SafetyPage /> },

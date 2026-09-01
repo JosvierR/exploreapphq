@@ -180,6 +180,7 @@ const operationsItems: NavItem[] = [
   { label: "Places", to: "/admin?section=content&content=places" },
   { label: "Routes", to: "/admin?section=content&content=routes" },
   { label: "Waitlist", to: "/admin/waitlist" },
+  { label: "Explore Lab", to: "/admin/lab" },
 ];
 
 const insightsItems: NavItem[] = [
@@ -231,6 +232,10 @@ function routeMeta(pathname: string, search: string) {
 
   if (pathname.startsWith("/admin/waitlist")) {
     return { title: "Waitlist", description: "" };
+  }
+
+  if (pathname.startsWith("/admin/lab")) {
+    return { title: "Explore Lab", description: "" };
   }
 
   if (pathname.startsWith("/admin/api-docs")) {

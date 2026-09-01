@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { HeroVisual } from "@/components/sections/HeroVisual";
 import { Reveal } from "@/components/ui/Reveal";
 import { T } from "@/components/ui/T";
@@ -356,6 +357,22 @@ export function LandingSections() {
               </Reveal>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="section" id="explore-lab">
+        <div className="container">
+          <Reveal>
+            <h2 className="section-title">Built with the community</h2>
+            <p className="section-lead">
+              Share ideas in the Forum. Follow accepted work on Building.
+            </p>
+            <div className="btn-group" style={{ marginTop: "1.25rem" }}>
+              <Link to="/lab" className="btn btn-primary">
+                Explore Lab
+              </Link>
+            </div>
+          </Reveal>
         </div>
       </section>
 
