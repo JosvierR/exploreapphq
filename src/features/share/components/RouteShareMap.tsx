@@ -5,11 +5,13 @@ import "leaflet/dist/leaflet.css";
 import type { PublicRoutePreview } from "@/features/share/types";
 import {
   budgetLevelSymbol,
+  buildMapsUrl,
   estimateDurationFromDistanceM,
   formatDifficulty,
   formatDistanceMeters,
   formatElevationMeters,
   formatEstimatedDuration,
+  formatLatLng,
   formatRating,
   resolveDisplayDistanceM,
 } from "@/features/share/lib/formatRoutePreview";
@@ -155,10 +157,16 @@ export function RouteShareMap({ preview }: RouteShareMapProps) {
                 </strong>
               </Tooltip>
               <Popup>
-                <strong>
-                  {index + 1}. {stop.name}
-                </strong>
-                {stop.category ? <div className="route-share-stat-cap">{stop.category.replace(/_/g, " ")}</div> : null}
+                <div className="route-share-popup">
+                  <strong>
+                    {index + 1}. {stop.name}
+                  </strong>
+                  {stop.category ? <div className="route-share-stat-cap">{stop.category.replace(/_/g, " ")}</div> : null}
+                  <code>{formatLatLng(stop.lat, stop.lng)}</code>
+                  <a href={buildMapsUrl(stop.lat, stop.lng, stop.name)} target="_blank" rel="noopener noreferrer">
+                    Open in Maps
+                  </a>
+                </div>
               </Popup>
             </Marker>
           ))}

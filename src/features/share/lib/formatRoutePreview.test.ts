@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import {
   budgetLevelSymbol,
+  buildMapsUrl,
   estimateRouteBudgetLevel,
   formatDifficulty,
   formatDistanceMeters,
   formatEstimatedDuration,
+  formatLatLng,
   mapRoutePreviewRow,
   resolveDisplayDistanceM,
 } from "./formatRoutePreview";
@@ -37,6 +39,8 @@ assert.equal(resolveRouteUuid("playas-de-bavaro"), null);
 assert.equal(estimateRouteBudgetLevel("beach", ["beach", "nature"]), "free");
 assert.equal(estimateRouteBudgetLevel("gastronomy", ["gastronomy", "nightlife"]), "high");
 assert.equal(budgetLevelSymbol("mid"), "$$");
+assert.equal(formatLatLng(18.67062, -68.40153), "18.67062, -68.40153");
+assert.ok(buildMapsUrl(18.67, -68.4, "Playa").includes("google.com/maps"));
 
 const ewkb = "0101000020E61000003611ECAEA21951C0E3BFE556ADAB3240";
 const point = parsePostgisPoint(ewkb);

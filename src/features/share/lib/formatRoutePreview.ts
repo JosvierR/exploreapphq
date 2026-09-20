@@ -107,6 +107,21 @@ export function budgetLevelSymbol(level: RouteBudgetLevel): string {
   }
 }
 
+export function formatLatLng(lat: number, lng: number): string {
+  return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+}
+
+export function buildMapsUrl(lat: number, lng: number, name?: string): string {
+  const query = name?.trim()
+    ? `${name.trim()} @${lat},${lng}`
+    : `${lat},${lng}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+export function buildDirectionsUrl(lat: number, lng: number): string {
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${lat},${lng}`)}`;
+}
+
 /** Great-circle distance in meters between two WGS84 points. */
 export function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const toRad = (deg: number) => (deg * Math.PI) / 180;

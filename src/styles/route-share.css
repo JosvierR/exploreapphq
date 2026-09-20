@@ -174,21 +174,52 @@
   font-weight: 700;
 }
 
-.route-share-itinerary {
-  display: grid;
-  gap: 0.75rem;
-  margin-top: 0.2rem;
-  padding: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  background: rgba(7, 27, 42, 0.45);
+.route-share-hero-cover {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  aspect-ratio: 16 / 7;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #0e2638;
 }
 
-.route-share-itinerary h2 {
+.route-share-hero-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.route-share-hero-cover__fade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 35%, rgba(7, 27, 42, 0.72) 100%);
+  pointer-events: none;
+}
+
+.route-share-itinerary {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 0.2rem;
+  padding: 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  background:
+    linear-gradient(165deg, rgba(0, 155, 255, 0.1), transparent 42%),
+    rgba(7, 27, 42, 0.55);
+}
+
+.route-share-itinerary__head h2 {
   margin: 0;
   color: #fff;
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 800;
+}
+
+.route-share-itinerary__head p {
+  margin: 0.35rem 0 0;
+  color: #8da0b3;
+  font-size: 0.88rem;
+  line-height: 1.4;
 }
 
 .route-share-stat-cap {
@@ -198,57 +229,130 @@
 .route-share-stops {
   list-style: none;
   display: grid;
-  gap: 0.55rem;
+  gap: 0.75rem;
   margin: 0;
   padding: 0;
   scroll-margin-top: 5rem;
 }
 
-.route-share-stops li {
+.route-share-stop-card {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 0.75rem;
-  align-items: center;
-  padding: 0.7rem 0.8rem;
-  border-radius: 12px;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 0.85rem;
+  padding: 0.7rem;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.route-share-stop-card__media {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  aspect-ratio: 1;
+  background: #0e2638;
+}
+
+.route-share-stop-card__media img,
+.route-share-stop-card__placeholder {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.route-share-stop-card__placeholder {
+  background:
+    linear-gradient(145deg, rgba(0, 155, 255, 0.25), rgba(14, 38, 56, 0.9));
+}
+
+.route-share-stop-card__media .route-share-stop-num {
+  position: absolute;
+  top: 0.4rem;
+  left: 0.4rem;
 }
 
 .route-share-stop-num {
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 1.7rem;
+  height: 1.7rem;
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: rgba(0, 155, 255, 0.2);
+  background: rgba(7, 27, 42, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   color: #a7e7ff;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 800;
 }
 
-.route-share-stop-body {
+.route-share-stop-card__body {
   min-width: 0;
+  display: grid;
+  gap: 0.45rem;
+  align-content: center;
+}
+
+.route-share-stop-card__head {
   display: grid;
   gap: 0.15rem;
 }
 
-.route-share-stop-body strong {
+.route-share-stop-card__head strong {
   color: #fff;
-  font-size: 0.95rem;
+  font-size: 1rem;
+  line-height: 1.2;
 }
 
-.route-share-stop-body small {
+.route-share-stop-card__head small {
   color: #8da0b3;
   font-size: 0.78rem;
 }
 
-.route-share-stop-thumb {
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  object-fit: cover;
-  background: #0e2638;
+.route-share-stop-card__location {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.route-share-stop-card__coords {
+  margin: 0;
+  color: #a7e7ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.route-share-stop-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.route-share-loc-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(0, 155, 255, 0.22);
+  border: 1px solid rgba(90, 200, 250, 0.35);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.route-share-loc-btn:hover {
+  background: rgba(0, 155, 255, 0.34);
+}
+
+.route-share-loc-btn--ghost {
+  background: transparent;
+  color: #a7e7ff;
+}
+
+.route-share-stop-card__no-geo {
+  margin: 0;
+  color: #8da0b3;
+  font-size: 0.8rem;
 }
 
 .route-share-empty-stops,
@@ -262,6 +366,23 @@
 .route-share-web-note {
   padding-top: 0.35rem;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.route-share-popup {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 160px;
+}
+
+.route-share-popup code {
+  color: #0b5f8a;
+  font-size: 0.75rem;
+}
+
+.route-share-popup a {
+  color: #009bff;
+  font-weight: 700;
+  font-size: 0.82rem;
 }
 
 .route-share-map-col {
@@ -511,5 +632,9 @@
 
   .route-share-highlights {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .route-share-stop-card {
+    grid-template-columns: 76px minmax(0, 1fr);
   }
 }

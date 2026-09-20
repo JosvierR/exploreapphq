@@ -1,20 +1,23 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { T } from "@/components/ui/T";
 import { fetchPublicRoutePreview } from "@/features/share/api/fetchPublicRoutePreview";
 import {
   budgetLevelSymbol,
+  buildDirectionsUrl,
+  buildMapsUrl,
   estimateDurationFromDistanceM,
   formatDifficulty,
   formatDistanceMeters,
   formatElevationMeters,
   formatEstimatedDuration,
+  formatLatLng,
   formatRating,
   resolveDisplayDistanceM,
 } from "@/features/share/lib/formatRoutePreview";
 import { buildShortRoutePath, resolveRouteUuid } from "@/features/share/lib/routeShortCode";
-import type { PublicRoutePreview, PublicRoutePreviewResult } from "@/features/share/types";
+import type { PublicRoutePreview, PublicRoutePreviewResult, PublicRouteStop } from "@/features/share/types";
 import { useI18n } from "@/features/i18n/I18nProvider";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { STORE_URLS } from "@/lib/constants";
@@ -90,7 +93,13 @@ function HighlightChips({ preview }: { preview: PublicRoutePreview }) {
           <span>
             <T k={chip.labelKey} />
           </span>
-          <strong className={chip.labelKey === "routeShare.stat.category" || chip.labelKey === "routeShare.stat.difficulty" ? "route-share-stat-cap" : undefined}>
+          <strong
+            className={
+              chip.labelKey === "routeShare.stat.category" || chip.labelKey === "routeShare.stat.difficulty"
+                ? "route-share-stat-cap"
+                : undefined
+            }
+          >
             {chip.value}
           </strong>
         </li>
@@ -99,20 +108,45 @@ function HighlightChips({ preview }: { preview: PublicRoutePreview }) {
   );
 }
 
-function PhotoStrip({ preview }: { preview: PublicRoutePreview }) {
-  const photos = useMemo(() => {
-    if (preview.photoStrip.length > 0) return preview.photoStrip;
-    return preview.coverUrl ? [preview.coverUrl] : [];
-  }, [preview.coverUrl, preview.photoStrip]);
-
-  if (photos.length === 0) return null;
+function StopCard({ stop, index }: { stop: PublicRouteStop; index: number }) {
+  const hasGeo = stop.lat != null && stop.lng != null;
+  const mapsHref = hasGeo ? buildMapsUrl(stop.lat!, stop.lng!, stop.name) : null;
+  const directionsHref = hasGeo ? buildDirectionsUrl(stop.lat!, stop.lng!) : null;
 
   return (
-    <div className="route-share-photos" aria-label="Route photos">
-      {photos.map((url, index) => (
-        <img key={`${url}-${index}`} src={url} alt="" loading="lazy" />
-      ))}
-    </div>
+    <li className="route-share-stop-card">
+      <div className="route-share-stop-card__media">
+        {stop.photoUrl ? <img src={stop.photoUrl} alt="" loading="lazy" /> : <div className="route-share-stop-card__placeholder" />}
+        <span className="route-share-stop-num" aria-hidden="true">
+          {index + 1}
+        </span>
+      </div>
+
+      <div className="route-share-stop-card__body">
+        <div className="route-share-stop-card__head">
+          <strong>{stop.name}</strong>
+          {stop.category ? <small className="route-share-stat-cap">{stop.category.replace(/_/g, " ")}</small> : null}
+        </div>
+
+        {hasGeo ? (
+          <div className="route-share-stop-card__location">
+            <p className="route-share-stop-card__coords">{formatLatLng(stop.lat!, stop.lng!)}</p>
+            <div className="route-share-stop-card__actions">
+              <a href={mapsHref!} target="_blank" rel="noopener noreferrer" className="route-share-loc-btn">
+                <T k="routeShare.stop.maps" />
+              </a>
+              <a href={directionsHref!} target="_blank" rel="noopener noreferrer" className="route-share-loc-btn route-share-loc-btn--ghost">
+                <T k="routeShare.stop.directions" />
+              </a>
+            </div>
+          </div>
+        ) : (
+          <p className="route-share-stop-card__no-geo">
+            <T k="routeShare.stop.noLocation" />
+          </p>
+        )}
+      </div>
+    </li>
   );
 }
 
@@ -128,18 +162,7 @@ function RouteStopsList({ preview }: { preview: PublicRoutePreview }) {
   return (
     <ol className="route-share-stops" id="route-preview">
       {preview.stops.map((stop, index) => (
-        <li key={`${stop.placeId}-${stop.position}`}>
-          <span className="route-share-stop-num" aria-hidden="true">
-            {index + 1}
-          </span>
-          <div className="route-share-stop-body">
-            <strong>{stop.name}</strong>
-            {stop.category ? <small className="route-share-stat-cap">{stop.category.replace(/_/g, " ")}</small> : null}
-          </div>
-          {stop.photoUrl ? (
-            <img className="route-share-stop-thumb" src={stop.photoUrl} alt="" loading="lazy" />
-          ) : null}
-        </li>
+        <StopCard key={`${stop.placeId}-${stop.position}`} stop={stop} index={index} />
       ))}
     </ol>
   );
@@ -176,12 +199,13 @@ export function RouteSharePage() {
       : "/r";
   const canonicalUrl = buildExploreShareUrl(shortPath);
   const appHref = routeUuid ? `explore://r/${encodeURIComponent(routeUuid)}` : "explore://";
+  const cover = preview?.coverUrl || preview?.photoStrip[0] || null;
 
   usePageMeta({
     title: preview ? `${preview.name} — Explore` : t("routeShare.meta.title"),
     description: preview?.description?.trim() || t("routeShare.meta.description"),
     path: shortPath,
-    imagePath: preview?.coverUrl || "/ExplorePromo1.png",
+    imagePath: cover || "/ExplorePromo1.png",
   });
 
   return (
@@ -191,6 +215,13 @@ export function RouteSharePage() {
           <Link to="/" className="deeplink-brand" aria-label="Explore home">
             <BrandLogo size={42} />
           </Link>
+
+          {cover ? (
+            <div className="route-share-hero-cover">
+              <img src={cover} alt="" />
+              <div className="route-share-hero-cover__fade" />
+            </div>
+          ) : null}
 
           <div className="route-share-kicker">
             <span className="deeplink-badge">
@@ -238,7 +269,6 @@ export function RouteSharePage() {
           {preview?.description ? <p className="route-share-desc">{preview.description}</p> : null}
 
           {preview ? <HighlightChips preview={preview} /> : null}
-          {preview ? <PhotoStrip preview={preview} /> : null}
 
           <div className="route-share-link-row">
             <code className="route-share-link-url">{canonicalUrl.replace(/^https:\/\//, "")}</code>
@@ -265,9 +295,14 @@ export function RouteSharePage() {
 
           {preview ? (
             <div className="route-share-itinerary">
-              <h2>
-                <T k="routeShare.itinerary.title" />
-              </h2>
+              <div className="route-share-itinerary__head">
+                <h2>
+                  <T k="routeShare.itinerary.title" />
+                </h2>
+                <p>
+                  <T k="routeShare.itinerary.sub" />
+                </p>
+              </div>
               <RouteStopsList preview={preview} />
               <p className="route-share-web-note">
                 <T k="routeShare.web.note" />
