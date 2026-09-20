@@ -89,6 +89,7 @@ export function extractRouterApiPaths() {
   if (router.includes('route === "admin/waitlist"')) routes.add("admin/waitlist");
   if (router.includes("admin/broadcast")) routes.add("admin/broadcast");
   if (router.includes("pioneers/landing")) routes.add("pioneers/landing");
+  if (router.includes("public/routes/")) routes.add("public/routes/{ref}");
   if (router.includes("feedback/submit")) routes.add("feedback/submit");
   if (router.includes("admin/analytics/")) {
     // Prefix catch-all is expanded via analyticsAdminApi map above.

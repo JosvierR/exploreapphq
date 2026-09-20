@@ -37,6 +37,8 @@ import {
 // @ts-ignore
 import { handlePioneersLanding } from "./api-lib/pioneers/pioneersRouter.mjs";
 // @ts-ignore
+import { handlePublicRoutePreview } from "./api-lib/share/shareRouter.mjs";
+// @ts-ignore
 import { dispatchOpenApiDocs } from "./api-lib/docs/docsRouter.mjs";
 // @ts-ignore
 import adminBroadcast from "../netlify/functions/admin-broadcast.mjs";
@@ -340,6 +342,14 @@ app.all("/api/cron/analytics/aggregate", (req, res) => {
 
 app.all("/api/pioneers/landing", (req, res) => {
   void sendFetchResponse(handlePioneersLanding, req, res);
+});
+
+app.all("/api/public/routes/:ref", (req, res) => {
+  void sendFetchResponse(
+    (request) => handlePublicRoutePreview(request, `public/routes/${req.params.ref}`),
+    req,
+    res,
+  );
 });
 
 app.all("/api/admin/system/health", (req, res) => {

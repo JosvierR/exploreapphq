@@ -19,6 +19,7 @@ import {
   handleTokenMetrics,
 } from "./system/systemRouter.mjs";
 import { handlePioneersLanding } from "./pioneers/pioneersRouter.mjs";
+import { handlePublicRoutePreview } from "./share/shareRouter.mjs";
 import { dispatchOpenApiDocs, isOpenApiDocsRoute } from "./docs/docsRouter.mjs";
 
 function isModerationRoute(route) {
@@ -90,6 +91,8 @@ export async function dispatchApi(incomingRequest) {
       response = await adminBroadcast(request);
     } else if (route === "pioneers/landing") {
       response = await handlePioneersLanding(request);
+    } else if (route.startsWith("public/routes/")) {
+      response = await handlePublicRoutePreview(request, route);
     } else if (route === "feedback/submit") {
       response = await feedbackSubmit(request);
     } else if (request.method === "OPTIONS") {

@@ -2,7 +2,10 @@ import { Suspense, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { T } from "@/components/ui/T";
-import { fetchPublicRoutePreview } from "@/features/share/api/fetchPublicRoutePreview";
+import {
+  fetchPublicRoutePreview,
+  peekCachedRoutePreview,
+} from "@/features/share/api/fetchPublicRoutePreview";
 import { RouteShareMap } from "@/features/share/components/RouteShareMap";
 import {
   budgetLevelSymbol,
@@ -194,11 +197,15 @@ export function RouteSharePage() {
   const { routeId: rawRef } = useParams<{ routeId: string }>();
   const ref = rawRef?.trim() ?? "";
   const { t } = useI18n();
-  const [result, setResult] = useState<PublicRoutePreviewResult | null>(null);
+  const [result, setResult] = useState<PublicRoutePreviewResult | null>(() => {
+    const cached = peekCachedRoutePreview(ref);
+    return cached ? { status: "ok", preview: cached } : null;
+  });
 
   useEffect(() => {
     let cancelled = false;
-    setResult(null);
+    const cached = peekCachedRoutePreview(ref);
+    setResult(cached ? { status: "ok", preview: cached } : null);
     void fetchPublicRoutePreview(ref).then((next) => {
       if (!cancelled) setResult(next);
     });
@@ -327,7 +334,7 @@ export function RouteSharePage() {
                 <T k="routeShare.badge" />
               </span>
               <h1 id="route-share-title">
-                <T k="routeShare.title.fallback" />
+                <T k="routeShare.title.unavailable" />
               </h1>
               <p>
                 <T

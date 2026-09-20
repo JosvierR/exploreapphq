@@ -121,6 +121,7 @@ export const messages = {
     "routeShare.badge": "Route",
     "routeShare.kicker": "Saved by explorers like you",
     "routeShare.title.fallback": "Open this route in Explore",
+    "routeShare.title.unavailable": "Route preview unavailable",
     "routeShare.loading": "Loading route preview…",
     "routeShare.lead.preview":
       "Peek the map and stops, then open Explore to save it and go live.",
@@ -506,6 +507,7 @@ export const messages = {
     "routeShare.badge": "Ruta",
     "routeShare.kicker": "Guardada por explorers como tú",
     "routeShare.title.fallback": "Abrir esta ruta en Explore",
+    "routeShare.title.unavailable": "Preview de ruta no disponible",
     "routeShare.loading": "Cargando preview de la ruta…",
     "routeShare.lead.preview":
       "Mira el mapa y las paradas, luego abre Explore para guardarla y vivirla.",

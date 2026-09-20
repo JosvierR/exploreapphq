@@ -21,6 +21,7 @@ tags:
   - name: Docs
   - name: Waitlist
   - name: Pioneers
+  - name: Share
   - name: Feedback
 security: []
 paths:
@@ -1732,6 +1733,31 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+
+  /api/public/routes/{ref}:
+    get:
+      tags: [Share]
+      summary: Public route share preview
+      operationId: getPublicRoutePreview
+      parameters:
+        - name: ref
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Route UUID, compact id, or name slug
+      responses:
+        "200":
+          description: Published public route preview
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "404":
+          description: Route not found or not public
+        "503":
+          description: Preview backend not configured
 
   /api/feedback/submit:
     post:
