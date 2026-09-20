@@ -286,12 +286,24 @@ export function RouteSharePage() {
             ) : null}
           </div>
 
-          <div className="deeplink-actions route-share-stores">
-            <p className="route-share-download-label">
-              <T k="routeShare.cta.download" />
-            </p>
-            <StoreBadges />
-          </div>
+          <aside className="route-share-download-banner" aria-label={t("routeShare.download.banner.title")}>
+            <div className="route-share-download-banner__copy">
+              <h2>
+                <T k="routeShare.download.banner.title" />
+              </h2>
+              <p>
+                <T k="routeShare.download.banner.lead" />
+              </p>
+            </div>
+            <div className="route-share-download-banner__actions">
+              <a className="deeplink-open-btn" href={appHref}>
+                <T k="routeShare.cta.app" />
+              </a>
+              <div className="route-share-download-banner__stores">
+                <StoreBadges />
+              </div>
+            </div>
+          </aside>
 
           {preview ? (
             <div className="route-share-itinerary">
@@ -304,9 +316,14 @@ export function RouteSharePage() {
                 </p>
               </div>
               <RouteStopsList preview={preview} />
-              <p className="route-share-web-note">
-                <T k="routeShare.web.note" />
-              </p>
+              <div className="route-share-app-nudge">
+                <p>
+                  <T k="routeShare.download.nudge" />
+                </p>
+                <a className="route-share-loc-btn" href={appHref}>
+                  <T k="routeShare.cta.app" />
+                </a>
+              </div>
             </div>
           ) : null}
         </div>

@@ -161,6 +161,66 @@
   background: rgba(0, 155, 255, 0.12);
 }
 
+.route-share-download-banner {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem 1.1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(90, 200, 250, 0.35);
+  background:
+    linear-gradient(145deg, rgba(0, 155, 255, 0.22), rgba(0, 155, 255, 0.06) 55%),
+    rgba(7, 27, 42, 0.7);
+}
+
+.route-share-download-banner__copy h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.route-share-download-banner__copy p {
+  margin: 0.4rem 0 0;
+  color: #c8d3dd;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.route-share-download-banner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.route-share-download-banner__stores {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.route-share-app-nudge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 155, 255, 0.1);
+}
+
+.route-share-app-nudge p {
+  margin: 0;
+  flex: 1 1 12rem;
+  color: #c8d3dd;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
 .route-share-stores {
   flex-direction: column;
   align-items: flex-start;

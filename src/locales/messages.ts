@@ -135,6 +135,11 @@ export const messages = {
     "routeShare.cta.app": "Open in Explore",
     "routeShare.cta.doIt": "I want to do this route",
     "routeShare.cta.download": "Don’t have the app? Download it",
+    "routeShare.download.banner.title": "Want to see every place and follow this route?",
+    "routeShare.download.banner.lead":
+      "Download Explore to open the full route, navigate stop by stop, and save the spots you love.",
+    "routeShare.download.nudge":
+      "Preview is on the web — download the app to explore these places on the live route.",
     "routeShare.link.copy": "Copy link",
     "routeShare.link.copied": "Copied!",
     "routeShare.itinerary.title": "Stops on this route",
@@ -145,7 +150,7 @@ export const messages = {
     "routeShare.map.empty": "Map points aren’t available for this route yet.",
     "routeShare.map.live": "Live map",
     "routeShare.map.invite": "Looks walkable — you’ll love it",
-    "routeShare.map.foot": "Open Explore to navigate stop by stop with the full experience.",
+    "routeShare.map.foot": "Download Explore to see every place and follow this route live.",
     "routeShare.stat.distance": "Distance",
     "routeShare.stat.duration": "Duration",
     "routeShare.stat.difficulty": "Difficulty",
@@ -515,6 +520,11 @@ export const messages = {
     "routeShare.cta.app": "Abrir en Explore",
     "routeShare.cta.doIt": "Quiero hacer esta ruta",
     "routeShare.cta.download": "¿No tienes la app? Descárgala",
+    "routeShare.download.banner.title": "¿Quieres ver todos los sitios y hacer esta ruta?",
+    "routeShare.download.banner.lead":
+      "Descarga Explore para abrir la ruta completa, navegar parada a parada y guardar los spots que te gusten.",
+    "routeShare.download.nudge":
+      "Aquí ves el preview — descarga la app para explorar estos sitios en la ruta en vivo.",
     "routeShare.link.copy": "Copiar link",
     "routeShare.link.copied": "¡Copiado!",
     "routeShare.itinerary.title": "Paradas de esta ruta",
@@ -525,7 +535,7 @@ export const messages = {
     "routeShare.map.empty": "Aún no hay puntos de mapa para esta ruta.",
     "routeShare.map.live": "Mapa en vivo",
     "routeShare.map.invite": "Se ve perfecta — la vas a amar",
-    "routeShare.map.foot": "Abre Explore para navegar parada a parada con la experiencia completa.",
+    "routeShare.map.foot": "Descarga Explore para ver cada sitio y seguir esta ruta en vivo.",
     "routeShare.stat.distance": "Distancia",
     "routeShare.stat.duration": "Duración",
     "routeShare.stat.difficulty": "Dificultad",
