@@ -202,7 +202,7 @@ export function RouteSharePage() {
 
         <div className="route-share-map-col">
           {preview ? (
-            <Suspense fallback={<div className="route-share-map route-share-map--empty" aria-busy="true" />}>
+            <Suspense fallback={<div className="route-share-map-loading" aria-busy="true" />}>
               <RouteShareMap preview={preview} />
             </Suspense>
           ) : (

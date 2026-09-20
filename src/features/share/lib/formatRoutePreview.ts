@@ -35,6 +35,32 @@ export function formatDifficulty(value: string | null | undefined): string | nul
   return value.replace(/_/g, " ");
 }
 
+/** Great-circle distance in meters between two WGS84 points. */
+export function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const r = 6371000;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * r * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/** Prefer DB distance; fall back to stop-to-stop path length. */
+export function resolveDisplayDistanceM(
+  distanceM: number | null | undefined,
+  stops: Array<{ lat: number | null; lng: number | null }>,
+): number | null {
+  if (distanceM != null && Number.isFinite(distanceM) && distanceM > 0) return distanceM;
+  const pts = stops.filter((s): s is { lat: number; lng: number } => s.lat != null && s.lng != null);
+  if (pts.length < 2) return null;
+  let total = 0;
+  for (let i = 1; i < pts.length; i += 1) total += haversineMeters(pts[i - 1], pts[i]);
+  return total > 0 ? total : null;
+}
+
 type PlacePhotoRow = { url?: string | null; position?: number | null };
 type PlaceRow = {
   id?: string | null;

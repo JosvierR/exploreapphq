@@ -1,26 +1,63 @@
 import { useEffect, useMemo } from "react";
-import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
-import type { LatLngExpression } from "leaflet";
+import { MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
+import L, { type DivIcon, type LatLngExpression } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { PublicRoutePreview } from "@/features/share/types";
 import {
   formatDifficulty,
   formatDistanceMeters,
   formatEstimatedDuration,
+  resolveDisplayDistanceM,
 } from "@/features/share/lib/formatRoutePreview";
 import { T } from "@/components/ui/T";
 
-function FitStops({ positions }: { positions: LatLngExpression[] }) {
+function MapLifecycle({ positions }: { positions: LatLngExpression[] }) {
   const map = useMap();
+
+  useEffect(() => {
+    const invalidate = () => map.invalidateSize({ animate: false });
+    invalidate();
+    const t1 = window.setTimeout(invalidate, 80);
+    const t2 = window.setTimeout(invalidate, 320);
+
+    const container = map.getContainer();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => invalidate()) : null;
+    ro?.observe(container);
+    window.addEventListener("orientationchange", invalidate);
+
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      ro?.disconnect();
+      window.removeEventListener("orientationchange", invalidate);
+    };
+  }, [map]);
+
   useEffect(() => {
     if (positions.length === 0) return;
     if (positions.length === 1) {
       map.setView(positions[0] as [number, number], 14);
       return;
     }
-    map.fitBounds(positions as [number, number][], { padding: [36, 36], maxZoom: 15 });
+    // Extra bottom padding so markers clear the stats HUD
+    map.fitBounds(positions as [number, number][], {
+      paddingTopLeft: [28, 28],
+      paddingBottomRight: [28, 120],
+      maxZoom: 15,
+    });
   }, [map, positions]);
+
   return null;
+}
+
+function stopIcon(index: number, total: number): DivIcon {
+  const kind = index === 0 ? "start" : index === total - 1 ? "end" : "mid";
+  return L.divIcon({
+    className: `route-share-pin route-share-pin--${kind}`,
+    html: `<span>${index + 1}</span>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+  });
 }
 
 type RouteShareMapProps = {
@@ -29,15 +66,16 @@ type RouteShareMapProps = {
 
 export function RouteShareMap({ preview }: RouteShareMapProps) {
   const stopsWithGeo = useMemo(
-    () => preview.stops.filter((s) => s.lat != null && s.lng != null) as Array<{
-      position: number;
-      placeId: string;
-      name: string;
-      category: string | null;
-      photoUrl: string | null;
-      lat: number;
-      lng: number;
-    }>,
+    () =>
+      preview.stops.filter((s) => s.lat != null && s.lng != null) as Array<{
+        position: number;
+        placeId: string;
+        name: string;
+        category: string | null;
+        photoUrl: string | null;
+        lat: number;
+        lng: number;
+      }>,
     [preview.stops],
   );
 
@@ -46,7 +84,8 @@ export function RouteShareMap({ preview }: RouteShareMapProps) {
     [stopsWithGeo],
   );
 
-  const distance = formatDistanceMeters(preview.distanceM);
+  const displayDistanceM = resolveDisplayDistanceM(preview.distanceM, preview.stops);
+  const distance = formatDistanceMeters(displayDistanceM);
   const duration = formatEstimatedDuration(preview.estimatedDuration);
   const difficulty = formatDifficulty(preview.difficulty);
   const center: LatLngExpression = positions[0] ?? [18.4861, -69.9312];
@@ -72,33 +111,36 @@ export function RouteShareMap({ preview }: RouteShareMapProps) {
           zoom={13}
           scrollWheelZoom={false}
           attributionControl={false}
+          zoomControl={false}
         >
           <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CARTO'
+            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+            attribution='&copy; OSM &copy; CARTO'
           />
-          <FitStops positions={positions} />
+          <MapLifecycle positions={positions} />
           {positions.length > 1 ? (
-            <Polyline positions={positions} pathOptions={{ color: "#009bff", weight: 4, opacity: 0.85 }} />
+            <Polyline
+              positions={positions}
+              pathOptions={{ color: "#009bff", weight: 5, opacity: 0.9, lineCap: "round", lineJoin: "round" }}
+            />
           ) : null}
           {stopsWithGeo.map((stop, index) => (
-            <CircleMarker
+            <Marker
               key={stop.placeId}
-              center={[stop.lat, stop.lng]}
-              radius={index === 0 || index === stopsWithGeo.length - 1 ? 11 : 8}
-              pathOptions={{
-                color: "#fff",
-                weight: 2,
-                fillColor: index === 0 ? "#5ac8fa" : index === stopsWithGeo.length - 1 ? "#009bff" : "#3d8fd1",
-                fillOpacity: 1,
-              }}
+              position={[stop.lat, stop.lng]}
+              icon={stopIcon(index, stopsWithGeo.length)}
             >
+              <Tooltip direction="top" offset={[0, -12]} opacity={1}>
+                <strong>
+                  {index + 1}. {stop.name}
+                </strong>
+              </Tooltip>
               <Popup>
                 <strong>
                   {index + 1}. {stop.name}
                 </strong>
               </Popup>
-            </CircleMarker>
+            </Marker>
           ))}
         </MapContainer>
 

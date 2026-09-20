@@ -4,6 +4,7 @@ import {
   formatDistanceMeters,
   formatEstimatedDuration,
   mapRoutePreviewRow,
+  resolveDisplayDistanceM,
 } from "./formatRoutePreview";
 import { parsePostgisPoint } from "./parsePostgisPoint";
 import {
@@ -78,6 +79,15 @@ assert.equal(preview.stops.length, 2);
 assert.ok(preview.stops[0]?.lat != null);
 assert.ok(preview.stops[0]?.lng != null);
 assert.equal(preview.stops[1]?.lat, 18.68);
+
+assert.equal(
+  resolveDisplayDistanceM(0, [
+    { lat: 18.67, lng: -68.4 },
+    { lat: 18.68, lng: -68.39 },
+  ])! > 1000,
+  true,
+);
+assert.equal(resolveDisplayDistanceM(2500, [{ lat: 1, lng: 1 }, { lat: 2, lng: 2 }]), 2500);
 
 console.log("formatRoutePreview.test.ts: ok");
 console.log("share link:", buildShortRoutePath({ id: UUID, name: "Playas de Bávaro" }));
