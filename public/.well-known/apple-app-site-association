@@ -7,16 +7,16 @@
         "paths": [
           "/v/*",
           "/p/*",
-          "/r/*",
-          "/go/*",
           "/u/*",
           "/me",
           "/video/*",
           "/place/*",
-          "/route/*",
           "/profile/*",
           "/users/*",
           "/challenges/*",
+          "NOT /r/*",
+          "NOT /go/*",
+          "NOT /route/*",
           "NOT /admin/*",
           "NOT /api/*",
           "NOT /.well-known/*",
@@ -40,11 +40,13 @@
           },
           {
             "/": "/r/*",
-            "comment": "Shared route deep links"
+            "exclude": true,
+            "comment": "Route share stays on web preview first"
           },
           {
             "/": "/go/*",
-            "comment": "Short shared route links"
+            "exclude": true,
+            "comment": "Short route share stays on web preview first"
           },
           {
             "/": "/u/*",
@@ -64,7 +66,8 @@
           },
           {
             "/": "/route/*",
-            "comment": "Legacy route alias"
+            "exclude": true,
+            "comment": "Legacy route share stays on web preview first"
           },
           {
             "/": "/profile/*",

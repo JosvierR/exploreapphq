@@ -118,10 +118,10 @@ Legacy aliases render the same fallback style:
 
 These pages do not fake content details. Video, place, and profile fallbacks show the content type, URL ID or handle, an "Open in Explore" button, and App Store / Google Play links.
 
-**Routes (`/r/:ref`, `/go/:ref`, `/route/:ref`)** render `RouteSharePage`.
-`ref` may be a UUID or a short base32 code (~22 chars). Published + public routes
-load a web itinerary and a live map (real stop coordinates) with distance / duration
-HUD. Visitors can preview on the web or open/download the app.
+**Routes (`/r/:ref`, `/go/:ref`, `/route/:ref`)** render `RouteSharePage` on the web first.
+These paths are excluded from iOS Universal Links so Instagram / Safari open the web preview
+directly (no app bounce). Visitors can still open the native app via `explore://` CTAs.
+`ref` may be a UUID or a short base32 code / name slug.
 
 The "Open in Explore" button currently uses the custom URL scheme `explore://`. Update `src/pages/marketing/DeepLinkFallbackPage.tsx` if the production native app uses a different scheme.
 

@@ -234,6 +234,82 @@
   font-weight: 700;
 }
 
+.route-share-ready {
+  display: grid;
+  gap: 0.85rem;
+  animation: route-share-fade-in 280ms ease-out;
+}
+
+@keyframes route-share-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.route-share-skeleton {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.route-share-skel {
+  border-radius: 12px;
+  background:
+    linear-gradient(110deg, rgba(255, 255, 255, 0.05) 25%, rgba(255, 255, 255, 0.12) 37%, rgba(255, 255, 255, 0.05) 63%);
+  background-size: 200% 100%;
+  animation: route-share-shimmer 1.15s ease infinite;
+}
+
+.route-share-skel--cover {
+  aspect-ratio: 16 / 7;
+  border-radius: 18px;
+}
+
+.route-share-skel--badge {
+  width: 4.5rem;
+  height: 1.55rem;
+  border-radius: 999px;
+}
+
+.route-share-skel--title {
+  width: min(100%, 16rem);
+  height: 2.6rem;
+}
+
+.route-share-skel--line {
+  width: 100%;
+  height: 0.85rem;
+}
+
+.route-share-skel--line-short {
+  width: 68%;
+}
+
+.route-share-skel-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.route-share-skel--chip {
+  height: 3.4rem;
+  border-radius: 14px;
+}
+
+.route-share-skel--banner {
+  height: 7.5rem;
+  border-radius: 18px;
+}
+
+.route-share-skel--card {
+  height: 5.5rem;
+  border-radius: 16px;
+}
+
 .route-share-hero-cover {
   position: relative;
   overflow: hidden;
@@ -690,7 +766,8 @@
     padding: 0.75rem 0.8rem;
   }
 
-  .route-share-highlights {
+  .route-share-highlights,
+  .route-share-skel-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
