@@ -115,7 +115,9 @@ Legacy aliases render the same fallback style:
 /users/:handleOrUserId
 ```
 
-These pages do not fake content details. They show the content type, URL ID or handle, an "Open in Explore" button, and App Store / Google Play links.
+These pages do not fake content details. Video, place, and profile fallbacks show the content type, URL ID or handle, an "Open in Explore" button, and App Store / Google Play links.
+
+**Routes (`/r/:routeId`, `/route/:routeId`)** render `RouteSharePage`: when the route is `published` + `is_public`, anon Supabase loads a web preview (title, stats, ordered stops). Visitors can view that preview on the web or open/download the app for the full experience. Private or missing routes still offer open-in-app + store links without inventing content.
 
 The "Open in Explore" button currently uses the custom URL scheme `explore://`. Update `src/pages/marketing/DeepLinkFallbackPage.tsx` if the production native app uses a different scheme.
 

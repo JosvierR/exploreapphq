@@ -115,6 +115,34 @@ export const messages = {
     "unified.final.title": "Don't just watch places. Go explore them.",
     "unified.final.lead":
       "Download Explore, join this week's challenges, and show up on the ranking with real videos, places and routes.",
+    "routeShare.meta.title": "Explore route — Open or preview",
+    "routeShare.meta.description":
+      "Preview this Explore route on the web, or open it in the app for the full experience.",
+    "routeShare.badge": "Route",
+    "routeShare.title.fallback": "Open this route in Explore",
+    "routeShare.loading": "Loading route preview…",
+    "routeShare.lead.preview":
+      "Preview the stops below on the web, or open Explore for maps, navigation and the full route.",
+    "routeShare.lead.missing":
+      "This route isn’t available for public web preview. Download Explore — if you have access, you can open it in the app.",
+    "routeShare.lead.unconfigured":
+      "Web preview isn’t configured here yet. Download Explore to open this shared route.",
+    "routeShare.lead.error":
+      "We couldn’t load the web preview right now. You can still open the route in Explore or download the app.",
+    "routeShare.choice.label": "How do you want to see this route?",
+    "routeShare.cta.web": "View on web",
+    "routeShare.cta.app": "Open in Explore",
+    "routeShare.cta.download": "Don’t have the app? Download it",
+    "routeShare.stat.distance": "Distance",
+    "routeShare.stat.duration": "Duration",
+    "routeShare.stat.difficulty": "Difficulty",
+    "routeShare.stat.category": "Category",
+    "routeShare.stat.stops": "Stops",
+    "routeShare.stops.empty": "Stops will show here when this route has published places.",
+    "routeShare.web.note":
+      "Web preview shows the itinerary. Open the app for maps, offline navigation and the complete experience.",
+    "routeShare.meta.routeId": "Route ID",
+    "routeShare.meta.link": "Shared link",
     "pioneer.meta.title": "Pioneros Explore — Join the pioneer community",
     "pioneer.meta.description":
       "Join Pioneros Explore: upload real videos, create routes, add authentic places, complete weekly challenges, earn badges and climb the community leaderboard.",
@@ -451,6 +479,34 @@ export const messages = {
     "unified.final.title": "No solo veas lugares. Sal a explorarlos.",
     "unified.final.lead":
       "Descarga Explore, únete a los retos de la semana y aparece en el ranking con videos, lugares y rutas reales.",
+    "routeShare.meta.title": "Ruta Explore — Abrir o ver preview",
+    "routeShare.meta.description":
+      "Mira esta ruta de Explore en la web, o ábrela en la app para la experiencia completa.",
+    "routeShare.badge": "Ruta",
+    "routeShare.title.fallback": "Abrir esta ruta en Explore",
+    "routeShare.loading": "Cargando preview de la ruta…",
+    "routeShare.lead.preview":
+      "Mira las paradas abajo en la web, o abre Explore para mapas, navegación y la ruta completa.",
+    "routeShare.lead.missing":
+      "Esta ruta no está disponible para preview público en la web. Descarga Explore — si tienes acceso, puedes abrirla en la app.",
+    "routeShare.lead.unconfigured":
+      "El preview web no está configurado aquí todavía. Descarga Explore para abrir esta ruta compartida.",
+    "routeShare.lead.error":
+      "No pudimos cargar el preview web ahora. Aún puedes abrir la ruta en Explore o descargar la app.",
+    "routeShare.choice.label": "¿Cómo quieres ver esta ruta?",
+    "routeShare.cta.web": "Ver en la web",
+    "routeShare.cta.app": "Abrir en Explore",
+    "routeShare.cta.download": "¿No tienes la app? Descárgala",
+    "routeShare.stat.distance": "Distancia",
+    "routeShare.stat.duration": "Duración",
+    "routeShare.stat.difficulty": "Dificultad",
+    "routeShare.stat.category": "Categoría",
+    "routeShare.stat.stops": "Paradas",
+    "routeShare.stops.empty": "Las paradas aparecerán aquí cuando la ruta tenga lugares publicados.",
+    "routeShare.web.note":
+      "El preview web muestra el itinerario. Abre la app para mapas, navegación y la experiencia completa.",
+    "routeShare.meta.routeId": "ID de ruta",
+    "routeShare.meta.link": "Link compartido",
     "pioneer.meta.title": "Pioneros Explore — Únete a la comunidad pionera",
     "pioneer.meta.description":
       "Únete a Pioneros Explore: sube videos reales, crea rutas, agrega lugares auténticos, completa retos semanales, gana badges y sube en el ranking de la comunidad.",

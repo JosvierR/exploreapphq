@@ -14,6 +14,7 @@ import { ThanksPage } from "@/pages/marketing/ThanksPage";
 import { FeedbackPage } from "@/pages/marketing/FeedbackPage";
 import { NotFoundPage } from "@/pages/marketing/NotFoundPage";
 import { DeepLinkFallbackPage } from "@/pages/marketing/DeepLinkFallbackPage";
+import { RouteSharePage } from "@/pages/marketing/RouteSharePage";
 import { AdminDashboardPage } from "@/pages/admin/AdminDashboardPage";
 import { AdminAnalyticsPage } from "@/pages/admin/AdminAnalyticsPage";
 import { AdminBusinessInsightsPage } from "@/pages/admin/AdminBusinessInsightsPage";
@@ -55,12 +56,12 @@ export const router = createBrowserRouter([
       { path: "/challenges/:type", element: <ChallengeMissionPage /> },
       { path: "/v/:videoId", element: <DeepLinkFallbackPage kind="video" paramName="videoId" /> },
       { path: "/p/:placeId", element: <DeepLinkFallbackPage kind="place" paramName="placeId" /> },
-      { path: "/r/:routeId", element: <DeepLinkFallbackPage kind="route" paramName="routeId" /> },
+      { path: "/r/:routeId", element: <RouteSharePage /> },
       { path: "/u/:handleOrUserId", element: <DeepLinkFallbackPage kind="profile" paramName="handleOrUserId" /> },
       { path: "/me", element: <DeepLinkFallbackPage kind="me" /> },
       { path: "/video/:videoId", element: <DeepLinkFallbackPage kind="video" paramName="videoId" /> },
       { path: "/place/:placeId", element: <DeepLinkFallbackPage kind="place" paramName="placeId" /> },
-      { path: "/route/:routeId", element: <DeepLinkFallbackPage kind="route" paramName="routeId" /> },
+      { path: "/route/:routeId", element: <RouteSharePage /> },
       { path: "/profile/:handleOrUserId", element: <DeepLinkFallbackPage kind="profile" paramName="handleOrUserId" /> },
       { path: "/users/:handleOrUserId", element: <DeepLinkFallbackPage kind="profile" paramName="handleOrUserId" /> },
       {
