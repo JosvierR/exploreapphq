@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { motion, useReducedMotion } from "motion/react";
 import { OpenExploreMissionButton } from "@/features/pioneers/components/OpenExploreMissionButton";
 import type { ChallengeType } from "@/features/pioneers/lib/exploreAppLink";
@@ -98,9 +97,9 @@ export function PioneerChallengeCards({ challenges, source = "unavailable" }: Pi
                     challengeId={challenge.id as ChallengeType}
                     className="pioneer-liquid-button pioneer-liquid-button--block"
                   />
-                  <Link className="pioneer-secondary-button pioneer-secondary-button--block" to="/explorar">
+                  <a className="pioneer-secondary-button pioneer-secondary-button--block" href="#how-it-works">
                     <T k="pioneer.challenge.learnMore" />
-                  </Link>
+                  </a>
                   <a className="pioneer-challenge-card__store" href={STORE_URLS.apple} target="_blank" rel="noopener noreferrer">
                     <T k="pioneer.challenge.getApp" />
                   </a>

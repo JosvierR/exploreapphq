@@ -1,0 +1,125 @@
+/* Unified marketing home — Explore brand wraps community sections */
+
+.unified-home {
+  /* Remap arcade tokens → Explore product tokens so pioneer blocks match the site */
+  --pixel-main: var(--explore-blue);
+  --pixel-accent: var(--explore-cyan);
+  --pixel-bg: var(--bg-dark);
+  --pixel-bg2: var(--bg-navy);
+  --pixel-border: rgba(0, 155, 255, 0.35);
+  --pixel-text: #ffffff;
+  --pixel-glow: rgba(0, 155, 255, 0.28);
+  --pixel-shadow: 0 20px 50px rgba(0, 40, 120, 0.28);
+  --pixel-table-header: var(--explore-blue);
+  --pixel-quest-bg: var(--bg-navy);
+  --pixel-badge-bg: var(--bg-card-solid);
+  --pixel-badge-border: rgba(255, 255, 255, 0.14);
+  --pixel-badge-unlocked-bg: rgba(0, 155, 255, 0.12);
+  --pixel-badge-unlocked-color: var(--explore-cyan);
+  --pixel-progress-color: var(--explore-blue);
+  --pixel-completed-color: var(--explore-cyan);
+  --pixel-hearts-color: var(--explore-blue);
+  --pixel-podium-rank1-border: var(--explore-blue);
+  --pixel-podium-rank1-bg: rgba(0, 155, 255, 0.1);
+  --pixel-podium-rank1-text: #ffffff;
+  --pixel-podium-rank1-glow: rgba(0, 155, 255, 0.25);
+  --pixel-user-bg: rgba(0, 155, 255, 0.08);
+  --pixel-user-text: var(--explore-cyan);
+  --pixel-font-pixel: var(--font);
+  --pixel-font-mono: var(--font);
+  --text: #ffffff;
+  --text-muted: var(--text-muted);
+  --explore-blue: #009bff;
+  --explore-cyan: #5ac8fa;
+  background: var(--bg-dark);
+  color: #fff;
+  overflow-x: clip;
+}
+
+.unified-home .hero-brand {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--explore-blue);
+  margin-bottom: 0.75rem;
+}
+
+.unified-hero .hero-title {
+  max-width: 14ch;
+}
+
+.unified-how__steps {
+  list-style: none;
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1.75rem;
+  max-width: 40rem;
+}
+
+.unified-how__steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  background: rgba(14, 38, 56, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.unified-how__num {
+  flex: 0 0 auto;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: rgba(0, 155, 255, 0.18);
+  color: var(--explore-cyan);
+}
+
+/* Soften pioneer section chrome inside unified home */
+.unified-home__community .pioneer-section {
+  background: transparent;
+}
+
+.unified-home__community .pioneer-eyebrow,
+.unified-home__community .pixel-eyebrow,
+.unified-home__community .pixel-main-title,
+.unified-home__community .pixel-lead-text,
+.unified-home__community .pixel-stat-label,
+.unified-home__community .pixel-stat-number,
+.unified-home__community .pixel-hero-badge,
+.unified-home__community .pixel-cta-button,
+.unified-home__community .pixel-secondary-button,
+.unified-home__community .pixel-flow-step,
+.unified-home__community .pixel-live-pill,
+.unified-home__community .pixel-loading-text,
+.unified-home__community h2,
+.unified-home__community h3 {
+  font-family: var(--font) !important;
+  letter-spacing: normal;
+  line-height: 1.25;
+  text-shadow: none;
+  image-rendering: auto;
+}
+
+.unified-home__community .pixel-main-title,
+.unified-home__community .pioneer-section h2 {
+  font-size: clamp(1.6rem, 3vw, 2.25rem);
+  font-weight: 750;
+}
+
+.unified-home__community .pioneer-liquid-button,
+.unified-home__community .pixel-cta-button {
+  border-radius: var(--radius-pill);
+  box-shadow: none;
+}
+
+@media (max-width: 768px) {
+  .unified-hero .hero-title {
+    max-width: none;
+  }
+}

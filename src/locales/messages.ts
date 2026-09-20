@@ -103,6 +103,18 @@ export const messages = {
     "cta.lead": "Don't just scroll. Explore — with real videos, maps and routes.",
     "nav.pioneers": "Pioneers",
     "nav.discover": "Discover app",
+    "unified.meta.title": "Explore — Discover real places through videos",
+    "unified.meta.description":
+      "Watch real places, save spots, build routes, and join weekly challenges on the Explore leaderboard.",
+    "unified.hero.brand": "Explore",
+    "unified.hero.title": "Discover real places through videos.",
+    "unified.hero.lead":
+      "See how a place feels before you go. Save spots, build routes, and climb the community ranking — all in one app.",
+    "unified.hero.cta.community": "See challenges",
+    "unified.how.cta.ranking": "View leaderboard",
+    "unified.final.title": "Don't just watch places. Go explore them.",
+    "unified.final.lead":
+      "Download Explore, join this week's challenges, and show up on the ranking with real videos, places and routes.",
     "pioneer.meta.title": "Pioneros Explore — Join the pioneer community",
     "pioneer.meta.description":
       "Join Pioneros Explore: upload real videos, create routes, add authentic places, complete weekly challenges, earn badges and climb the community leaderboard.",
@@ -427,6 +439,18 @@ export const messages = {
     "cta.lead": "No solo hagas scroll. Explora — con videos, mapas y rutas reales.",
     "nav.pioneers": "Pioneros",
     "nav.discover": "Descubrir app",
+    "unified.meta.title": "Explore — Descubre lugares reales con videos",
+    "unified.meta.description":
+      "Mira lugares reales, guarda spots, crea rutas y súbete al ranking de retos semanales en Explore.",
+    "unified.hero.brand": "Explore",
+    "unified.hero.title": "Descubre lugares reales a través de videos.",
+    "unified.hero.lead":
+      "Mira cómo se siente un lugar antes de ir. Guarda spots, arma rutas y sube en el ranking de la comunidad — todo en una app.",
+    "unified.hero.cta.community": "Ver retos",
+    "unified.how.cta.ranking": "Ver ranking",
+    "unified.final.title": "No solo veas lugares. Sal a explorarlos.",
+    "unified.final.lead":
+      "Descarga Explore, únete a los retos de la semana y aparece en el ranking con videos, lugares y rutas reales.",
     "pioneer.meta.title": "Pioneros Explore — Únete a la comunidad pionera",
     "pioneer.meta.description":
       "Únete a Pioneros Explore: sube videos reales, crea rutas, agrega lugares auténticos, completa retos semanales, gana badges y sube en el ranking de la comunidad.",

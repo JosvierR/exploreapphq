@@ -7,19 +7,17 @@ import { BrandLogo } from "@/components/brand/BrandLogo";
 import { isPioneersHomePath } from "@/features/pioneers/lib/paths";
 import type { Locale } from "@/locales/messages";
 
-const PIONEERS_NAV = [
+const HOME_NAV = [
+  { href: "#how-it-works", key: "nav.how" as const },
   { href: "#retos", key: "pioneer.nav.challenges" as const },
   { href: "#ranking", key: "pioneer.nav.leaderboard" as const },
   { href: "#recompensas", key: "pioneer.nav.rewards" as const },
-  { href: "#unirme", key: "pioneer.nav.join" as const },
 ];
 
-const DISCOVER_NAV = [
-  { href: "#benefits", key: "nav.explore" as const },
-  { href: "#how-it-works", key: "nav.how" as const },
-  { href: "#nearby", key: "nav.nearby" as const },
-  { href: "#creators", key: "nav.creators" as const },
-  { href: "#contact", key: "nav.contact" as const },
+const INNER_NAV = [
+  { href: "/#how-it-works", key: "nav.how" as const },
+  { href: "/#retos", key: "pioneer.nav.challenges" as const },
+  { href: "/#ranking", key: "pioneer.nav.leaderboard" as const },
 ];
 
 export function SiteHeader() {
@@ -28,11 +26,8 @@ export function SiteHeader() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const pioneersHome = isPioneersHomePath(location.pathname);
-  const navItems = pioneersHome ? PIONEERS_NAV : DISCOVER_NAV;
-  const logoTo = "/";
-  const ctaHref = pioneersHome ? "#unirme" : "#download";
-  const ctaKey = pioneersHome ? "pioneer.hero.cta.primary" : "cta.start";
+  const onHome = isPioneersHomePath(location.pathname);
+  const navItems = onHome ? HOME_NAV : INNER_NAV;
 
   const closeMobile = () => {
     setMobileOpen(false);
@@ -48,28 +43,28 @@ export function SiteHeader() {
 
   return (
     <>
-      <header
-        className={`site-header${scrolled ? " is-scrolled" : ""}${pioneersHome ? " site-header--pioneers" : ""}`}
-        role="banner"
-      >
+      <header className={`site-header${scrolled ? " is-scrolled" : ""}`} role="banner">
         <div className="container header-inner">
-          <Link to={logoTo} className="brand" aria-label="Explore home" onClick={closeMobile}>
+          <Link to="/" className="brand" aria-label="Explore home" onClick={closeMobile}>
             <BrandLogo />
           </Link>
           <nav className="nav-desktop" aria-label="Main">
-            {navItems.map((item) => (
-              <a key={item.key} href={item.href}>
-                <T k={item.key} />
-              </a>
-            ))}
-            {pioneersHome ? (
-              <Link to="/explorar" className="nav-link-muted">
-                <T k="nav.discover" />
-              </Link>
-            ) : (
-              <Link to="/" className="nav-link-muted">
-                <T k="nav.pioneers" />
-              </Link>
+            {navItems.map((item) =>
+              item.href.startsWith("/#") || item.href.startsWith("#") ? (
+                item.href.startsWith("/#") ? (
+                  <Link key={item.key} to={item.href}>
+                    <T k={item.key} />
+                  </Link>
+                ) : (
+                  <a key={item.key} href={item.href}>
+                    <T k={item.key} />
+                  </a>
+                )
+              ) : (
+                <Link key={item.key} to={item.href}>
+                  <T k={item.key} />
+                </Link>
+              ),
             )}
             <Link to="/lab" className="nav-link-muted">
               <T k="lab.nav" />
@@ -88,8 +83,8 @@ export function SiteHeader() {
                 </button>
               ))}
             </div>
-            <a href={ctaHref} className="btn btn-primary">
-              <T k={ctaKey} />
+            <a href={onHome ? "#download" : "/#download"} className="btn btn-primary">
+              <T k="cta.download" />
             </a>
             <button
               type="button"
@@ -108,25 +103,22 @@ export function SiteHeader() {
       </header>
 
       <nav id="nav-mobile" className={`nav-mobile${mobileOpen ? " is-open" : ""}`} aria-label="Mobile">
-        {navItems.map((item) => (
-          <a key={item.key} href={item.href} onClick={closeMobile}>
-            <T k={item.key} />
-          </a>
-        ))}
-        {pioneersHome ? (
-          <Link to="/explorar" onClick={closeMobile}>
-            <T k="nav.discover" />
-          </Link>
-        ) : (
-          <Link to="/" onClick={closeMobile}>
-            <T k="nav.pioneers" />
-          </Link>
+        {navItems.map((item) =>
+          item.href.startsWith("/#") ? (
+            <Link key={item.key} to={item.href} onClick={closeMobile}>
+              <T k={item.key} />
+            </Link>
+          ) : (
+            <a key={item.key} href={item.href} onClick={closeMobile}>
+              <T k={item.key} />
+            </a>
+          ),
         )}
         <Link to="/lab" onClick={closeMobile}>
           <T k="lab.nav" />
         </Link>
-        <a href={ctaHref} className="btn btn-primary" onClick={closeMobile}>
-          <T k={ctaKey} />
+        <a href={onHome ? "#download" : "/#download"} className="btn btn-primary" onClick={closeMobile}>
+          <T k="cta.download" />
         </a>
       </nav>
     </>

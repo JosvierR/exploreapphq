@@ -6,7 +6,7 @@ import { AdminLayout } from "@/components/layout/AdminLayout";
 import { MarketingLayout } from "@/components/layout/MarketingLayout";
 import { I18nProvider } from "@/features/i18n/I18nProvider";
 import { AccessPage } from "@/pages/auth/AccessPage";
-import { PioneersPage, ChallengeMissionPage } from "@/features/pioneers";
+import { ChallengeMissionPage } from "@/features/pioneers";
 import { TermsPage } from "@/pages/marketing/TermsPage";
 import { PrivacyPage } from "@/pages/marketing/PrivacyPage";
 import { SafetyPage } from "@/pages/marketing/SafetyPage";
@@ -25,10 +25,9 @@ import { LabHomePage } from "@/features/lab/pages/LabHomePage";
 import { LabIdeaPage } from "@/features/lab/pages/LabIdeaPage";
 import { LabBuildingPage } from "@/features/lab/pages/LabBuildingPage";
 import { LabMinePage } from "@/features/lab/pages/LabMinePage";
+import UnifiedHomePage from "@/pages/marketing/UnifiedHomePage";
 
-const HomePage = lazy(() => import("@/pages/marketing/HomePage"));
 const ApiDocsPage = lazy(() => import("@/pages/admin/ApiDocsPage"));
-
 function AppRoot() {
   return (
     <I18nProvider>
@@ -36,10 +35,6 @@ function AppRoot() {
       <VercelAnalytics />
     </I18nProvider>
   );
-}
-
-function LazyMarketingPage({ children }: { children: ReactNode }) {
-  return <Suspense fallback={<main aria-busy="true" />}>{children}</Suspense>;
 }
 
 function LazyAdminPage({ children }: { children: ReactNode }) {
@@ -95,16 +90,9 @@ export const router = createBrowserRouter([
       {
         element: <MarketingLayout />,
         children: [
-          { path: "/", element: <PioneersPage /> },
+          { path: "/", element: <UnifiedHomePage /> },
           { path: "/pioneros", element: <Navigate to="/" replace /> },
-          {
-            path: "/explorar",
-            element: (
-              <LazyMarketingPage>
-                <HomePage />
-              </LazyMarketingPage>
-            ),
-          },
+          { path: "/explorar", element: <Navigate to="/" replace /> },
           { path: "/lab", element: <LabHomePage /> },
           { path: "/lab/building", element: <LabBuildingPage /> },
           { path: "/lab/roadmap", element: <Navigate to="/lab/building" replace /> },
