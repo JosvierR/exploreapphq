@@ -8,6 +8,7 @@
           "/v/*",
           "/p/*",
           "/r/*",
+          "/go/*",
           "/u/*",
           "/me",
           "/video/*",
@@ -40,6 +41,10 @@
           {
             "/": "/r/*",
             "comment": "Shared route deep links"
+          },
+          {
+            "/": "/go/*",
+            "comment": "Short shared route links"
           },
           {
             "/": "/u/*",

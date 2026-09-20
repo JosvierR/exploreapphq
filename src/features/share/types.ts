@@ -4,6 +4,8 @@ export type PublicRouteStop = {
   name: string;
   category: string | null;
   photoUrl: string | null;
+  lat: number | null;
+  lng: number | null;
 };
 
 export type PublicRoutePreview = {
@@ -17,6 +19,8 @@ export type PublicRoutePreview = {
   averageRating: number;
   totalRatings: number;
   coverUrl: string | null;
+  shortCode: string;
+  slug: string;
   stops: PublicRouteStop[];
 };
 

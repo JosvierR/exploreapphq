@@ -1,13 +1,9 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { T } from "@/components/ui/T";
 import { fetchPublicRoutePreview } from "@/features/share/api/fetchPublicRoutePreview";
-import {
-  formatDifficulty,
-  formatDistanceMeters,
-  formatEstimatedDuration,
-} from "@/features/share/lib/formatRoutePreview";
+import { buildShortRoutePath, resolveRouteUuid } from "@/features/share/lib/routeShortCode";
 import type { PublicRoutePreview, PublicRoutePreviewResult } from "@/features/share/types";
 import { useI18n } from "@/features/i18n/I18nProvider";
 import { usePageMeta } from "@/hooks/usePageMeta";
@@ -15,6 +11,10 @@ import { STORE_URLS } from "@/lib/constants";
 import { buildExploreShareUrl } from "@/lib/exploreWebUrl";
 import "@/styles/deeplink.css";
 import "@/styles/route-share.css";
+
+const RouteShareMap = lazy(() =>
+  import("@/features/share/components/RouteShareMap").then((m) => ({ default: m.RouteShareMap })),
+);
 
 function StoreBadges() {
   return (
@@ -29,131 +29,99 @@ function StoreBadges() {
   );
 }
 
-function RoutePreviewBody({ preview }: { preview: PublicRoutePreview }) {
-  const distance = formatDistanceMeters(preview.distanceM);
-  const duration = formatEstimatedDuration(preview.estimatedDuration);
-  const difficulty = formatDifficulty(preview.difficulty);
-  const cover = preview.coverUrl || "/ExplorePromo1.png";
+function CopyLinkButton({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      className="route-share-copy"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(url);
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1800);
+        } catch {
+          /* ignore */
+        }
+      }}
+    >
+      {copied ? <T k="routeShare.link.copied" /> : <T k="routeShare.link.copy" />}
+    </button>
+  );
+}
+
+function RouteStopsList({ preview }: { preview: PublicRoutePreview }) {
+  if (preview.stops.length === 0) {
+    return (
+      <p className="route-share-empty-stops">
+        <T k="routeShare.stops.empty" />
+      </p>
+    );
+  }
 
   return (
-    <div className="route-share-preview" id="route-preview">
-      <div className="route-share-cover">
-        <img src={cover} alt="" />
-      </div>
-
-      <ul className="route-share-stats" aria-label="Route stats">
-        {distance ? (
-          <li>
-            <span>
-              <T k="routeShare.stat.distance" />
-            </span>
-            <strong>{distance}</strong>
-          </li>
-        ) : null}
-        {duration ? (
-          <li>
-            <span>
-              <T k="routeShare.stat.duration" />
-            </span>
-            <strong>{duration}</strong>
-          </li>
-        ) : null}
-        {difficulty ? (
-          <li>
-            <span>
-              <T k="routeShare.stat.difficulty" />
-            </span>
-            <strong className="route-share-stat-cap">{difficulty}</strong>
-          </li>
-        ) : null}
-        {preview.category ? (
-          <li>
-            <span>
-              <T k="routeShare.stat.category" />
-            </span>
-            <strong className="route-share-stat-cap">{preview.category.replace(/_/g, " ")}</strong>
-          </li>
-        ) : null}
-        {preview.stops.length > 0 ? (
-          <li>
-            <span>
-              <T k="routeShare.stat.stops" />
-            </span>
-            <strong>{preview.stops.length}</strong>
-          </li>
-        ) : null}
-      </ul>
-
-      {preview.description ? <p className="route-share-desc">{preview.description}</p> : null}
-
-      {preview.stops.length > 0 ? (
-        <ol className="route-share-stops">
-          {preview.stops.map((stop) => (
-            <li key={`${stop.placeId}-${stop.position}`}>
-              <span className="route-share-stop-num" aria-hidden="true">
-                {stop.position + 1}
-              </span>
-              <div className="route-share-stop-body">
-                <strong>{stop.name}</strong>
-                {stop.category ? <small className="route-share-stat-cap">{stop.category.replace(/_/g, " ")}</small> : null}
-              </div>
-              {stop.photoUrl ? (
-                <img className="route-share-stop-thumb" src={stop.photoUrl} alt="" loading="lazy" />
-              ) : null}
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <p className="route-share-empty-stops">
-          <T k="routeShare.stops.empty" />
-        </p>
-      )}
-
-      <p className="route-share-web-note">
-        <T k="routeShare.web.note" />
-      </p>
-    </div>
+    <ol className="route-share-stops" id="route-preview">
+      {preview.stops.map((stop, index) => (
+        <li key={`${stop.placeId}-${stop.position}`}>
+          <span className="route-share-stop-num" aria-hidden="true">
+            {index + 1}
+          </span>
+          <div className="route-share-stop-body">
+            <strong>{stop.name}</strong>
+            {stop.category ? <small className="route-share-stat-cap">{stop.category.replace(/_/g, " ")}</small> : null}
+          </div>
+          {stop.photoUrl ? (
+            <img className="route-share-stop-thumb" src={stop.photoUrl} alt="" loading="lazy" />
+          ) : null}
+        </li>
+      ))}
+    </ol>
   );
 }
 
 /**
  * Public route share landing for Instagram / Universal Links.
- * Web preview when published+public; always offers open-in-app + download.
+ * Short `/r/{code}` URLs, web itinerary + live map, or open/download the app.
  */
 export function RouteSharePage() {
-  const { routeId: rawId } = useParams<{ routeId: string }>();
-  const routeId = rawId?.trim() ?? "";
+  const { routeId: rawRef } = useParams<{ routeId: string }>();
+  const ref = rawRef?.trim() ?? "";
   const { t } = useI18n();
   const [result, setResult] = useState<PublicRoutePreviewResult | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setResult(null);
-    void fetchPublicRoutePreview(routeId).then((next) => {
+    void fetchPublicRoutePreview(ref).then((next) => {
       if (!cancelled) setResult(next);
     });
     return () => {
       cancelled = true;
     };
-  }, [routeId]);
+  }, [ref]);
 
   const preview = result?.status === "ok" ? result.preview : null;
   const loading = result === null;
-  const sharePath = `/r/${encodeURIComponent(routeId || "unknown")}`;
-  const canonicalUrl = buildExploreShareUrl(sharePath);
-  const appHref = `explore://r/${encodeURIComponent(routeId)}`;
+  const routeUuid = preview?.id ?? resolveRouteUuid(ref);
+  const shortPath = preview
+    ? buildShortRoutePath({ id: preview.id, name: preview.name })
+    : ref
+      ? `/r/${encodeURIComponent(ref)}`
+      : "/r";
+  const canonicalUrl = buildExploreShareUrl(shortPath);
+  const appHref = routeUuid ? `explore://r/${encodeURIComponent(routeUuid)}` : "explore://";
 
   usePageMeta({
     title: preview ? `${preview.name} — Explore` : t("routeShare.meta.title"),
     description: preview?.description?.trim() || t("routeShare.meta.description"),
-    path: sharePath,
+    path: shortPath,
     imagePath: preview?.coverUrl || "/ExplorePromo1.png",
   });
 
   return (
     <main className="deeplink-page route-share-page">
-      <section className="deeplink-shell route-share-shell" aria-labelledby="route-share-title">
-        <div className="deeplink-copy">
+      <section className="route-share-layout" aria-labelledby="route-share-title">
+        <div className="route-share-panel">
           <Link to="/" className="deeplink-brand" aria-label="Explore home">
             <BrandLogo size={42} />
           </Link>
@@ -171,7 +139,7 @@ export function RouteSharePage() {
           ) : null}
 
           {!loading && result?.status === "ok" ? (
-            <p>
+            <p className="route-share-lead">
               <T k="routeShare.lead.preview" />
             </p>
           ) : null}
@@ -194,6 +162,13 @@ export function RouteSharePage() {
             </p>
           ) : null}
 
+          {preview?.description ? <p className="route-share-desc">{preview.description}</p> : null}
+
+          <div className="route-share-link-row">
+            <code className="route-share-link-url">{canonicalUrl.replace(/^https:\/\//, "")}</code>
+            <CopyLinkButton url={canonicalUrl} />
+          </div>
+
           <div className="route-share-choice" role="group" aria-label={t("routeShare.choice.label")}>
             {preview ? (
               <a className="deeplink-open-btn deeplink-open-btn--ghost" href="#route-preview">
@@ -212,34 +187,33 @@ export function RouteSharePage() {
             <StoreBadges />
           </div>
 
-          {preview ? <RoutePreviewBody preview={preview} /> : null}
-
-          {!preview && !loading ? (
-            <dl className="deeplink-meta" aria-label="Shared link details">
-              <div>
-                <dt>
-                  <T k="routeShare.meta.routeId" />
-                </dt>
-                <dd>{routeId || "—"}</dd>
-              </div>
-              <div>
-                <dt>
-                  <T k="routeShare.meta.link" />
-                </dt>
-                <dd>{canonicalUrl}</dd>
-              </div>
-            </dl>
+          {preview ? (
+            <div className="route-share-itinerary">
+              <h2>
+                <T k="routeShare.itinerary.title" />
+              </h2>
+              <RouteStopsList preview={preview} />
+              <p className="route-share-web-note">
+                <T k="routeShare.web.note" />
+              </p>
+            </div>
           ) : null}
         </div>
 
-        {!preview ? (
-          <div className="deeplink-visual" aria-hidden="true">
-            <img src="/ExplorePromo1.png" alt="" />
-            <span>
-              <T k="routeShare.badge" />
-            </span>
-          </div>
-        ) : null}
+        <div className="route-share-map-col">
+          {preview ? (
+            <Suspense fallback={<div className="route-share-map route-share-map--empty" aria-busy="true" />}>
+              <RouteShareMap preview={preview} />
+            </Suspense>
+          ) : (
+            <div className="deeplink-visual route-share-fallback-visual" aria-hidden="true">
+              <img src="/ExplorePromo1.png" alt="" />
+              <span>
+                <T k="routeShare.badge" />
+              </span>
+            </div>
+          )}
+        </div>
       </section>
     </main>
   );

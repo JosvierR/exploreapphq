@@ -57,6 +57,7 @@ export const router = createBrowserRouter([
       { path: "/v/:videoId", element: <DeepLinkFallbackPage kind="video" paramName="videoId" /> },
       { path: "/p/:placeId", element: <DeepLinkFallbackPage kind="place" paramName="placeId" /> },
       { path: "/r/:routeId", element: <RouteSharePage /> },
+      { path: "/go/:routeId", element: <RouteSharePage /> },
       { path: "/u/:handleOrUserId", element: <DeepLinkFallbackPage kind="profile" paramName="handleOrUserId" /> },
       { path: "/me", element: <DeepLinkFallbackPage kind="me" /> },
       { path: "/video/:videoId", element: <DeepLinkFallbackPage kind="video" paramName="videoId" /> },

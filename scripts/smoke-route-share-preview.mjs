@@ -85,6 +85,12 @@ if (!data) {
 }
 
 const stops = Array.isArray(data.route_places) ? data.route_places.length : 0;
+const slug = String(data.name || "")
+  .normalize("NFD")
+  .replace(/\p{M}/gu, "")
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, "-")
+  .replace(/^-+|-+$/g, "");
 console.log("OK: public route preview readable");
 console.log(
   JSON.stringify(
@@ -92,7 +98,8 @@ console.log(
       id: data.id,
       name: data.name,
       stops,
-      share: `https://www.exploreapphq.com/r/${data.id}`,
+      share: `https://www.exploreapphq.com/r/${slug || data.id}`,
+      legacy: `https://www.exploreapphq.com/r/${data.id}`,
     },
     null,
     2,

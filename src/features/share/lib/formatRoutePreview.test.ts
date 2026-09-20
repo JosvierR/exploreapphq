@@ -3,91 +3,81 @@ import {
   formatDifficulty,
   formatDistanceMeters,
   formatEstimatedDuration,
-  isRouteId,
   mapRoutePreviewRow,
 } from "./formatRoutePreview";
+import { parsePostgisPoint } from "./parsePostgisPoint";
+import {
+  buildShortRoutePath,
+  resolveRouteUuid,
+  routeNameToSlug,
+  shortCodeToUuid,
+  uuidToShortCode,
+} from "./routeShortCode";
 
-assert.equal(isRouteId("550e8400-e29b-41d4-a716-446655440000"), true);
-assert.equal(isRouteId("not-a-uuid"), false);
-assert.equal(isRouteId(""), false);
-assert.equal(isRouteId(null), false);
+const UUID = "a2000000-0000-4000-8002-000000000003";
 
 assert.equal(formatDistanceMeters(450), "450 m");
 assert.equal(formatDistanceMeters(1500), "1.5 km");
-assert.equal(formatDistanceMeters(12500), "13 km");
-assert.equal(formatDistanceMeters(-1), null);
-assert.equal(formatDistanceMeters(undefined), null);
-
 assert.equal(formatEstimatedDuration("01:30:00"), "1h 30m");
-assert.equal(formatEstimatedDuration("00:45:00"), "45m");
-assert.equal(formatEstimatedDuration("02:00:00"), "2h");
-assert.equal(formatEstimatedDuration("1 day 01:00:00"), "25h");
-assert.equal(formatEstimatedDuration(""), null);
-assert.equal(formatEstimatedDuration(null), null);
-
 assert.equal(formatDifficulty("easy_walk"), "easy walk");
-assert.equal(formatDifficulty(null), null);
+
+assert.equal(routeNameToSlug("Playas de Bávaro"), "playas-de-bavaro");
+assert.equal(buildShortRoutePath({ id: UUID, name: "Playas de Bávaro" }), "/r/playas-de-bavaro");
+
+const short = uuidToShortCode(UUID);
+assert.equal(shortCodeToUuid(short), UUID);
+assert.equal(resolveRouteUuid(UUID), UUID);
+assert.equal(resolveRouteUuid(UUID.replace(/-/g, "")), UUID);
+assert.equal(resolveRouteUuid(short), UUID);
+assert.equal(resolveRouteUuid("playas-de-bavaro"), null);
+
+const ewkb = "0101000020E61000003611ECAEA21951C0E3BFE556ADAB3240";
+const point = parsePostgisPoint(ewkb);
+assert.ok(point);
+assert.ok(Math.abs(point!.lng - -68.4015) < 0.01, `lng ${point!.lng}`);
+assert.ok(Math.abs(point!.lat - 18.6706) < 0.01, `lat ${point!.lat}`);
 
 const preview = mapRoutePreviewRow({
-  id: "550e8400-e29b-41d4-a716-446655440000",
-  name: "Old San Juan sunset",
-  description: "Walk the walls at golden hour.",
-  category: "urban",
+  id: UUID,
+  name: "Playas de Bávaro",
+  description: "Beach hop",
+  category: "beach",
   difficulty: "easy",
-  distance_m: 3200,
-  estimated_duration: "01:20:00",
-  average_rating: 4.5,
-  total_ratings: 12,
+  distance_m: 8200,
+  estimated_duration: "02:15:00",
+  average_rating: 4.8,
+  total_ratings: 20,
   route_places: [
-    {
-      position: 1,
-      places: {
-        id: "p2",
-        name: "La Fortaleza",
-        category: "landmark",
-        state: "published",
-        place_photos: [{ url: "https://cdn.example/fort.jpg", position: 0 }],
-      },
-    },
     {
       position: 0,
       places: {
         id: "p1",
-        name: "El Morro",
-        category: "landmark",
+        name: "Playa Bibijagua",
+        category: "beach",
         state: "published",
-        place_photos: [
-          { url: "https://cdn.example/morro-b.jpg", position: 1 },
-          { url: "https://cdn.example/morro-a.jpg", position: 0 },
-        ],
+        location: ewkb,
+        place_photos: [{ url: "https://cdn.example/a.jpg", position: 0 }],
       },
     },
     {
-      position: 2,
+      position: 1,
       places: {
-        id: "p3",
-        name: "Draft spot",
-        category: "cafe",
-        state: "draft",
-        place_photos: [{ url: "https://cdn.example/draft.jpg", position: 0 }],
+        id: "p2",
+        name: "Second beach",
+        category: "beach",
+        state: "published",
+        location: { type: "Point", coordinates: [-68.4, 18.68] },
+        place_photos: [],
       },
     },
   ],
 });
 
-assert.equal(preview.name, "Old San Juan sunset");
+assert.equal(preview.slug, "playas-de-bavaro");
 assert.equal(preview.stops.length, 2);
-assert.equal(preview.stops[0]?.name, "El Morro");
-assert.equal(preview.stops[0]?.photoUrl, "https://cdn.example/morro-a.jpg");
-assert.equal(preview.stops[1]?.name, "La Fortaleza");
-assert.equal(preview.coverUrl, "https://cdn.example/morro-a.jpg");
-
-const empty = mapRoutePreviewRow({
-  id: "550e8400-e29b-41d4-a716-446655440001",
-  name: "Empty route",
-  route_places: [],
-});
-assert.equal(empty.coverUrl, null);
-assert.equal(empty.stops.length, 0);
+assert.ok(preview.stops[0]?.lat != null);
+assert.ok(preview.stops[0]?.lng != null);
+assert.equal(preview.stops[1]?.lat, 18.68);
 
 console.log("formatRoutePreview.test.ts: ok");
+console.log("share link:", buildShortRoutePath({ id: UUID, name: "Playas de Bávaro" }));

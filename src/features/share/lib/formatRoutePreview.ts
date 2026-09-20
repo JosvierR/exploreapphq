@@ -1,11 +1,6 @@
-import type { PublicRoutePreview, PublicRouteStop } from "@/features/share/types";
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-export function isRouteId(value: string | undefined | null): value is string {
-  return Boolean(value && UUID_RE.test(value.trim()));
-}
+import type { PublicRoutePreview, PublicRouteStop } from "../types";
+import { parsePostgisPoint } from "./parsePostgisPoint";
+import { routeNameToSlug, uuidToShortCode } from "./routeShortCode";
 
 export function formatDistanceMeters(distanceM: number | null | undefined): string | null {
   if (distanceM == null || !Number.isFinite(distanceM) || distanceM < 0) return null;
@@ -46,6 +41,7 @@ type PlaceRow = {
   name?: string | null;
   category?: string | null;
   state?: string | null;
+  location?: unknown;
   place_photos?: PlacePhotoRow[] | null;
 };
 type RoutePlaceRow = {
@@ -86,12 +82,15 @@ export function mapRoutePreviewRow(row: RawPublicRouteRow): PublicRoutePreview {
       const place = unwrapPlace(rp.places);
       if (!place?.id || !place.name) return null;
       if (place.state && place.state !== "published") return null;
+      const point = parsePostgisPoint(place.location);
       return {
         position: rp.position ?? 0,
         placeId: place.id,
         name: place.name,
         category: place.category ?? null,
         photoUrl: firstPhotoUrl(place.place_photos),
+        lat: point?.lat ?? null,
+        lng: point?.lng ?? null,
       } satisfies PublicRouteStop;
     })
     .filter((stop): stop is PublicRouteStop => Boolean(stop));
@@ -109,6 +108,8 @@ export function mapRoutePreviewRow(row: RawPublicRouteRow): PublicRoutePreview {
     averageRating: Number(row.average_rating ?? 0),
     totalRatings: Number(row.total_ratings ?? 0),
     coverUrl,
+    shortCode: uuidToShortCode(row.id),
+    slug: routeNameToSlug(row.name),
     stops,
   };
 }
