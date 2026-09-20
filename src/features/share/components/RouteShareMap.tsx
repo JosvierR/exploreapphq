@@ -4,9 +4,13 @@ import L, { type DivIcon, type LatLngExpression } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { PublicRoutePreview } from "@/features/share/types";
 import {
+  budgetLevelSymbol,
+  estimateDurationFromDistanceM,
   formatDifficulty,
   formatDistanceMeters,
+  formatElevationMeters,
   formatEstimatedDuration,
+  formatRating,
   resolveDisplayDistanceM,
 } from "@/features/share/lib/formatRoutePreview";
 import { T } from "@/components/ui/T";
@@ -39,11 +43,10 @@ function MapLifecycle({ positions }: { positions: LatLngExpression[] }) {
       map.setView(positions[0] as [number, number], 14);
       return;
     }
-    // Extra bottom padding so markers clear the stats HUD
     map.fitBounds(positions as [number, number][], {
-      paddingTopLeft: [28, 28],
-      paddingBottomRight: [28, 120],
-      maxZoom: 15,
+      paddingTopLeft: [36, 48],
+      paddingBottomRight: [36, 150],
+      maxZoom: 14,
     });
   }, [map, positions]);
 
@@ -55,8 +58,8 @@ function stopIcon(index: number, total: number): DivIcon {
   return L.divIcon({
     className: `route-share-pin route-share-pin--${kind}`,
     html: `<span>${index + 1}</span>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
   });
 }
 
@@ -86,8 +89,12 @@ export function RouteShareMap({ preview }: RouteShareMapProps) {
 
   const displayDistanceM = resolveDisplayDistanceM(preview.distanceM, preview.stops);
   const distance = formatDistanceMeters(displayDistanceM);
-  const duration = formatEstimatedDuration(preview.estimatedDuration);
+  const duration =
+    formatEstimatedDuration(preview.estimatedDuration) || estimateDurationFromDistanceM(displayDistanceM);
   const difficulty = formatDifficulty(preview.difficulty);
+  const elevation = formatElevationMeters(preview.elevationGain);
+  const rating = formatRating(preview.averageRating, preview.totalRatings);
+  const budget = budgetLevelSymbol(preview.budgetLevel);
   const center: LatLngExpression = positions[0] ?? [18.4861, -69.9312];
 
   if (positions.length === 0) {
@@ -105,6 +112,16 @@ export function RouteShareMap({ preview }: RouteShareMapProps) {
   return (
     <aside className="route-share-map" aria-label="Route map">
       <div className="route-share-map__frame">
+        {preview.coverUrl ? (
+          <div className="route-share-map__cover-glow" aria-hidden="true">
+            <img src={preview.coverUrl} alt="" />
+          </div>
+        ) : null}
+
+        <div className="route-share-map__topchip">
+          <T k="routeShare.map.live" />
+        </div>
+
         <MapContainer
           className="route-share-map__leaflet"
           center={center}
@@ -115,22 +132,24 @@ export function RouteShareMap({ preview }: RouteShareMapProps) {
         >
           <TileLayer
             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-            attribution='&copy; OSM &copy; CARTO'
+            attribution="&copy; OSM &copy; CARTO"
           />
           <MapLifecycle positions={positions} />
           {positions.length > 1 ? (
             <Polyline
               positions={positions}
-              pathOptions={{ color: "#009bff", weight: 5, opacity: 0.9, lineCap: "round", lineJoin: "round" }}
+              pathOptions={{
+                color: "#009bff",
+                weight: 6,
+                opacity: 0.92,
+                lineCap: "round",
+                lineJoin: "round",
+              }}
             />
           ) : null}
           {stopsWithGeo.map((stop, index) => (
-            <Marker
-              key={stop.placeId}
-              position={[stop.lat, stop.lng]}
-              icon={stopIcon(index, stopsWithGeo.length)}
-            >
-              <Tooltip direction="top" offset={[0, -12]} opacity={1}>
+            <Marker key={stop.placeId} position={[stop.lat, stop.lng]} icon={stopIcon(index, stopsWithGeo.length)}>
+              <Tooltip direction="top" offset={[0, -14]} opacity={1}>
                 <strong>
                   {index + 1}. {stop.name}
                 </strong>
@@ -139,12 +158,16 @@ export function RouteShareMap({ preview }: RouteShareMapProps) {
                 <strong>
                   {index + 1}. {stop.name}
                 </strong>
+                {stop.category ? <div className="route-share-stat-cap">{stop.category.replace(/_/g, " ")}</div> : null}
               </Popup>
             </Marker>
           ))}
         </MapContainer>
 
         <div className="route-share-map__hud" aria-label="Route stats">
+          <p className="route-share-map__invite">
+            <T k="routeShare.map.invite" />
+          </p>
           <div className="route-share-map__hud-title">{preview.name}</div>
           <ul>
             {distance ? (
@@ -165,6 +188,12 @@ export function RouteShareMap({ preview }: RouteShareMapProps) {
             ) : null}
             <li>
               <span>
+                <T k="routeShare.stat.budget" />
+              </span>
+              <strong>{budget}</strong>
+            </li>
+            <li>
+              <span>
                 <T k="routeShare.stat.stops" />
               </span>
               <strong>{preview.stops.length}</strong>
@@ -177,7 +206,34 @@ export function RouteShareMap({ preview }: RouteShareMapProps) {
                 <strong className="route-share-stat-cap">{difficulty}</strong>
               </li>
             ) : null}
+            {elevation ? (
+              <li>
+                <span>
+                  <T k="routeShare.stat.elevation" />
+                </span>
+                <strong>{elevation}</strong>
+              </li>
+            ) : null}
+            {rating ? (
+              <li>
+                <span>
+                  <T k="routeShare.stat.rating" />
+                </span>
+                <strong>{rating}</strong>
+              </li>
+            ) : null}
+            {preview.category ? (
+              <li>
+                <span>
+                  <T k="routeShare.stat.category" />
+                </span>
+                <strong className="route-share-stat-cap">{preview.category.replace(/_/g, " ")}</strong>
+              </li>
+            ) : null}
           </ul>
+          <p className="route-share-map__hud-foot">
+            <T k="routeShare.map.foot" />
+          </p>
         </div>
       </div>
     </aside>

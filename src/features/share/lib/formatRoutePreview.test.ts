@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import {
+  budgetLevelSymbol,
+  estimateRouteBudgetLevel,
   formatDifficulty,
   formatDistanceMeters,
   formatEstimatedDuration,
@@ -32,6 +34,10 @@ assert.equal(resolveRouteUuid(UUID.replace(/-/g, "")), UUID);
 assert.equal(resolveRouteUuid(short), UUID);
 assert.equal(resolveRouteUuid("playas-de-bavaro"), null);
 
+assert.equal(estimateRouteBudgetLevel("beach", ["beach", "nature"]), "free");
+assert.equal(estimateRouteBudgetLevel("gastronomy", ["gastronomy", "nightlife"]), "high");
+assert.equal(budgetLevelSymbol("mid"), "$$");
+
 const ewkb = "0101000020E61000003611ECAEA21951C0E3BFE556ADAB3240";
 const point = parsePostgisPoint(ewkb);
 assert.ok(point);
@@ -45,6 +51,7 @@ const preview = mapRoutePreviewRow({
   category: "beach",
   difficulty: "easy",
   distance_m: 8200,
+  elevation_gain: 12,
   estimated_duration: "02:15:00",
   average_rating: 4.8,
   total_ratings: 20,
@@ -75,6 +82,9 @@ const preview = mapRoutePreviewRow({
 });
 
 assert.equal(preview.slug, "playas-de-bavaro");
+assert.equal(preview.budgetLevel, "free");
+assert.equal(preview.elevationGain, 12);
+assert.equal(preview.photoStrip[0], "https://cdn.example/a.jpg");
 assert.equal(preview.stops.length, 2);
 assert.ok(preview.stops[0]?.lat != null);
 assert.ok(preview.stops[0]?.lng != null);

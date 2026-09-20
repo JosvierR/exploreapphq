@@ -119,10 +119,11 @@ export const messages = {
     "routeShare.meta.description":
       "Preview this Explore route on the web, or open it in the app for the full experience.",
     "routeShare.badge": "Route",
+    "routeShare.kicker": "Saved by explorers like you",
     "routeShare.title.fallback": "Open this route in Explore",
     "routeShare.loading": "Loading route preview…",
     "routeShare.lead.preview":
-      "Preview the stops below on the web, or open Explore for maps, navigation and the full route.",
+      "Peek the map and stops, then open Explore to save it and go live.",
     "routeShare.lead.missing":
       "This route isn’t available for public web preview. Download Explore — if you have access, you can open it in the app.",
     "routeShare.lead.unconfigured":
@@ -130,18 +131,25 @@ export const messages = {
     "routeShare.lead.error":
       "We couldn’t load the web preview right now. You can still open the route in Explore or download the app.",
     "routeShare.choice.label": "How do you want to see this route?",
-    "routeShare.cta.web": "View on web",
+    "routeShare.cta.web": "See stops",
     "routeShare.cta.app": "Open in Explore",
+    "routeShare.cta.doIt": "I want to do this route",
     "routeShare.cta.download": "Don’t have the app? Download it",
     "routeShare.link.copy": "Copy link",
     "routeShare.link.copied": "Copied!",
     "routeShare.itinerary.title": "Stops on this route",
     "routeShare.map.empty": "Map points aren’t available for this route yet.",
+    "routeShare.map.live": "Live map",
+    "routeShare.map.invite": "Looks walkable — you’ll love it",
+    "routeShare.map.foot": "Open Explore to navigate stop by stop with the full experience.",
     "routeShare.stat.distance": "Distance",
     "routeShare.stat.duration": "Duration",
     "routeShare.stat.difficulty": "Difficulty",
     "routeShare.stat.category": "Category",
     "routeShare.stat.stops": "Stops",
+    "routeShare.stat.budget": "Budget",
+    "routeShare.stat.elevation": "Elevation",
+    "routeShare.stat.rating": "Rating",
     "routeShare.stops.empty": "Stops will show here when this route has published places.",
     "routeShare.web.note":
       "Web preview shows the itinerary. Open the app for maps, offline navigation and the complete experience.",
@@ -487,10 +495,11 @@ export const messages = {
     "routeShare.meta.description":
       "Mira esta ruta de Explore en la web, o ábrela en la app para la experiencia completa.",
     "routeShare.badge": "Ruta",
+    "routeShare.kicker": "Guardada por explorers como tú",
     "routeShare.title.fallback": "Abrir esta ruta en Explore",
     "routeShare.loading": "Cargando preview de la ruta…",
     "routeShare.lead.preview":
-      "Mira las paradas abajo en la web, o abre Explore para mapas, navegación y la ruta completa.",
+      "Mira el mapa y las paradas, luego abre Explore para guardarla y vivirla.",
     "routeShare.lead.missing":
       "Esta ruta no está disponible para preview público en la web. Descarga Explore — si tienes acceso, puedes abrirla en la app.",
     "routeShare.lead.unconfigured":
@@ -498,18 +507,25 @@ export const messages = {
     "routeShare.lead.error":
       "No pudimos cargar el preview web ahora. Aún puedes abrir la ruta en Explore o descargar la app.",
     "routeShare.choice.label": "¿Cómo quieres ver esta ruta?",
-    "routeShare.cta.web": "Ver en la web",
+    "routeShare.cta.web": "Ver paradas",
     "routeShare.cta.app": "Abrir en Explore",
+    "routeShare.cta.doIt": "Quiero hacer esta ruta",
     "routeShare.cta.download": "¿No tienes la app? Descárgala",
     "routeShare.link.copy": "Copiar link",
     "routeShare.link.copied": "¡Copiado!",
     "routeShare.itinerary.title": "Paradas de esta ruta",
     "routeShare.map.empty": "Aún no hay puntos de mapa para esta ruta.",
+    "routeShare.map.live": "Mapa en vivo",
+    "routeShare.map.invite": "Se ve perfecta — la vas a amar",
+    "routeShare.map.foot": "Abre Explore para navegar parada a parada con la experiencia completa.",
     "routeShare.stat.distance": "Distancia",
     "routeShare.stat.duration": "Duración",
     "routeShare.stat.difficulty": "Dificultad",
     "routeShare.stat.category": "Categoría",
     "routeShare.stat.stops": "Paradas",
+    "routeShare.stat.budget": "Budget",
+    "routeShare.stat.elevation": "Elevación",
+    "routeShare.stat.rating": "Rating",
     "routeShare.stops.empty": "Las paradas aparecerán aquí cuando la ruta tenga lugares publicados.",
     "routeShare.web.note":
       "El preview web muestra el itinerario. Abre la app para mapas, navegación y la experiencia completa.",

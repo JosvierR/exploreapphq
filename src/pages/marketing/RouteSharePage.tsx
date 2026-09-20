@@ -1,8 +1,18 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { T } from "@/components/ui/T";
 import { fetchPublicRoutePreview } from "@/features/share/api/fetchPublicRoutePreview";
+import {
+  budgetLevelSymbol,
+  estimateDurationFromDistanceM,
+  formatDifficulty,
+  formatDistanceMeters,
+  formatElevationMeters,
+  formatEstimatedDuration,
+  formatRating,
+  resolveDisplayDistanceM,
+} from "@/features/share/lib/formatRoutePreview";
 import { buildShortRoutePath, resolveRouteUuid } from "@/features/share/lib/routeShortCode";
 import type { PublicRoutePreview, PublicRoutePreviewResult } from "@/features/share/types";
 import { useI18n } from "@/features/i18n/I18nProvider";
@@ -47,6 +57,62 @@ function CopyLinkButton({ url }: { url: string }) {
     >
       {copied ? <T k="routeShare.link.copied" /> : <T k="routeShare.link.copy" />}
     </button>
+  );
+}
+
+function HighlightChips({ preview }: { preview: PublicRoutePreview }) {
+  const distanceM = resolveDisplayDistanceM(preview.distanceM, preview.stops);
+  const chips = [
+    { labelKey: "routeShare.stat.distance" as const, value: formatDistanceMeters(distanceM) },
+    {
+      labelKey: "routeShare.stat.duration" as const,
+      value:
+        formatEstimatedDuration(preview.estimatedDuration) || estimateDurationFromDistanceM(distanceM),
+    },
+    { labelKey: "routeShare.stat.budget" as const, value: budgetLevelSymbol(preview.budgetLevel) },
+    { labelKey: "routeShare.stat.difficulty" as const, value: formatDifficulty(preview.difficulty) },
+    { labelKey: "routeShare.stat.stops" as const, value: String(preview.stops.length) },
+    { labelKey: "routeShare.stat.elevation" as const, value: formatElevationMeters(preview.elevationGain) },
+    {
+      labelKey: "routeShare.stat.rating" as const,
+      value: formatRating(preview.averageRating, preview.totalRatings),
+    },
+    {
+      labelKey: "routeShare.stat.category" as const,
+      value: preview.category ? preview.category.replace(/_/g, " ") : null,
+    },
+  ].filter((chip) => Boolean(chip.value));
+
+  return (
+    <ul className="route-share-highlights" aria-label="Route highlights">
+      {chips.map((chip) => (
+        <li key={chip.labelKey}>
+          <span>
+            <T k={chip.labelKey} />
+          </span>
+          <strong className={chip.labelKey === "routeShare.stat.category" || chip.labelKey === "routeShare.stat.difficulty" ? "route-share-stat-cap" : undefined}>
+            {chip.value}
+          </strong>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function PhotoStrip({ preview }: { preview: PublicRoutePreview }) {
+  const photos = useMemo(() => {
+    if (preview.photoStrip.length > 0) return preview.photoStrip;
+    return preview.coverUrl ? [preview.coverUrl] : [];
+  }, [preview.coverUrl, preview.photoStrip]);
+
+  if (photos.length === 0) return null;
+
+  return (
+    <div className="route-share-photos" aria-label="Route photos">
+      {photos.map((url, index) => (
+        <img key={`${url}-${index}`} src={url} alt="" loading="lazy" />
+      ))}
+    </div>
   );
 }
 
@@ -126,9 +192,16 @@ export function RouteSharePage() {
             <BrandLogo size={42} />
           </Link>
 
-          <span className="deeplink-badge">
-            <T k="routeShare.badge" />
-          </span>
+          <div className="route-share-kicker">
+            <span className="deeplink-badge">
+              <T k="routeShare.badge" />
+            </span>
+            {preview ? (
+              <span className="route-share-kicker-note">
+                <T k="routeShare.kicker" />
+              </span>
+            ) : null}
+          </div>
 
           <h1 id="route-share-title">{preview ? preview.name : <T k="routeShare.title.fallback" />}</h1>
 
@@ -164,20 +237,23 @@ export function RouteSharePage() {
 
           {preview?.description ? <p className="route-share-desc">{preview.description}</p> : null}
 
+          {preview ? <HighlightChips preview={preview} /> : null}
+          {preview ? <PhotoStrip preview={preview} /> : null}
+
           <div className="route-share-link-row">
             <code className="route-share-link-url">{canonicalUrl.replace(/^https:\/\//, "")}</code>
             <CopyLinkButton url={canonicalUrl} />
           </div>
 
           <div className="route-share-choice" role="group" aria-label={t("routeShare.choice.label")}>
+            <a className="deeplink-open-btn" href={appHref}>
+              <T k="routeShare.cta.doIt" />
+            </a>
             {preview ? (
               <a className="deeplink-open-btn deeplink-open-btn--ghost" href="#route-preview">
                 <T k="routeShare.cta.web" />
               </a>
             ) : null}
-            <a className="deeplink-open-btn" href={appHref}>
-              <T k="routeShare.cta.app" />
-            </a>
           </div>
 
           <div className="deeplink-actions route-share-stores">

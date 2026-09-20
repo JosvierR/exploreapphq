@@ -8,6 +8,8 @@ export type PublicRouteStop = {
   lng: number | null;
 };
 
+export type RouteBudgetLevel = "free" | "low" | "mid" | "high";
+
 export type PublicRoutePreview = {
   id: string;
   name: string;
@@ -15,12 +17,15 @@ export type PublicRoutePreview = {
   category: string | null;
   difficulty: string | null;
   distanceM: number;
+  elevationGain: number;
   estimatedDuration: string | null;
   averageRating: number;
   totalRatings: number;
   coverUrl: string | null;
   shortCode: string;
   slug: string;
+  budgetLevel: RouteBudgetLevel;
+  photoStrip: string[];
   stops: PublicRouteStop[];
 };
 

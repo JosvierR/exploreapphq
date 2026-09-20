@@ -1,4 +1,4 @@
-import type { PublicRoutePreview, PublicRouteStop } from "../types";
+import type { PublicRoutePreview, PublicRouteStop, RouteBudgetLevel } from "../types";
 import { parsePostgisPoint } from "./parsePostgisPoint";
 import { routeNameToSlug, uuidToShortCode } from "./routeShortCode";
 
@@ -30,9 +30,81 @@ export function formatEstimatedDuration(raw: string | null | undefined): string 
   return trimmed;
 }
 
+/** Rough walking time when DB duration is missing (~4.5 km/h). */
+export function estimateDurationFromDistanceM(distanceM: number | null | undefined): string | null {
+  if (distanceM == null || !Number.isFinite(distanceM) || distanceM <= 0) return null;
+  const minutes = Math.max(15, Math.round((distanceM / 4500) * 60));
+  if (minutes < 60) return `~${minutes}m`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m ? `~${h}h ${m}m` : `~${h}h`;
+}
+
 export function formatDifficulty(value: string | null | undefined): string | null {
   if (!value) return null;
   return value.replace(/_/g, " ");
+}
+
+export function formatElevationMeters(meters: number | null | undefined): string | null {
+  if (meters == null || !Number.isFinite(meters) || meters <= 0) return null;
+  return `${Math.round(meters)} m`;
+}
+
+export function formatRating(average: number, total: number): string | null {
+  if (!Number.isFinite(average) || average <= 0) return null;
+  const score = Math.round(average * 10) / 10;
+  if (total > 0) return `${score} · ${total}`;
+  return `${score}`;
+}
+
+const BUDGET_WEIGHT: Record<string, number> = {
+  hiking: 0,
+  nature: 0,
+  beach: 0,
+  camping: 0,
+  cycling: 0,
+  urban: 1,
+  culture: 1,
+  history: 1,
+  family: 1,
+  events: 1,
+  other: 1,
+  wellness: 2,
+  adventure: 2,
+  nightlife: 3,
+  gastronomy: 3,
+  shopping: 3,
+};
+
+/** Heuristic spend vibe from route + stop categories (no budget column in DB yet). */
+export function estimateRouteBudgetLevel(
+  routeCategory: string | null | undefined,
+  stopCategories: Array<string | null | undefined>,
+): RouteBudgetLevel {
+  const scores: number[] = [];
+  if (routeCategory) scores.push(BUDGET_WEIGHT[routeCategory] ?? 1);
+  for (const cat of stopCategories) {
+    if (cat) scores.push(BUDGET_WEIGHT[cat] ?? 1);
+  }
+  if (scores.length === 0) return "low";
+  const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+  if (avg < 0.6) return "free";
+  if (avg < 1.4) return "low";
+  if (avg < 2.3) return "mid";
+  return "high";
+}
+
+export function budgetLevelSymbol(level: RouteBudgetLevel): string {
+  switch (level) {
+    case "free":
+      return "Free";
+    case "low":
+      return "$";
+    case "mid":
+      return "$$";
+    case "high":
+      return "$$$";
+  }
 }
 
 /** Great-circle distance in meters between two WGS84 points. */
@@ -82,6 +154,7 @@ export type RawPublicRouteRow = {
   category?: string | null;
   difficulty?: string | null;
   distance_m?: number | null;
+  elevation_gain?: number | null;
   estimated_duration?: string | null;
   average_rating?: number | null;
   total_ratings?: number | null;
@@ -121,7 +194,8 @@ export function mapRoutePreviewRow(row: RawPublicRouteRow): PublicRoutePreview {
     })
     .filter((stop): stop is PublicRouteStop => Boolean(stop));
 
-  const coverUrl = stops.find((s) => s.photoUrl)?.photoUrl ?? null;
+  const photoStrip = stops.map((s) => s.photoUrl).filter((url): url is string => Boolean(url)).slice(0, 6);
+  const coverUrl = photoStrip[0] ?? null;
 
   return {
     id: row.id,
@@ -130,12 +204,18 @@ export function mapRoutePreviewRow(row: RawPublicRouteRow): PublicRoutePreview {
     category: row.category ?? null,
     difficulty: row.difficulty ?? null,
     distanceM: Number(row.distance_m ?? 0),
+    elevationGain: Number(row.elevation_gain ?? 0),
     estimatedDuration: row.estimated_duration ?? null,
     averageRating: Number(row.average_rating ?? 0),
     totalRatings: Number(row.total_ratings ?? 0),
     coverUrl,
     shortCode: uuidToShortCode(row.id),
     slug: routeNameToSlug(row.name),
+    budgetLevel: estimateRouteBudgetLevel(
+      row.category,
+      stops.map((s) => s.category),
+    ),
+    photoStrip,
     stops,
   };
 }

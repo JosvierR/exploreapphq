@@ -13,6 +13,7 @@ const ROUTE_PREVIEW_SELECT = `
   category,
   difficulty,
   distance_m,
+  elevation_gain,
   estimated_duration,
   average_rating,
   total_ratings,
