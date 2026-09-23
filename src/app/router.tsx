@@ -14,6 +14,7 @@ import { ThanksPage } from "@/pages/marketing/ThanksPage";
 import { FeedbackPage } from "@/pages/marketing/FeedbackPage";
 import { NotFoundPage } from "@/pages/marketing/NotFoundPage";
 import { DeepLinkFallbackPage } from "@/pages/marketing/DeepLinkFallbackPage";
+import { DownloadRedirectPage } from "@/pages/marketing/DownloadRedirectPage";
 import { RouteSharePage } from "@/pages/marketing/RouteSharePage";
 import { AdminDashboardPage } from "@/pages/admin/AdminDashboardPage";
 import { AdminAnalyticsPage } from "@/pages/admin/AdminAnalyticsPage";
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
   {
     element: <AppRoot />,
     children: [
+      { path: "/download", element: <DownloadRedirectPage /> },
       { path: "/access", element: <AccessPage /> },
       { path: "/feedback/*", element: <FeedbackPage /> },
       { path: "/team", element: <Navigate to="/admin" replace /> },
