@@ -15,7 +15,10 @@ export default defineConfig({
     toHaveScreenshot: {
       animations: "disabled",
       caret: "hide",
-      maxDiffPixelRatio: 0.01,
+      // Local Windows Chromium vs GitHub windows-latest can differ slightly in
+      // font AA / subpixel rasterization (~1–2%). Keep visual coverage without
+      // false negatives on access-denied and other text-heavy states.
+      maxDiffPixelRatio: 0.03,
     },
   },
   use: {
