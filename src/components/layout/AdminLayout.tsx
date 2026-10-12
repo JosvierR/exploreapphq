@@ -3,7 +3,6 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useModerationAdmin } from "@/features/admin/ModerationAdminProvider";
 import { fetchApiHealth, type AdminHealth } from "@/lib/moderationAdminApi";
-import { getHardcodedAdminSession } from "@/lib/hardcodedAdmin";
 import "@/styles/admin-waitlist.css";
 import "@/styles/admin-moderation.css";
 import "@/styles/admin-apple.css";
@@ -11,6 +10,7 @@ import "@/styles/admin-apple.css";
 type NavItem = {
   label: string;
   to?: string;
+  icon?: string;
   disabled?: boolean;
   note?: string;
   exactQuery?: boolean;
@@ -155,94 +155,79 @@ function SidebarToggleIcon() {
   );
 }
 
-function BellIcon() {
-  return (
-    <Icon>
-      <path d="M6 9a6 6 0 1112 0c0 4 1.2 5.4 1.8 6.1a.9.9 0 01-.7 1.4H4.9a.9.9 0 01-.7-1.4C4.8 14.4 6 13 6 9z" />
-      <path d="M10 19a2 2 0 004 0" />
-    </Icon>
-  );
-}
+const overviewItems: NavItem[] = [{ label: "Dashboard", to: "/admin" }];
 
-const moderationItems: NavItem[] = [
-  { label: "Moderation", to: "/admin?section=moderation" },
-  { label: "Reports", to: "/admin/reports?status=all", exactQuery: true },
-  { label: "Pending", to: "/admin/reports?status=pending" },
-  { label: "Reviewed", to: "/admin/reports?status=reviewed" },
-  { label: "Hidden", to: "/admin/reports?status=all&visibility=hidden_removed" },
+const analyticsItems: NavItem[] = [
+  { label: "Product Analytics", to: "/admin/analytics/data", exactQuery: true, icon: "Data" },
+  { label: "Growth & Engagement", to: "/admin/analytics/data?tab=growth", icon: "Insights" },
+  { label: "Tourism Intelligence", to: "/admin/analytics/business", exactQuery: true, icon: "Places" },
+  { label: "Markets & Demand", to: "/admin/analytics/business?tab=demand", icon: "Routes" },
 ];
-
-const overviewItems: NavItem[] = [{ label: "Dashboard", to: "/admin?section=overview", exactQuery: true }];
 
 const operationsItems: NavItem[] = [
   { label: "Users", to: "/admin?section=users", exactQuery: true },
   { label: "Content", to: "/admin?section=content", exactQuery: true },
-  { label: "Places", to: "/admin?section=content&content=places" },
-  { label: "Routes", to: "/admin?section=content&content=routes" },
+  { label: "Places & Routes", to: "/admin?section=content&content=places", icon: "Places" },
+  { label: "Moderation", to: "/admin?section=moderation" },
+  { label: "Reports", to: "/admin/reports?status=all", exactQuery: true },
   { label: "Waitlist", to: "/admin/waitlist" },
   { label: "Explore Lab", to: "/admin/lab" },
 ];
 
-const insightsItems: NavItem[] = [
-  { label: "Insights", to: "/admin?section=insights", exactQuery: true },
-  { label: "Analytics Ops", to: "/admin/analytics" },
-  { label: "Data", to: "/admin/analytics/data" },
-  { label: "Business", to: "/admin/analytics/business" },
-];
-
 const systemItems: NavItem[] = [
-  { label: "System", to: "/admin?section=system", exactQuery: true },
-  { label: "API Docs", to: "/admin/api-docs" },
-  { label: "Admins", to: "/admin?section=admins", exactQuery: true },
+  { label: "Analytics Operations", to: "/admin/analytics", icon: "Analytics Ops" },
+  { label: "System Health", to: "/admin?section=system", exactQuery: true, icon: "System" },
+  { label: "API Documentation", to: "/admin/api-docs", icon: "API Docs" },
+  { label: "Admin Management", to: "/admin?section=admins", exactQuery: true, icon: "Admins" },
 ];
 
 function routeMeta(pathname: string, search: string) {
   if (pathname === "/admin") {
     const section = new URLSearchParams(search).get("section") || "overview";
-    if (section === "users") return { title: "Users", description: "" };
-    if (section === "content") return { title: "Content", description: "" };
-    if (section === "moderation") return { title: "Moderation", description: "" };
-    if (section === "insights" || section === "analytics") return { title: "Insights", description: "" };
-    if (section === "system") return { title: "System", description: "" };
-    if (section === "admins") return { title: "Admins", description: "" };
-    return { title: "Dashboard", description: "" };
+    if (section === "users") return { group: "Operations", title: "Users", description: "Accounts, activity, and access state" };
+    if (section === "content") return { group: "Operations", title: "Content", description: "Videos, places, and routes" };
+    if (section === "moderation") return { group: "Operations", title: "Moderation", description: "Review queues and safety actions" };
+    if (section === "insights" || section === "analytics") return { group: "Analytics", title: "Growth & Engagement", description: "Product signals and decision context" };
+    if (section === "system") return { group: "System", title: "System Health", description: "Services, observability, and data readiness" };
+    if (section === "admins") return { group: "System", title: "Admin Management", description: "Authorized operators and roles" };
+    return { group: "Overview", title: "Executive Dashboard", description: "Explore at a glance" };
   }
 
   if (pathname === "/admin/analytics/data") {
-    return { title: "Data", description: "" };
+    return { group: "Analytics", title: "Product Analytics", description: "Growth, engagement, content, and data quality" };
   }
 
   if (pathname === "/admin/analytics/business") {
-    return { title: "Business", description: "" };
+    return { group: "Analytics", title: "Tourism Intelligence", description: "Markets, demand, places, and opportunities" };
   }
 
   if (pathname === "/admin/analytics") {
-    return { title: "Analytics Ops", description: "" };
+    return { group: "System", title: "Analytics Operations", description: "Ingestion, events, and aggregation health" };
   }
 
   if (pathname.startsWith("/admin/reports")) {
     const params = new URLSearchParams(search);
     const status = params.get("status");
     const visibility = params.get("visibility");
-    if (status === "pending") return { title: "Pending", description: "" };
-    if (status === "reviewed") return { title: "Reviewed", description: "" };
-    if (visibility === "hidden_removed") return { title: "Hidden", description: "" };
-    return { title: "Reports", description: "" };
+    if (status === "pending") return { group: "Operations", title: "Pending Reports", description: "Items awaiting moderator review" };
+    if (status === "reviewed") return { group: "Operations", title: "Reviewed Reports", description: "Completed moderation decisions" };
+    if (visibility === "hidden_removed") return { group: "Operations", title: "Hidden Content", description: "Content affected by safety actions" };
+    return { group: "Operations", title: "Reports", description: "Moderation reports and decisions" };
   }
 
   if (pathname.startsWith("/admin/waitlist")) {
-    return { title: "Waitlist", description: "" };
+    return { group: "Operations", title: "Waitlist", description: "Launch audience and communications" };
   }
 
   if (pathname.startsWith("/admin/lab")) {
-    return { title: "Explore Lab", description: "" };
+    return { group: "Operations", title: "Explore Lab", description: "Ideas and product experiments" };
   }
 
   if (pathname.startsWith("/admin/api-docs")) {
-    return { title: "API Docs", description: "" };
+    return { group: "System", title: "API Documentation", description: "Protected contracts and integration reference" };
   }
 
-  return { title: "Admin", description: "" };
+  return { group: "Explore", title: "Admin", description: "Command center" };
 }
 
 function initials(email: string) {
@@ -319,7 +304,7 @@ function NavGroup({ title, items, onNavigate }: { title: string; items: NavItem[
           >
             <span className="admin-console__link-dot" aria-hidden="true" />
             <span className="admin-console__link-icon">
-              {NAV_ICONS[item.label] ?? (
+              {NAV_ICONS[item.icon ?? item.label] ?? (
                 <Icon>
                   <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
                 </Icon>
@@ -336,7 +321,7 @@ function NavGroup({ title, items, onNavigate }: { title: string; items: NavItem[
           >
             <span className="admin-console__link-dot" aria-hidden="true" />
             <span className="admin-console__link-icon">
-              {NAV_ICONS[item.label] ?? (
+              {NAV_ICONS[item.icon ?? item.label] ?? (
                 <Icon>
                   <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
                 </Icon>
@@ -372,9 +357,8 @@ export function AdminLayout() {
   const [health, setHealth] = useState<AdminHealth | null>(null);
   const [healthLoading, setHealthLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const hardcodedEmail = getHardcodedAdminSession();
-  const displayEmail = moderationAdmin.user?.email ?? hardcodedEmail ?? "Not signed in";
-  const hasSession = Boolean(moderationAdmin.user || hardcodedEmail);
+  const displayEmail = moderationAdmin.user?.email ?? "Not signed in";
+  const hasSession = Boolean(moderationAdmin.user);
   const meta = useMemo(() => routeMeta(location.pathname, location.search), [location.pathname, location.search]);
   const displayRole = moderationAdmin.admin?.role ? roleLabel(moderationAdmin.admin.role) : hasSession ? "Admin" : "Guest";
   const envLabel = environmentLabel();
@@ -446,9 +430,8 @@ export function AdminLayout() {
 
         <nav className="admin-console__nav" aria-label="Admin sections">
           <NavGroup title="Overview" items={overviewItems} onNavigate={() => setNavOpen(false)} />
+          <NavGroup title="Analytics" items={analyticsItems} onNavigate={() => setNavOpen(false)} />
           <NavGroup title="Operations" items={operationsItems} onNavigate={() => setNavOpen(false)} />
-          <NavGroup title="Moderation" items={moderationItems} onNavigate={() => setNavOpen(false)} />
-          <NavGroup title="Insights" items={insightsItems} onNavigate={() => setNavOpen(false)} />
           <NavGroup title="System" items={systemItems} onNavigate={() => setNavOpen(false)} />
         </nav>
 
@@ -491,7 +474,9 @@ export function AdminLayout() {
           </button>
 
           <div className="admin-console__page-title">
+            <span>{meta.group} / {meta.title}</span>
             <h1>{meta.title}</h1>
+            <p>{meta.description}</p>
           </div>
 
           <div className="admin-console__topbar-actions">
@@ -525,11 +510,6 @@ export function AdminLayout() {
               </button>
             </div>
 
-            <button type="button" className="admin-console__notification" aria-label="Notifications">
-              <BellIcon />
-              <span className="admin-console__notification-dot" aria-hidden="true" />
-            </button>
-
             <div className="admin-console__identity">
               <span className="admin-console__avatar" aria-hidden="true">
                 {initials(displayEmail)}
@@ -548,7 +528,7 @@ export function AdminLayout() {
         </header>
 
         <main className="admin-console__main">
-          <div className="admin-console__route" key={`${location.pathname}${location.search}`}>
+          <div className="admin-console__route">
             <Outlet />
           </div>
         </main>

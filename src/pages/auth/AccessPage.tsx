@@ -2,9 +2,25 @@ import { FormEvent, useState } from "react";
 import { Link } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { joinWaitlist } from "@/lib/waitlistSignup";
-import { mapFirebaseAuthError } from "@/features/auth/firebaseAuth";
 import { isValidPhone, normalizePhone } from "@/lib/phone";
 import "@/styles/access.css";
+
+function mapAuthError(code: string): string {
+  switch (code) {
+    case "auth/invalid-email":
+      return "Invalid email address.";
+    case "auth/user-disabled":
+      return "This account has been disabled.";
+    case "auth/user-not-found":
+    case "auth/wrong-password":
+    case "auth/invalid-credential":
+      return "Incorrect email or password.";
+    case "auth/too-many-requests":
+      return "Too many attempts. Please wait a moment and try again.";
+    default:
+      return "Authentication failed. Please try again.";
+  }
+}
 
 export function AccessPage() {
   const [phone, setPhone] = useState("");
@@ -87,7 +103,7 @@ export function AccessPage() {
       const code =
         err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
       if (code.startsWith("auth/")) {
-        setError(mapFirebaseAuthError(code));
+        setError(mapAuthError(code));
       } else if (err instanceof Error) {
         setError(err.message);
       } else {

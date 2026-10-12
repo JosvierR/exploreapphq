@@ -1,4 +1,3 @@
-import { getHardcodedAdminSession, hardcodedAdminToken } from "@/lib/hardcodedAdmin";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase";
 import { getSupabaseBrowserClient, isSupabaseBrowserConfigured } from "@/lib/supabaseClient";
 import {
@@ -42,10 +41,6 @@ const WAITLIST_PATH = "/api/admin/waitlist";
 const BROADCAST_PATH = "/api/admin/broadcast";
 
 async function getAdminToken(): Promise<string> {
-  if (getHardcodedAdminSession()) {
-    return hardcodedAdminToken();
-  }
-
   if (isSupabaseBrowserConfigured()) {
     const { data, error } = await getSupabaseBrowserClient().auth.getSession();
     if (!error && data.session?.access_token) {

@@ -1,7 +1,6 @@
 import cors from "cors";
 import express from "express";
 import type { Request as ExpressRequest, Response as ExpressResponse } from "express";
-import jwt from "jsonwebtoken";
 // Plain ESM handlers are shared with Vercel serverless functions.
 import {
   dispatchAdminAnalyticsApi,
@@ -437,21 +436,9 @@ app.post("/api/waitlist/signup", async (req, res) => {
 app.post("/api/access", async (req, res) => {
   try {
     const email = normalizeEmail(req.body?.email);
-    const password = typeof req.body?.password === "string" ? req.body.password : undefined;
 
     if (!email) {
       return res.status(400).json({ error: "Invalid email address." });
-    }
-
-    if (email === config.adminEmail) {
-      if (!password) {
-        return res.json({ access: "password_required" as const });
-      }
-      if (password !== config.adminPassword) {
-        return res.status(401).json({ error: "Incorrect password." });
-      }
-      const token = jwt.sign({ role: "admin", email }, config.jwtSecret, { expiresIn: "7d" });
-      return res.json({ access: "full" as const, token });
     }
 
     const { created } = addToWaitlist(email);
@@ -477,7 +464,7 @@ app.post("/api/access", async (req, res) => {
   }
 });
 
-/** Admin: view who signed up (Firebase ID token from /team or legacy JWT) */
+/** Admin: view who signed up (Supabase admin session or configured Firebase admin). */
 app.get("/api/admin/waitlist", requireAdmin, async (req, res) => {
   if (isFirebaseAdminConfigured()) {
     try {
@@ -556,18 +543,9 @@ app.post("/api/admin/waitlist/notify-launch", requireAdmin, async (req, res) => 
   }
 });
 
-app.get("/api/me", (req, res) => {
-  const header = req.headers.authorization;
-  const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
-  if (!token) return res.status(401).json({ error: "Unauthorized" });
-
-  try {
-    const payload = jwt.verify(token, config.jwtSecret) as { role?: string; email?: string };
-    if (payload.role !== "admin") return res.status(401).json({ error: "Unauthorized" });
-    return res.json({ role: "admin", email: payload.email });
-  } catch {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
+app.get("/api/me", requireAdmin, (req, res) => {
+  const admin = (req as typeof req & { admin?: { role: string; email: string } }).admin;
+  return res.json({ role: admin?.role ?? "admin", email: admin?.email ?? null });
 });
 
 app.listen(config.port, () => {
@@ -581,7 +559,6 @@ app.listen(config.port, () => {
     grafana_logs_enabled: obs.grafana_logs_enabled,
   });
   console.log(`API http://localhost:${config.port}`);
-  console.log(`Admin: ${config.adminEmail}`);
   console.log(`SMTP ${config.smtp.host}:${config.smtp.port} (Mailpit)`);
   console.log(
     `Observability: metrics=${metricsConfigured ? "on" : "off"} loki=${obs.loki_ready ? "ready" : "off"} → Grafana http://localhost:3002`,

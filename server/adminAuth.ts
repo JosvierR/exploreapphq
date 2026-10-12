@@ -1,27 +1,56 @@
 import type { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
-import { config } from "./config.js";
+import { createClient } from "@supabase/supabase-js";
 import { getAuthAdmin, isFirebaseAdminConfigured } from "./firebaseAdmin.js";
 
-export type AdminPayload = { role: "admin"; email: string };
+export type AdminPayload = { role: "admin" | "moderator"; email: string };
+
+type SupabaseAdminResult =
+  | { status: "authorized"; admin: AdminPayload }
+  | { status: "forbidden" }
+  | { status: "unavailable" | "invalid" };
 
 function adminEmails(): string[] {
-  const raw = process.env.VITE_ADMIN_EMAILS || process.env.ADMIN_EMAIL || "";
+  const raw =
+    process.env.EXPLORE_ADMIN_ALLOWED_EMAILS ||
+    process.env.ADMIN_ALLOWED_EMAILS ||
+    process.env.VITE_ADMIN_EMAILS ||
+    "";
   return raw
     .split(",")
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
 }
 
-function hardcodedAdminToken() {
-  const email = "admin@example.com";
-  const password = process.env.ADMIN_PASSWORD || "Admin";
-  return `hc_${Buffer.from(`${email}:${password}`).toString("base64")}`;
+function supabaseConfig() {
+  const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").trim();
+  const secret = (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+  return { url, secret };
 }
 
-function verifyHardcodedToken(token: string): string | null {
-  if (token !== hardcodedAdminToken()) return null;
-  return "admin@example.com";
+async function verifySupabaseAdmin(token: string): Promise<SupabaseAdminResult> {
+  const { url, secret } = supabaseConfig();
+  if (!url || !secret) return { status: "unavailable" };
+
+  const client = createClient(url, secret, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { data, error } = await client.auth.getUser(token);
+  if (error || !data.user) return { status: "invalid" };
+
+  const email = data.user.email?.trim().toLowerCase() || "";
+  const { data: adminRow } = await client
+    .from("admin_users")
+    .select("role")
+    .eq("user_id", data.user.id)
+    .maybeSingle();
+
+  if (adminRow && (adminRow.role === "admin" || adminRow.role === "moderator")) {
+    return { status: "authorized", admin: { role: adminRow.role, email } };
+  }
+  if (email && adminEmails().includes(email)) {
+    return { status: "authorized", admin: { role: "admin", email } };
+  }
+  return { status: "forbidden" };
 }
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
@@ -33,11 +62,19 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
       return;
     }
 
-    const hardcodedEmail = verifyHardcodedToken(token);
-    if (hardcodedEmail) {
-      (req as Request & { admin: AdminPayload }).admin = { role: "admin", email: hardcodedEmail };
-      next();
-      return;
+    try {
+      const supabaseResult = await verifySupabaseAdmin(token);
+      if (supabaseResult.status === "authorized") {
+        (req as Request & { admin: AdminPayload }).admin = supabaseResult.admin;
+        next();
+        return;
+      }
+      if (supabaseResult.status === "forbidden") {
+        res.status(403).json({ error: "This account does not have admin access." });
+        return;
+      }
+    } catch {
+      // A secondary configured identity provider can still validate the token.
     }
 
     if (isFirebaseAdminConfigured()) {
@@ -50,20 +87,10 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
           return;
         }
       } catch {
-        /* try legacy JWT below */
+        /* Return the common invalid-session response below. */
       }
     }
 
-    try {
-      const payload = jwt.verify(token, config.jwtSecret) as AdminPayload;
-      if (payload.role !== "admin") {
-        res.status(401).json({ error: "Unauthorized" });
-        return;
-      }
-      (req as Request & { admin: AdminPayload }).admin = payload;
-      next();
-    } catch {
-      res.status(401).json({ error: "Invalid or expired token." });
-    }
+    res.status(401).json({ error: "Invalid or expired token." });
   })();
 }

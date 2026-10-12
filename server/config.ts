@@ -1,8 +1,5 @@
 export const config = {
   port: Number(process.env.PORT) || 3001,
-  adminEmail: (process.env.ADMIN_EMAIL ?? "admin@example.com").toLowerCase(),
-  adminPassword: process.env.ADMIN_PASSWORD ?? "Admin",
-  jwtSecret: process.env.JWT_SECRET ?? "explore-dev-secret-change-in-production",
   dbPath: process.env.DB_PATH ?? "./data/explore.db",
   smtp: {
     host: process.env.SMTP_HOST ?? "127.0.0.1",
