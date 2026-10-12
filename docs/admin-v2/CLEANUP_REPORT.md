@@ -14,21 +14,21 @@ Production builds were measured with the same `npm run build` command.
 
 | Artifact | Baseline raw / gzip | Final raw / gzip | Change |
 |---|---:|---:|---:|
-| Main JavaScript | 2,156.98 / 593.41 kB | 992.42 / 294.75 kB | -54.0% raw / -50.3% gzip |
-| Main CSS | 292.97 / 55.53 kB | 150.57 / 33.00 kB | -48.6% raw / -40.6% gzip |
-| API Docs JavaScript | 2,946.82 / 903.21 kB | 2,947.28 / 903.22 kB | Effectively unchanged; still isolated |
-| API Docs CSS | 253.76 / 39.89 kB | 253.76 / 39.89 kB | Unchanged; still isolated |
+| Main JavaScript | 2,156.52 / 593.22 kB | 994.72 / 295.56 kB | -53.9% raw / -50.2% gzip |
+| Main CSS | 370.60 / 68.72 kB | 150.57 / 33.00 kB | -59.4% raw / -52.0% gzip |
+| Initial HTML + entry assets | 2,529.34 / 662.82 kB | 1,147.51 / 329.44 kB | -54.6% raw / -50.3% gzip |
+| API Docs JavaScript | 2,943.95 / 902.27 kB | 3,356.22 / 1,027.15 kB | +14.0% raw / +13.8% gzip; still isolated |
 
 Admin code now loads on demand. Representative final chunks:
 
-- Admin shell: 13.10 kB / 4.10 kB gzip.
+- Admin shell: 13.26 kB / 4.16 kB gzip.
 - Executive/operations dashboard: 56.87 kB / 15.58 kB gzip.
-- Product Analytics: 33.62 kB / 9.76 kB gzip.
-- Tourism Intelligence: 50.41 kB / 11.80 kB gzip.
+- Product Analytics: 33.80 kB / 9.82 kB gzip.
+- Tourism Intelligence: 50.40 kB / 11.79 kB gzip.
 - Analytics Operations: 21.78 kB / 5.34 kB gzip.
 - Tourism map: 4.48 kB / 2.20 kB gzip, lazy-loaded independently.
 
-The remaining size warnings are the public application vendor entry and the intentionally isolated Scalar API reference. They are follow-up optimization candidates, not regressions introduced by Admin 2.0.
+The initial payload is substantially smaller. The intentionally isolated Scalar API reference is now 3.36 MB raw and is a documented regression/follow-up candidate rather than part of the initial route.
 
 ## Files removed
 
@@ -45,7 +45,8 @@ The remaining size warnings are the public application vendor entry and the inte
 - Removed direct `jsonwebtoken` and `@types/jsonwebtoken` dependencies.
 - Kept Firebase because active waitlist/server compatibility code still uses it.
 - Kept Recharts and Leaflet; the redesign reuses their existing wrappers and lazy map.
-- Added no runtime dependency.
+- Updated Firebase/Firebase Admin, nodemailer, Redocly, and targeted transitive dependencies to remove known advisories; Firebase Admin server code now uses the modular v14 API.
+- Added Playwright and axe only as development dependencies for reproducible browser and accessibility QA; no browser runtime dependency was added.
 
 Transitive JWT packages required by retained dependencies are not treated as unused direct packages.
 

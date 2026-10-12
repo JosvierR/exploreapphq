@@ -21,7 +21,7 @@ Implementation branch: `feat/admin-dashboard-v2`
 | `REMOVE AFTER VERIFICATION` | Legacy Firebase admin React context | `AuthProvider`, `ProtectedRoute`, and `firebaseAdminSignIn` had no consumers in the router. They were removed after repository-wide reference checks. Firebase waitlist integrations remain. |
 | `REMOVE AFTER VERIFICATION` | Legacy JWT package | `jsonwebtoken` and its direct type package were used only by the deprecated Express email/password admin flow. Direct dependencies were removed after the flow was deleted. |
 | `REMOVE AFTER VERIFICATION` | Hardcoded admin bypass | `admin@example.com` / `Admin` and `hc_*` tokens were reachable in browser, Express, and Netlify waitlist paths. All bypass code was removed and a rejection regression test was added. |
-| `BLOCKED` | Browser screenshot matrix | No browser-control capability is available in this environment. Build, type, API, OpenAPI, secret, migration, and source-level security evidence are recorded; visual screenshots remain a release gate. |
+| `VERIFIED` | Browser screenshot matrix | Playwright Chromium produced and revalidated 40 principal screenshots plus 7 state screenshots with sanitized fixtures. Preview/live-data validation remains a separate blocked gate. |
 
 ## Route map and ownership
 
@@ -155,18 +155,20 @@ No new runtime dependency was introduced.
 | Check | Baseline result |
 |---|---|
 | `npm run lint` | PASS, 47.6 s (TypeScript build with `--noEmit`) |
-| `npm test` | Environment-blocked before first test: repository requests Node 20, machine has Node 24.19.0; `tsx` failed in `uv_os_get_passwd` with `ENOMEM`. |
-| `npm run build` | PASS outside restricted sandbox, 112.8 s |
-| `npm run build:api` | PASS, 15.7 s |
-| `npm run openapi:lint` | PASS, 17.4 s |
-| `npm run verify:browser-secrets` | PASS; 93 artifacts scanned, no secret match |
+| `npm test` | PASS unchanged outside the managed Windows sandbox on Node 24.19.0 and Node 22.23.3; 64 formal subtests plus 10 direct entrypoints. The earlier `uv_os_get_passwd` failure is a sandbox restriction, not a `tsx` incompatibility. |
+| `npm run build` | PASS outside restricted sandbox; final wall time 67 s, Vite build 43.38 s. |
+| `npm run build:api` | PASS. |
+| `npm run openapi:lint` | PASS; all three surfaces valid. |
+| `npm run verify:browser-secrets` | PASS; 120 artifacts scanned, no secret match. |
 | `npm run verify:shared-migration-history` | PASS; baseline 76, 11 forward migrations, 0 duplicate timestamps, 0 hash mismatches |
+| `npm run test:e2e` | PASS; 13/13, including the 40-case principal visual matrix and 7 state baselines. |
+| `npm audit --audit-level=low` | PASS; 0 vulnerabilities. |
 
 Baseline production bundle:
 
-- Main JS: 2,156.98 kB / 593.41 kB gzip.
-- API docs JS: 2,946.82 kB / 903.21 kB gzip.
-- Main CSS: 292.97 kB / 55.53 kB gzip.
+- Main JS: 2,156.52 kB / 593.22 kB gzip.
+- API docs JS: 2,943.95 kB / 902.27 kB gzip.
+- Main CSS: 370.60 kB / 68.72 kB gzip.
 - API docs CSS: 253.76 kB / 39.89 kB gzip.
 
 The main bundle warning directly supported route-level admin code splitting. Final measurements are in `CLEANUP_REPORT.md`.
