@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Make `/admin/analytics/business` easy to read, useful with incomplete data, exportable, and presentation-ready.
+Make `/admin/analytics/data` easy to read, useful with incomplete data, exportable, and presentation-ready.
 
 Operations remain at `/admin/analytics`.
 
@@ -78,7 +78,7 @@ Empty states explain what to do next instead of showing only "No data".
 
 ## QA checklist
 
-1. Open `/admin/analytics/business`
+1. Open `/admin/analytics/data`
 2. Confirm section titles and subtitles
 3. Change range/platform/source/content filters
 4. Confirm executive cards show trends when previous data exists
