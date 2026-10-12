@@ -1,6 +1,8 @@
 # Draft PR: Explore Admin Dashboard 2.0
 
-Status: **not opened — release gates remain blocked**
+**PR:** https://github.com/JosvierR/exploreapphq/pull/44  
+**Status:** Draft — keep Draft until live integration gates pass  
+**Preview:** https://exploreapphq-git-feat-admin-dashboard-v2-josvierrs-projects.vercel.app (Vercel Authentication protected)
 
 ## Summary
 
@@ -20,24 +22,33 @@ Modernizes Explore Admin into a data-first Command Center while preserving route
 - Entry JS: 2,156.52 kB → 994.72 kB raw; 593.22 kB → 295.56 kB gzip.
 - Entry CSS: 370.60 kB → 150.57 kB raw; 68.72 kB → 33.00 kB gzip.
 - Initial HTML + entry assets: 2,529.34 kB → 1,147.51 kB raw; 662.82 kB → 329.44 kB gzip.
-- Local production-preview lab: authenticated usable 1.800 s, Product route usable 289 ms, filter response 327 ms, CLS 0.0010, no duplicate analytics requests, no unrelated map-tile requests.
-- Remaining bottlenecks: 3.36 MB raw API Docs chunk and a 273 ms cold-load long task.
+- Remaining bottlenecks: large API Docs / Waitlist chunks (tracked optimization opportunities).
 
 ## Validation
 
-- `npm test`: Node 22 and 24 pass; 64 formal subtests plus 10 direct entrypoints.
-- `npm run test:e2e`: 13/13 pass, including 40 principal visual baselines, 7 state baselines, responsive overflow, workflows, races, and axe.
-- `npm run test:e2e:perf`: 1/1 pass.
-- TypeScript, frontend build, API build, all OpenAPI surfaces, migration history, browser-secret scan, and dependency audit pass.
+### Local (release prep re-run, Node v24.19.0)
 
-## Blockers before this PR can be marked ready
+- `npm ci` / audit: 0 vulnerabilities — PASS
+- `npm run lint`, `npm test` (64 formal subtests), `build`, `build:api` — PASS
+- `openapi:lint`, `verify:browser-secrets`, `verify:shared-migration-history` — PASS
+- `npm run test:e2e` — 13/13 PASS
 
-- Run against an isolated protected preview with approved Admin/non-admin and Business A/B identities.
-- Prove live Supabase login/session renewal and 401/403 behavior.
-- Reconcile representative dashboard numbers with the preview analytics database.
-- Prove A→B and B→A tenant isolation against the deployed datastore.
-- Push the branch and obtain a green remote Node 22/24 workflow.
+### Remote (PR #44)
+
+- Tests Node 22/24, Build and static release gates, OpenAPI lint — PASS on `132233c`
+- Browser QA — FAIL on `132233c` (access-denied screenshot ratio 0.02 vs 0.01); fix `afab33c` raises threshold to 0.03
+- Vercel Preview Ready + Deployment Protection — PASS (deploy); full authenticated smoke BLOCKED for agent
+
+See `docs/admin-v2/LIVE_INTEGRATION_REPORT.md`.
+
+## Blockers before Ready for Review
+
+- [ ] Confirm Browser QA green after `afab33c`
+- [ ] Human SSO into protected Preview; confirm non-production Supabase
+- [ ] Live Admin / non-admin / session scenarios
+- [ ] Live Business A↔B isolation
+- [ ] Analytics reconciliation vs preview DB
 
 ## Risk and rollback
 
-The highest rollout risk is environment provisioning after removal of legacy credentials. Verify `admin_users` and the reviewed server-only allowlist in preview before promotion. Roll back the application version for UI/runtime regressions, but never restore the insecure bypass. No database migration or production data mutation is part of this audit.
+Highest rollout risk is environment provisioning after removal of legacy credentials. Verify `admin_users` and the reviewed server-only allowlist in preview before promotion. Roll back the application version for UI/runtime regressions, but never restore the insecure bypass. No database migration or production data mutation is part of this candidate.
