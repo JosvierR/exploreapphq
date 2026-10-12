@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { AdminAuthGate } from "@/features/admin/components/AdminAuthGate";
 import { AdminDataTable, AdminPageShell, EmptyState, ErrorState } from "@/features/admin/components/AdminPrimitives";
 import { AreaTrendChart } from "@/features/admin/components/charts/AreaTrendChart";
@@ -236,15 +236,31 @@ function DecisionBrief({ items, confidence }: { items: DecisionItem[]; confidenc
 }
 
 function AdminBusinessInsightsContent() {
-  const [range, setRange] = useState<BusinessRangePreset>("7d");
-  const [platform, setPlatform] = useState<(typeof PLATFORMS)[number]>("all");
-  const [source, setSource] = useState<(typeof SOURCES)[number]>("all");
-  const [entityType, setEntityType] = useState<(typeof CONTENT_TYPES)[number]>("all");
+  const [urlParams, setUrlParams] = useSearchParams();
+  const range = readEnumParam(urlParams, "range", ["24h", "7d", "30d", "90d"] as const, "7d");
+  const platform = readEnumParam(urlParams, "platform", PLATFORMS, "all");
+  const source = readEnumParam(urlParams, "source", SOURCES, "all");
+  const entityType = readEnumParam(urlParams, "content", CONTENT_TYPES, "all");
+  const activeTab = readEnumParam(urlParams, "tab", DATA_TABS.map((tab) => tab.value), "overview");
+  const updateFilter = useCallback(
+    (key: string, value: string, fallback: string) => {
+      setUrlParams((current) => {
+        const next = new URLSearchParams(current);
+        setOptionalParam(next, key, value, fallback);
+        return next;
+      }, { replace: true });
+    },
+    [setUrlParams],
+  );
+  const setRange = (value: BusinessRangePreset) => updateFilter("range", value, "7d");
+  const setPlatform = (value: (typeof PLATFORMS)[number]) => updateFilter("platform", value, "all");
+  const setSource = (value: (typeof SOURCES)[number]) => updateFilter("source", value, "all");
+  const setEntityType = (value: (typeof CONTENT_TYPES)[number]) => updateFilter("content", value, "all");
+  const setActiveTab = (value: DataTab) => updateFilter("tab", value, "overview");
   const [contentTab, setContentTab] = useState<ContentTab>("videos");
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<DataTab>("overview");
 
   const [overview, setOverview] = useState<SectionState<OverviewData>>(initialSectionState);
   const [growth, setGrowth] = useState<SectionState<GrowthData>>(initialSectionState);
@@ -1118,4 +1134,14 @@ export function AdminBusinessInsightsPage() {
       <AdminBusinessInsightsContent />
     </AdminAuthGate>
   );
+}
+
+function readEnumParam<T extends string>(params: URLSearchParams, key: string, values: readonly T[], fallback: T): T {
+  const value = params.get(key);
+  return value && values.includes(value as T) ? (value as T) : fallback;
+}
+
+function setOptionalParam(params: URLSearchParams, key: string, value: string, fallback: string) {
+  if (value === fallback) params.delete(key);
+  else params.set(key, value);
 }

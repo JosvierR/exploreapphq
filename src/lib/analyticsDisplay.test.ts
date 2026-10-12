@@ -4,6 +4,8 @@ import {
   EVENT_LABELS,
   eventLabel,
   formatAnalyticsJson,
+  formatNumber,
+  formatPercent,
   formatPropertyValue,
   humanizeKey,
   metricLabel,
@@ -26,6 +28,9 @@ assert.equal(humanizeKey("creator_id"), "Creator ID");
 assert.equal(humanizeKey("click_through_rate").includes("_"), false);
 assert.equal(formatPropertyValue("duration_ms", 1234), "1.2 s");
 assert.equal(formatPropertyValue("screen_time", 12.4), "12.4 s");
+assert.equal(formatNumber(null), "—");
+assert.equal(formatNumber(Number.NaN), "—");
+assert.equal(formatPercent(undefined), "—");
 
 const fields = formatAnalyticsJson({
   screen_name: "Home",
