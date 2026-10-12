@@ -1,23 +1,30 @@
-import admin from "firebase-admin";
+import { cert, getApps, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 
-let initialized = false;
+let app = null;
 
-export function getFirestoreAdmin() {
-  if (!initialized) {
+function getFirebaseAdminApp() {
+  if (!app) {
+    app = getApps()[0] ?? null;
+  }
+  if (!app) {
     const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
     if (!raw) {
       throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is not configured.");
     }
     const serviceAccount = JSON.parse(raw);
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+    app = initializeApp({
+      credential: cert(serviceAccount),
     });
-    initialized = true;
   }
-  return admin.firestore();
+  return app;
+}
+
+export function getFirestoreAdmin() {
+  return getFirestore(getFirebaseAdminApp());
 }
 
 export function getAuthAdmin() {
-  getFirestoreAdmin();
-  return admin.auth();
+  return getAuth(getFirebaseAdminApp());
 }

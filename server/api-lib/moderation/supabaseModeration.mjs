@@ -185,7 +185,6 @@ function allowedAdminEmails() {
   const raw =
     process.env.EXPLORE_ADMIN_ALLOWED_EMAILS ||
     process.env.ADMIN_ALLOWED_EMAILS ||
-    process.env.VITE_ADMIN_EMAILS ||
     "";
 
   return raw

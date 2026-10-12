@@ -29,15 +29,15 @@ test("authenticated Supabase user without an admin role is forbidden", async () 
     SUPABASE_URL: process.env.SUPABASE_URL,
     SUPABASE_SECRET_KEY: process.env.SUPABASE_SECRET_KEY,
     EXPLORE_ADMIN_ALLOWED_EMAILS: process.env.EXPLORE_ADMIN_ALLOWED_EMAILS,
+    ADMIN_ALLOWED_EMAILS: process.env.ADMIN_ALLOWED_EMAILS,
     VITE_ADMIN_EMAILS: process.env.VITE_ADMIN_EMAILS,
-    ADMIN_EMAILS: process.env.ADMIN_EMAILS,
   };
 
   process.env.SUPABASE_URL = "https://admin-auth-test.supabase.co";
   process.env.SUPABASE_SECRET_KEY = "test-service-key";
   delete process.env.EXPLORE_ADMIN_ALLOWED_EMAILS;
-  delete process.env.VITE_ADMIN_EMAILS;
-  delete process.env.ADMIN_EMAILS;
+  delete process.env.ADMIN_ALLOWED_EMAILS;
+  process.env.VITE_ADMIN_EMAILS = "viewer@example.test";
 
   globalThis.fetch = async (input) => {
     const url = String(input instanceof Request ? input.url : input);
@@ -78,10 +78,14 @@ test("active admin auth sources contain no hardcoded bypass", async () => {
   const files = [
     new URL("../../../src/lib/adminApi.ts", import.meta.url),
     new URL("../../../server/adminAuth.ts", import.meta.url),
+    new URL("../../../server/api-lib/moderation/supabaseModeration.mjs", import.meta.url),
+    new URL("../../../server/api-lib/moderation/adminRosterApi.mjs", import.meta.url),
     new URL("./verifyAdmin.mjs", import.meta.url),
   ];
   const sources = await Promise.all(files.map((path) => readFile(path, "utf8")));
   const source = sources.join("\n");
 
   assert.doesNotMatch(source, /admin@example\.com|hardcodedAdmin|hc_\$\{/i);
+  assert.doesNotMatch(source, /process\.env\.VITE_ADMIN_EMAILS/);
+  assert.doesNotMatch(source, /ADMIN_PASSWORD/);
 });

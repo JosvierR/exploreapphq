@@ -61,17 +61,17 @@ export function redoclyArguments(postgrestPath, format = "codeframe") {
 export async function lintOpenApiSurfaces(options = {}) {
   const temp = mkdtempSync(join(tmpdir(), "explore-openapi-lint-"));
   const postgrestPath = join(temp, "openapi.postgrest.generated.json");
-  const redoclyBin = resolve(root, "node_modules", ".bin", process.platform === "win32" ? "redocly.cmd" : "redocly");
+  const redoclyCli = resolve(root, "node_modules", "@redocly", "cli", "bin", "cli.js");
   const format = options.format || (process.env.GITHUB_ACTIONS === "true" ? "github-actions" : "codeframe");
   const run = options.run || spawnSync;
 
   try {
     writeFileSync(postgrestPath, `${JSON.stringify(await buildPostgrestLintSpec(), null, 2)}\n`, "utf8");
     console.info("OpenAPI surfaces: Admin HTTP, Edge Functions, generated PostgREST");
-    const result = run(redoclyBin, redoclyArguments(postgrestPath, format), {
+    const result = run(process.execPath, [redoclyCli, ...redoclyArguments(postgrestPath, format)], {
       cwd: root,
       stdio: "inherit",
-      shell: process.platform === "win32",
+      shell: false,
     });
     if (result.error) throw result.error;
     return typeof result.status === "number" ? result.status : 1;
