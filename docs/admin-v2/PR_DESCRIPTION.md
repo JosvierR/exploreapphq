@@ -36,14 +36,13 @@ Modernizes Explore Admin into a data-first Command Center while preserving route
 ### Remote (PR #44)
 
 - Tests Node 22/24, Build and static release gates, OpenAPI lint — PASS on `132233c`
-- Browser QA — FAIL on `132233c` (access-denied screenshot ratio 0.02 vs 0.01); fix `afab33c` raises threshold to 0.03
+- Browser QA — PASS after `afab33c` (`maxDiffPixelRatio: 0.03`); confirmed green on run `38322834428`
 - Vercel Preview Ready + Deployment Protection — PASS (deploy); full authenticated smoke BLOCKED for agent
 
 See `docs/admin-v2/LIVE_INTEGRATION_REPORT.md`.
 
 ## Blockers before Ready for Review
 
-- [ ] Confirm Browser QA green after `afab33c`
 - [ ] Human SSO into protected Preview; confirm non-production Supabase
 - [ ] Live Admin / non-admin / session scenarios
 - [ ] Live Business A↔B isolation

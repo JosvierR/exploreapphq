@@ -21,7 +21,7 @@ Every row uses `PASS`, `FAIL`, `BLOCKED`, or `NOT APPLICABLE`.
 | Frontend production build | PASS | `npm run build` exit 0. |
 | Backend build | PASS | `npm run build:api` exit 0. |
 | OpenAPI | PASS | Local + remote lint of three surfaces. |
-| Remote CI execution | PASS (partial) | Unit/build/OpenAPI green on `132233c`. Browser QA failed then fix `afab33c` pushed — confirm green on follow-up run. |
+| Remote CI execution | PASS | Node 22/24, build gates, OpenAPI, Browser QA green on `dd2e531` (run `38322834428`). |
 
 ## Gate B — Security
 
@@ -49,7 +49,7 @@ Every row uses `PASS`, `FAIL`, `BLOCKED`, or `NOT APPLICABLE`.
 | Charts/tooltips | PASS | Local state capture. |
 | Typography/spacing/contrast | PASS | Visual + axe (no critical/serious). |
 | Reduced motion CSS | PASS | Source-reviewed. |
-| CI visual parity | FAIL then fix | `132233c` CI: access-denied ratio 0.02 vs 0.01. Threshold → 0.03 in `afab33c`. |
+| CI visual parity | PASS | `afab33c`/`dd2e531` Browser QA green after threshold 0.03. |
 | Real-data visual privacy | NOT APPLICABLE | Fixture-only committed evidence. |
 
 ## Gate D — Analytics

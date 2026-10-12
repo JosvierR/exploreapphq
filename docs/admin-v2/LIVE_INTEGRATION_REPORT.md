@@ -3,9 +3,10 @@
 Date: 2026-10-12  
 Branch: `feat/admin-dashboard-v2`  
 Initial release SHA: `132233ce50c47e249a9e262b01de726ab729232f`  
-Follow-up SHA (CI screenshot tolerance): see `git log -1` on branch after `fix(e2e): tolerate Windows CI font raster variance`  
+CI screenshot fix: `afab33cea997065fd5e9af5a41c44c1977aaa553`  
+Docs / report SHA (current HEAD at publish of this revision): `dd2e531d4657f5aea484a1870ff36940b32ae1c3`  
 Draft PR: https://github.com/JosvierR/exploreapphq/pull/44  
-Overall integration status: **BLOCKED** (live auth / tenant / analytics gates incomplete)
+Overall integration status: **BLOCKED** (remote CI green; live auth / tenant / analytics gates incomplete)
 
 Every status uses `PASS`, `FAIL`, `BLOCKED`, or `NOT APPLICABLE`.
 
@@ -26,7 +27,7 @@ Workflow: [Release quality](https://github.com/JosvierR/exploreapphq/actions/run
 | Tests (Node 22) | PASS | https://github.com/JosvierR/exploreapphq/actions/runs/38322395179/job/115053267361 |
 | Tests (Node 24) | PASS | https://github.com/JosvierR/exploreapphq/actions/runs/38322395179/job/115053267281 |
 | Build and static release gates | PASS | lint, build, build:api, openapi, migration history, browser-secrets |
-| Browser QA (Chromium) | FAIL → fix pushed | First run failed solely on `states/access-denied` screenshot ratio `0.02` vs threshold `0.01` (heading assertion passed). Threshold raised to `0.03`; re-run pending on follow-up commit. |
+| Browser QA (Chromium) | PASS | First run on `132233c` failed solely on `states/access-denied` ratio `0.02` vs `0.01`. Fix `afab33c` (`maxDiffPixelRatio: 0.03`) green on run https://github.com/JosvierR/exploreapphq/actions/runs/38322834428/job/115054840921 |
 | OpenAPI lint workflow | PASS | separate workflow run `38322395168` |
 | Vercel deployment status | PASS | Deployment Ready for preview commit |
 | Netlify deploy preview | PASS | https://deploy-preview-44--sunny-dolphin-b73804.netlify.app (secondary host; primary product host is Vercel) |
@@ -82,11 +83,10 @@ Fixture-backed E2E and unit auth gates remain PASS locally/CI. Live Preview scen
 
 ## 8. Remaining blockers (must clear before Ready for Review)
 
-1. Green **Browser QA (Chromium)** on the follow-up commit after screenshot threshold fix.
-2. Human/SSO access to **protected Vercel Preview** with confirmed **non-production** Supabase + scoped test users.
-3. Live Admin / non-admin / session scenarios with evidence (no secrets in logs).
-4. Live Business A↔B isolation against Preview APIs.
-5. Representative analytics reconciliation vs preview DB for Executive / Product / Tourism.
+1. Human/SSO access to **protected Vercel Preview** with confirmed **non-production** Supabase + scoped test users.
+2. Live Admin / non-admin / session scenarios with evidence (no secrets in logs).
+3. Live Business A↔B isolation against Preview APIs.
+4. Representative analytics reconciliation vs preview DB for Executive / Product / Tourism.
 
 ## 9. Explicit non-actions
 
