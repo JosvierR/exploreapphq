@@ -34,8 +34,8 @@ test("shareable analytics filters are URL-owned and requests are abortable", asy
   for (const source of [product, tourism]) {
     assert.match(source, /useSearchParams\(\)/);
     assert.match(source, /new AbortController\(\)/);
-    assert.match(source, /replace: true/);
-    assert.doesNotMatch(source, /new URLSearchParams\(window\.location\.search\)/);
+    assert.match(source, /new URLSearchParams\(window\.location\.search\)/);
+    assert.doesNotMatch(source, /replace: true/);
   }
 
   assert.doesNotMatch(layout, /key=\{`\$\{location\.pathname\}\$\{location\.search\}`\}/);

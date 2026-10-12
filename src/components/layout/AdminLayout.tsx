@@ -380,6 +380,15 @@ export function AdminLayout() {
   }, [location.pathname, location.search]);
 
   useEffect(() => {
+    if (!navOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setNavOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [navOpen]);
+
+  useEffect(() => {
     void loadHealth().then(() => setLastUpdated(new Date()));
   }, [loadHealth]);
 

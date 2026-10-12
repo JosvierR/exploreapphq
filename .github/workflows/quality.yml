@@ -1,0 +1,84 @@
+name: Release quality
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  runtime:
+    name: Tests (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run test suite
+        run: npm test
+
+  release-gates:
+    name: Build and static release gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run lint
+      - name: Build web application
+        run: npm run build
+      - name: Build API server
+        run: npm run build:api
+      - name: Lint OpenAPI surfaces
+        run: npm run openapi:lint
+      - name: Verify shared migration history
+        run: npm run verify:shared-migration-history
+      - name: Audit browser bundle for secrets
+        run: npm run verify:browser-secrets
+
+  browser-qa:
+    name: Browser QA (Chromium)
+    # Baselines are generated with the Windows Chromium/font stack used by the
+    # release audit. Keep the runner aligned so text rasterization is stable.
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium
+      - name: Run browser, visual, and accessibility QA
+        run: npm run test:e2e

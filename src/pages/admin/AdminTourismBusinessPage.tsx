@@ -320,11 +320,9 @@ function BusinessIntelligenceContent() {
   const geo = useMemo(() => ({ country, region, city, neighborhood }), [city, country, neighborhood, region]);
   const updateFilter = useCallback(
     (key: string, value: string | null, fallback?: string) => {
-      setUrlParams((current) => {
-        const next = new URLSearchParams(current);
-        setBusinessParam(next, key, value, fallback);
-        return next;
-      }, { replace: true });
+      const next = new URLSearchParams(window.location.search);
+      setBusinessParam(next, key, value, fallback);
+      setUrlParams(next);
     },
     [setUrlParams],
   );
@@ -338,14 +336,12 @@ function BusinessIntelligenceContent() {
   const setSource = (value: string | null) => updateFilter("source", value);
   const setGeo = (update: StateUpdate<GeoState>) => {
     const nextGeo = resolveStateUpdate(update, geo);
-    setUrlParams((current) => {
-      const next = new URLSearchParams(current);
-      setBusinessParam(next, "country", nextGeo.country);
-      setBusinessParam(next, "region", nextGeo.region);
-      setBusinessParam(next, "city", nextGeo.city);
-      setBusinessParam(next, "neighborhood", nextGeo.neighborhood);
-      return next;
-    }, { replace: true });
+    const next = new URLSearchParams(window.location.search);
+    setBusinessParam(next, "country", nextGeo.country);
+    setBusinessParam(next, "region", nextGeo.region);
+    setBusinessParam(next, "city", nextGeo.city);
+    setBusinessParam(next, "neighborhood", nextGeo.neighborhood);
+    setUrlParams(next);
   };
   const [trendMetric, setTrendMetric] = useState<(typeof TREND_METRICS)[number]["value"]>("place_views");
   const [refreshKey, setRefreshKey] = useState(0);

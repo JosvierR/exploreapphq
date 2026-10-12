@@ -244,11 +244,9 @@ function AdminBusinessInsightsContent() {
   const activeTab = readEnumParam(urlParams, "tab", DATA_TABS.map((tab) => tab.value), "overview");
   const updateFilter = useCallback(
     (key: string, value: string, fallback: string) => {
-      setUrlParams((current) => {
-        const next = new URLSearchParams(current);
-        setOptionalParam(next, key, value, fallback);
-        return next;
-      }, { replace: true });
+      const next = new URLSearchParams(window.location.search);
+      setOptionalParam(next, key, value, fallback);
+      setUrlParams(next);
     },
     [setUrlParams],
   );
@@ -355,11 +353,11 @@ function AdminBusinessInsightsContent() {
 
   const platformData = useMemo(
     () =>
-      (growth.data?.breakdowns.platform_split || []).map((item) => ({
+      (growth.data?.breakdowns?.platform_split || []).map((item) => ({
         label: platformLabel(item.value),
         value: item.count,
       })),
-    [growth.data?.breakdowns.platform_split],
+    [growth.data?.breakdowns?.platform_split],
   );
 
   const funnelData = useMemo<FunnelDatum[]>(
@@ -374,12 +372,12 @@ function AdminBusinessInsightsContent() {
     [funnel.data?.funnel],
   );
 
-  const contentRows = (content.data?.sections[contentTab] || []) as Array<Record<string, unknown>>;
+  const contentRows = (content.data?.sections?.[contentTab] || []) as Array<Record<string, unknown>>;
   const creatorRows = (creators.data?.creators || []) as Array<Record<string, unknown>>;
   const marketRows = (locations.data?.countries || []) as Array<Record<string, unknown>>;
   const marketChartData = marketRows.slice(0, 7).map((row) => ({ label: String(row.country || "Unknown"), value: numberValue(row.events) }));
-  const searchTotal = numberValue(search.data?.summary.total_searches);
-  const noResultRate = numberValue(search.data?.summary.no_result_rate);
+  const searchTotal = numberValue(search.data?.summary?.total_searches);
+  const noResultRate = numberValue(search.data?.summary?.no_result_rate);
 
   const allWarnings = useMemo(() => {
     const warnings = [overview, growth, funnel, content, search, creators, locations, investor].flatMap((state) => state.warnings);
@@ -961,9 +959,9 @@ function ContentPerformanceTable({ rows, type }: { rows: Array<Record<string, un
 }
 
 function SearchPanel({ data, total, noResultRate }: { data: SearchData | null; total: number; noResultRate: number }) {
-  const rows = data?.breakdowns.top_query_hashes || [];
-  const searchCtr = data?.summary.search_ctr;
-  const resultClicks = numberValue(data?.summary.result_clicks);
+  const rows = data?.breakdowns?.top_query_hashes || [];
+  const searchCtr = data?.summary?.search_ctr;
+  const resultClicks = numberValue(data?.summary?.result_clicks);
   return (
     <div className="admin-search-panel">
       <div className="admin-search-panel__summary">
