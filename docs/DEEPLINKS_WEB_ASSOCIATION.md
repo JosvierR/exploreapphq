@@ -118,12 +118,15 @@ Legacy aliases render the same fallback style:
 
 These pages do not fake content details. Video, place, and profile fallbacks show the content type, URL ID or handle, an "Open in Explore" button, and App Store / Google Play links.
 
-**Routes (`/r/:ref`, `/go/:ref`, `/route/:ref`)** render `RouteSharePage` on the web first.
-These paths are excluded from iOS Universal Links so Instagram / Safari open the web preview
-directly (no app bounce). Visitors can still open the native app via `explore://` CTAs.
+**Routes (`/r/:ref`, `/go/:ref`, `/route/:ref`)** render `RouteSharePage` on the web as
+fallback when the app is not installed. These paths are included in iOS Universal Links
+so Safari / Notes / Messages open Explore when installed. Instagram’s in-app browser often
+keeps the web page — use the in-page “Open in Explore” CTA (`explore://r/<uuid>`).
 `ref` may be a UUID or a short base32 code / name slug.
 
-The "Open in Explore" button currently uses the custom URL scheme `explore://`. Update `src/pages/marketing/DeepLinkFallbackPage.tsx` if the production native app uses a different scheme.
+The "Open in Explore" button uses the custom scheme `explore://r/<uuid>` (not HTTPS)
+because Universal Links do not re-open the app while the user is already on this host.
+Store badges remain App Store / Google Play fallbacks.
 
 ## Testing iOS Universal Links
 

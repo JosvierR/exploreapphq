@@ -7,16 +7,16 @@
         "paths": [
           "/v/*",
           "/p/*",
+          "/r/*",
+          "/go/*",
           "/u/*",
           "/me",
           "/video/*",
           "/place/*",
+          "/route/*",
           "/profile/*",
           "/users/*",
           "/challenges/*",
-          "NOT /r/*",
-          "NOT /go/*",
-          "NOT /route/*",
           "NOT /admin/*",
           "NOT /api/*",
           "NOT /.well-known/*",
@@ -40,13 +40,11 @@
           },
           {
             "/": "/r/*",
-            "exclude": true,
-            "comment": "Route share stays on web preview first"
+            "comment": "Shared route deep links (open Explore when installed)"
           },
           {
             "/": "/go/*",
-            "exclude": true,
-            "comment": "Short route share stays on web preview first"
+            "comment": "Short route share deep links"
           },
           {
             "/": "/u/*",
@@ -66,8 +64,7 @@
           },
           {
             "/": "/route/*",
-            "exclude": true,
-            "comment": "Legacy route share stays on web preview first"
+            "comment": "Legacy route deep links"
           },
           {
             "/": "/profile/*",

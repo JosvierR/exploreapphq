@@ -15,6 +15,7 @@ import {
   formatRating,
   resolveDisplayDistanceM,
 } from "@/features/share/lib/formatRoutePreview";
+import { resolveLeafletBasemap } from "@/lib/leafletBasemap";
 import { T } from "@/components/ui/T";
 
 function MapLifecycle({ positions }: { positions: LatLngExpression[] }) {
@@ -98,6 +99,7 @@ export function RouteShareMap({ preview }: RouteShareMapProps) {
   const rating = formatRating(preview.averageRating, preview.totalRatings);
   const budget = budgetLevelSymbol(preview.budgetLevel);
   const center: LatLngExpression = positions[0] ?? [18.4861, -69.9312];
+  const basemap = resolveLeafletBasemap();
 
   if (positions.length === 0) {
     return (
@@ -133,8 +135,9 @@ export function RouteShareMap({ preview }: RouteShareMapProps) {
           zoomControl={false}
         >
           <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-            attribution="&copy; OSM &copy; CARTO"
+            url={basemap.url}
+            attribution={basemap.attribution}
+            maxZoom={basemap.maxZoom}
           />
           <MapLifecycle positions={positions} />
           {positions.length > 1 ? (

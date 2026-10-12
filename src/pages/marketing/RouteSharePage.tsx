@@ -26,6 +26,7 @@ import { useI18n } from "@/features/i18n/I18nProvider";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { STORE_URLS } from "@/lib/constants";
 import { buildExploreShareUrl } from "@/lib/exploreWebUrl";
+import { buildRouteAppScheme, tryOpenExploreApp } from "@/lib/openExploreApp";
 import "@/styles/deeplink.css";
 import "@/styles/route-share.css";
 
@@ -224,8 +225,17 @@ export function RouteSharePage() {
       ? `/r/${encodeURIComponent(ref)}`
       : "/r";
   const canonicalUrl = buildExploreShareUrl(shortPath);
-  // Prefer https store / resolved deep link — never fire empty explore:// while loading.
-  const appHref = routeUuid ? `explore://r/${encodeURIComponent(routeUuid)}` : STORE_URLS.apple;
+  // In-page CTAs must use the custom scheme. An HTTPS link to the same host
+  // does not open Universal Links while the user is already on this page
+  // (Instagram / Safari stay on the web preview).
+  const appSchemeHref = routeUuid ? buildRouteAppScheme(routeUuid) : null;
+  const openInExplore = () => {
+    if (!appSchemeHref) {
+      window.location.href = STORE_URLS.apple;
+      return;
+    }
+    tryOpenExploreApp(appSchemeHref, { storeFallback: true });
+  };
   const cover = preview?.coverUrl || preview?.photoStrip[0] || null;
 
   usePageMeta({
@@ -279,9 +289,9 @@ export function RouteSharePage() {
               </div>
 
               <div className="route-share-choice" role="group" aria-label={t("routeShare.choice.label")}>
-                <a className="deeplink-open-btn" href={appHref}>
+                <button type="button" className="deeplink-open-btn" onClick={openInExplore}>
                   <T k="routeShare.cta.doIt" />
-                </a>
+                </button>
                 <a className="deeplink-open-btn deeplink-open-btn--ghost" href="#route-preview">
                   <T k="routeShare.cta.web" />
                 </a>
@@ -297,9 +307,9 @@ export function RouteSharePage() {
                   </p>
                 </div>
                 <div className="route-share-download-banner__actions">
-                  <a className="deeplink-open-btn" href={appHref}>
+                  <button type="button" className="deeplink-open-btn" onClick={openInExplore}>
                     <T k="routeShare.cta.app" />
-                  </a>
+                  </button>
                   <div className="route-share-download-banner__stores">
                     <StoreBadges />
                   </div>
@@ -320,9 +330,9 @@ export function RouteSharePage() {
                   <p>
                     <T k="routeShare.download.nudge" />
                   </p>
-                  <a className="route-share-loc-btn" href={appHref}>
+                  <button type="button" className="route-share-loc-btn" onClick={openInExplore}>
                     <T k="routeShare.cta.app" />
-                  </a>
+                  </button>
                 </div>
               </div>
             </div>

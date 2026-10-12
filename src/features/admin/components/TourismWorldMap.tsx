@@ -3,6 +3,7 @@ import { CircleMarker, MapContainer, Popup, TileLayer, Tooltip } from "react-lea
 import type { LatLngExpression } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { formatNumber } from "@/lib/analyticsDisplay";
+import { resolveLeafletBasemap } from "@/lib/leafletBasemap";
 
 export type DemandMapChild = {
   key: string;
@@ -158,6 +159,7 @@ export function TourismWorldMap({
   }, [markers.mapped, parentCountry]);
 
   const zoom = parentCountry ? (zones.some((item) => item.level === "city") ? 8 : 6) : 2;
+  const basemap = resolveLeafletBasemap();
 
   return (
     <>
@@ -172,8 +174,9 @@ export function TourismWorldMap({
         attributionControl
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          attribution={basemap.attribution}
+          url={basemap.url}
+          maxZoom={basemap.maxZoom}
         />
         {markers.mapped.map((marker) => (
           <CircleMarker
