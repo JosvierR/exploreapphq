@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { AdminAuthGate } from "@/features/admin/components/AdminAuthGate";
 import { AdminDataTable, AdminPageShell, EmptyState, ErrorState } from "@/features/admin/components/AdminPrimitives";
 import { AreaTrendChart } from "@/features/admin/components/charts/AreaTrendChart";
@@ -236,15 +236,29 @@ function DecisionBrief({ items, confidence }: { items: DecisionItem[]; confidenc
 }
 
 function AdminBusinessInsightsContent() {
-  const [range, setRange] = useState<BusinessRangePreset>("7d");
-  const [platform, setPlatform] = useState<(typeof PLATFORMS)[number]>("all");
-  const [source, setSource] = useState<(typeof SOURCES)[number]>("all");
-  const [entityType, setEntityType] = useState<(typeof CONTENT_TYPES)[number]>("all");
+  const [urlParams, setUrlParams] = useSearchParams();
+  const range = readEnumParam(urlParams, "range", ["24h", "7d", "30d", "90d"] as const, "7d");
+  const platform = readEnumParam(urlParams, "platform", PLATFORMS, "all");
+  const source = readEnumParam(urlParams, "source", SOURCES, "all");
+  const entityType = readEnumParam(urlParams, "content", CONTENT_TYPES, "all");
+  const activeTab = readEnumParam(urlParams, "tab", DATA_TABS.map((tab) => tab.value), "overview");
+  const updateFilter = useCallback(
+    (key: string, value: string, fallback: string) => {
+      const next = new URLSearchParams(window.location.search);
+      setOptionalParam(next, key, value, fallback);
+      setUrlParams(next);
+    },
+    [setUrlParams],
+  );
+  const setRange = (value: BusinessRangePreset) => updateFilter("range", value, "7d");
+  const setPlatform = (value: (typeof PLATFORMS)[number]) => updateFilter("platform", value, "all");
+  const setSource = (value: (typeof SOURCES)[number]) => updateFilter("source", value, "all");
+  const setEntityType = (value: (typeof CONTENT_TYPES)[number]) => updateFilter("content", value, "all");
+  const setActiveTab = (value: DataTab) => updateFilter("tab", value, "overview");
   const [contentTab, setContentTab] = useState<ContentTab>("videos");
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<DataTab>("overview");
 
   const [overview, setOverview] = useState<SectionState<OverviewData>>(initialSectionState);
   const [growth, setGrowth] = useState<SectionState<GrowthData>>(initialSectionState);
@@ -339,11 +353,11 @@ function AdminBusinessInsightsContent() {
 
   const platformData = useMemo(
     () =>
-      (growth.data?.breakdowns.platform_split || []).map((item) => ({
+      (growth.data?.breakdowns?.platform_split || []).map((item) => ({
         label: platformLabel(item.value),
         value: item.count,
       })),
-    [growth.data?.breakdowns.platform_split],
+    [growth.data?.breakdowns?.platform_split],
   );
 
   const funnelData = useMemo<FunnelDatum[]>(
@@ -358,12 +372,12 @@ function AdminBusinessInsightsContent() {
     [funnel.data?.funnel],
   );
 
-  const contentRows = (content.data?.sections[contentTab] || []) as Array<Record<string, unknown>>;
+  const contentRows = (content.data?.sections?.[contentTab] || []) as Array<Record<string, unknown>>;
   const creatorRows = (creators.data?.creators || []) as Array<Record<string, unknown>>;
   const marketRows = (locations.data?.countries || []) as Array<Record<string, unknown>>;
   const marketChartData = marketRows.slice(0, 7).map((row) => ({ label: String(row.country || "Unknown"), value: numberValue(row.events) }));
-  const searchTotal = numberValue(search.data?.summary.total_searches);
-  const noResultRate = numberValue(search.data?.summary.no_result_rate);
+  const searchTotal = numberValue(search.data?.summary?.total_searches);
+  const noResultRate = numberValue(search.data?.summary?.no_result_rate);
 
   const allWarnings = useMemo(() => {
     const warnings = [overview, growth, funnel, content, search, creators, locations, investor].flatMap((state) => state.warnings);
@@ -945,9 +959,9 @@ function ContentPerformanceTable({ rows, type }: { rows: Array<Record<string, un
 }
 
 function SearchPanel({ data, total, noResultRate }: { data: SearchData | null; total: number; noResultRate: number }) {
-  const rows = data?.breakdowns.top_query_hashes || [];
-  const searchCtr = data?.summary.search_ctr;
-  const resultClicks = numberValue(data?.summary.result_clicks);
+  const rows = data?.breakdowns?.top_query_hashes || [];
+  const searchCtr = data?.summary?.search_ctr;
+  const resultClicks = numberValue(data?.summary?.result_clicks);
   return (
     <div className="admin-search-panel">
       <div className="admin-search-panel__summary">
@@ -1118,4 +1132,14 @@ export function AdminBusinessInsightsPage() {
       <AdminBusinessInsightsContent />
     </AdminAuthGate>
   );
+}
+
+function readEnumParam<T extends string>(params: URLSearchParams, key: string, values: readonly T[], fallback: T): T {
+  const value = params.get(key);
+  return value && values.includes(value as T) ? (value as T) : fallback;
+}
+
+function setOptionalParam(params: URLSearchParams, key: string, value: string, fallback: string) {
+  if (value === fallback) params.delete(key);
+  else params.set(key, value);
 }

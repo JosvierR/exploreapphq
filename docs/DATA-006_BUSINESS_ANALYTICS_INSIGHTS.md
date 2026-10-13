@@ -20,7 +20,7 @@ analytics_events (source of truth)
   → aggregate_analytics_events_for_day (DATA-005 cron)
   → optional daily tables/views
   → /api/admin/analytics/business/* (DATA-006)
-  → /admin/analytics/business UI
+  → /admin/analytics/data UI
 ```
 
 Operations dashboard remains at `/admin/analytics`.
@@ -93,7 +93,7 @@ Query: `range=24h|7d|30d|90d` (default `7d`). Custom `start`/`end` allowed, max 
 ## UI
 
 - Operations: `/admin/analytics`
-- Business Insights: `/admin/analytics/business`
+- Product Analytics: `/admin/analytics/data`
 - Investor snapshot includes copy-to-clipboard text
 
 ## SQL verification
@@ -142,7 +142,7 @@ limit 50;
 ## QA checklist
 
 1. Login as admin.
-2. Open `/admin/analytics/business`.
+2. Open `/admin/analytics/data`.
 3. Confirm overview cards load.
 4. Change range 24h/7d/30d/90d.
 5. Confirm growth/funnel/content/search sections render.

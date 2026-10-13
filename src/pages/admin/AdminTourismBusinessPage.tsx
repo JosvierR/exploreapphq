@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, Fragment } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { AdminAuthGate } from "@/features/admin/components/AdminAuthGate";
 import { AdminDataTable, AdminPageShell, EmptyState, ErrorState } from "@/features/admin/components/AdminPrimitives";
 import { AreaTrendChart } from "@/features/admin/components/charts/AreaTrendChart";
@@ -28,6 +28,8 @@ type GeoState = {
   city: string | null;
   neighborhood: string | null;
 };
+
+type StateUpdate<T> = T | ((current: T) => T);
 
 const RANGES: Array<{ value: BusinessIntelRange; label: string }> = [
   { value: "7d", label: "Last 7 days" },
@@ -302,15 +304,46 @@ export function AdminTourismBusinessPage() {
 }
 
 function BusinessIntelligenceContent() {
-  const [range, setRange] = useState<BusinessIntelRange>("30d");
-  const [compare, setCompare] = useState<BusinessIntelCompare>("previous");
-  const [granularity, setGranularity] = useState<"daily" | "weekly" | "monthly">("daily");
+  const [urlParams, setUrlParams] = useSearchParams();
+  const range = readBusinessParam(urlParams, "range", ["7d", "30d", "90d", "12m"] as const, "30d");
+  const compare = readBusinessParam(urlParams, "compare", ["previous", "previous_year", "none"] as const, "previous");
+  const granularity = readBusinessParam(urlParams, "granularity", ["daily", "weekly", "monthly"] as const, "daily");
+  const mapMetric = readBusinessParam(urlParams, "map_metric", MAP_METRICS.map((item) => item.value), "demand");
+  const activeTab = readBusinessParam(urlParams, "tab", BI_TABS.map((tab) => tab.value), "overview");
+  const category = urlParams.get("category");
+  const platform = urlParams.get("platform");
+  const source = urlParams.get("source");
+  const country = urlParams.get("country");
+  const region = urlParams.get("region");
+  const city = urlParams.get("city");
+  const neighborhood = urlParams.get("neighborhood");
+  const geo = useMemo(() => ({ country, region, city, neighborhood }), [city, country, neighborhood, region]);
+  const updateFilter = useCallback(
+    (key: string, value: string | null, fallback?: string) => {
+      const next = new URLSearchParams(window.location.search);
+      setBusinessParam(next, key, value, fallback);
+      setUrlParams(next);
+    },
+    [setUrlParams],
+  );
+  const setRange = (value: BusinessIntelRange) => updateFilter("range", value, "30d");
+  const setCompare = (value: BusinessIntelCompare) => updateFilter("compare", value, "previous");
+  const setGranularity = (value: "daily" | "weekly" | "monthly") => updateFilter("granularity", value, "daily");
+  const setMapMetric = (value: BusinessIntelMapMetric) => updateFilter("map_metric", value, "demand");
+  const setActiveTab = (value: BiTab) => updateFilter("tab", value, "overview");
+  const setCategory = (update: StateUpdate<string | null>) => updateFilter("category", resolveStateUpdate(update, category));
+  const setPlatform = (value: string | null) => updateFilter("platform", value);
+  const setSource = (value: string | null) => updateFilter("source", value);
+  const setGeo = (update: StateUpdate<GeoState>) => {
+    const nextGeo = resolveStateUpdate(update, geo);
+    const next = new URLSearchParams(window.location.search);
+    setBusinessParam(next, "country", nextGeo.country);
+    setBusinessParam(next, "region", nextGeo.region);
+    setBusinessParam(next, "city", nextGeo.city);
+    setBusinessParam(next, "neighborhood", nextGeo.neighborhood);
+    setUrlParams(next);
+  };
   const [trendMetric, setTrendMetric] = useState<(typeof TREND_METRICS)[number]["value"]>("place_views");
-  const [mapMetric, setMapMetric] = useState<BusinessIntelMapMetric>("demand");
-  const [category, setCategory] = useState<string | null>(null);
-  const [platform, setPlatform] = useState<string | null>(null);
-  const [source, setSource] = useState<string | null>(null);
-  const [geo, setGeo] = useState<GeoState>({ country: null, region: null, city: null, neighborhood: null });
   const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -318,7 +351,6 @@ function BusinessIntelligenceContent() {
   const [data, setData] = useState<BusinessIntelDashboard | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<Record<string, unknown> | null>(null);
   const [selectedRoute, setSelectedRoute] = useState<Record<string, unknown> | null>(null);
-  const [activeTab, setActiveTab] = useState<BiTab>("overview");
   const pendingScrollRef = useRef<string | null>(null);
 
   const query = useMemo(
@@ -1490,4 +1522,18 @@ function BusinessIntelligenceContent() {
       ) : null}
     </AdminPageShell>
   );
+}
+
+function readBusinessParam<T extends string>(params: URLSearchParams, key: string, values: readonly T[], fallback: T): T {
+  const value = params.get(key);
+  return value && values.includes(value as T) ? (value as T) : fallback;
+}
+
+function setBusinessParam(params: URLSearchParams, key: string, value: string | null, fallback?: string) {
+  if (!value || value === fallback) params.delete(key);
+  else params.set(key, value);
+}
+
+function resolveStateUpdate<T>(update: StateUpdate<T>, current: T): T {
+  return typeof update === "function" ? (update as (value: T) => T)(current) : update;
 }

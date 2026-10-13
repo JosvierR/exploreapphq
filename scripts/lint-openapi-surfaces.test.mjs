@@ -21,8 +21,11 @@ test("OpenAPI lint inventory includes all three surfaces", async () => {
 
 test("OpenAPI lint propagates a Redocly failure", async () => {
   const status = await lintOpenApiSurfaces({
-    run(_command, args) {
-      assert.equal(args[0], "lint");
+    run(command, args, options) {
+      assert.equal(command, process.execPath);
+      assert.match(args[0], /@redocly[\\/]cli[\\/]bin[\\/]cli\.js$/);
+      assert.equal(args[1], "lint");
+      assert.equal(options.shell, false);
       return { status: 1 };
     },
   });

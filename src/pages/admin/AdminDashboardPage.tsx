@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { AdminAuthGate } from "@/features/admin/components/AdminAuthGate";
+import { ExecutiveOverview } from "@/features/admin/dashboard/ExecutiveOverview";
 import { useModerationAdmin } from "@/features/admin/ModerationAdminProvider";
 import { AdminSystemPage } from "@/features/admin/pages/AdminSystemPage";
 import {
@@ -134,7 +135,7 @@ function AdminDashboardContent() {
 
       {summary?.warnings.length ? <WarningsPanel warnings={summary.warnings} /> : null}
 
-      {section === "overview" && <OverviewSection summary={summary} pending={pending} loading={loading} />}
+      {section === "overview" && <ExecutiveOverview operations={summary} pendingReports={pending} operationsLoading={loading} />}
       {section === "users" && <UsersSection summary={summary} />}
       {section === "content" && <ContentSection summary={summary} loading={loading} />}
       {section === "moderation" && <ModerationSection summary={summary} pending={pending} loading={loading} />}
@@ -178,89 +179,6 @@ function useProductAnalytics() {
   }, [load]);
 
   return { metrics, loading, error, reload: load };
-}
-
-function OverviewSection({
-  summary,
-  pending,
-  loading,
-}: {
-  summary: AdminOpsSummary | null;
-  pending: AdminReport[];
-  loading: boolean;
-}) {
-  const hiddenContent = sumNullable(summary?.content.videos.hidden, summary?.content.places.hidden);
-  const removedContent = sumNullable(summary?.content.videos.removed, summary?.content.places.removed);
-  const totalContent = sumNullable(summary?.content.videos.total, summary?.content.places.total, summary?.content.routes.total);
-  const servicesHealthy = Boolean(
-    summary?.health.api_connected && summary?.health.supabase_configured && summary?.health.admin_authorized,
-  );
-  const pendingCount = summary?.moderation.pending;
-  const isHealthy = servicesHealthy && pendingCount === 0;
-  const statusTitle = loading ? "Reading Explore's current health" : isHealthy ? "Explore is healthy" : "Explore needs attention";
-  const statusCopy = loading
-    ? "Checking product services and the moderation queue."
-    : !servicesHealthy
-      ? "At least one core admin service is unavailable. Confirm connectivity before relying on operating metrics."
-      : pendingCount
-        ? `${formatNumber(pendingCount)} pending report${pendingCount === 1 ? "" : "s"} need review; core services are online.`
-        : "Core services are online and the moderation queue is clear.";
-
-  return (
-    <>
-      <section className={`admin-panel admin-overview-hero admin-overview-hero--${isHealthy ? "healthy" : "attention"}`}>
-        <div className="admin-overview-hero__content">
-          <h3>{statusTitle}</h3>
-          <p>{statusCopy}</p>
-          <div className="admin-overview-hero__actions">
-            <Link className="admin-btn admin-btn--primary admin-btn--sm" to="/admin/analytics/data">
-              App Data
-            </Link>
-            <Link className="admin-btn admin-btn--ghost admin-btn--sm" to="/admin/reports?status=pending&sort=priority">
-              Moderation queue
-            </Link>
-          </div>
-        </div>
-        <div className="admin-console-hero__rail">
-          <MiniStatus label="API" active={summary?.health.api_connected} />
-          <MiniStatus label="Supabase" active={summary?.health.supabase_configured} />
-          <MiniStatus label="Admin" active={summary?.health.admin_authorized} />
-        </div>
-      </section>
-
-      <div className="admin-metric-row admin-overview-kpis" aria-label="Key operating metrics">
-        <StatCard label="Users" value={summary?.users.total} loading={loading} tone="blue" hint="Total product accounts" />
-        <StatCard label="Content" value={totalContent} loading={loading} tone="green" hint="Videos, places, and routes" />
-        <StatCard label="Pending reports" value={pendingCount} loading={loading} tone={pendingCount ? "danger" : "green"} hint={pendingCount ? "Requires review" : "Queue is clear"} />
-      </div>
-
-      <div className="admin-overview-grid">
-        <section className="admin-panel admin-panel--span-2">
-          <PanelHeader kicker="Moderation preview" title="Oldest pending reports" meta={`${formatMetric(pendingCount)} pending`} />
-          {loading ? (
-            <SkeletonList rows={5} />
-          ) : pending.length === 0 ? (
-            <QuietState title="No pending reports" message="The moderation queue is clear right now." />
-          ) : (
-            <div className="admin-report-list">
-              {pending.map((report) => (
-                <ReportPreview key={report.id} report={report} compact />
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="admin-panel">
-          <PanelHeader kicker="Operating context" title="Content requiring action" />
-          <div className="admin-mini-metrics">
-            <MiniMetric label="Hidden content" value={hiddenContent} />
-            <MiniMetric label="Removed content" value={removedContent} />
-            <MiniMetric label="User-hidden rows" value={summary?.engagement.user_hidden_content} />
-          </div>
-        </section>
-      </div>
-    </>
-  );
 }
 
 function UsersSection({ summary }: { summary: AdminOpsSummary | null }) {
@@ -778,15 +696,6 @@ function PanelHeader({ kicker, title, meta }: { kicker: string; title: string; m
       </div>
       {meta && <span className="admin-panel__meta">{meta}</span>}
     </div>
-  );
-}
-
-function MiniStatus({ label, active }: { label: string; active?: boolean }) {
-  return (
-    <span className={`admin-mini-status ${active ? "is-ok" : "is-warn"}`}>
-      <span aria-hidden="true" />
-      {label}
-    </span>
   );
 }
 

@@ -7,7 +7,7 @@ The web/admin console is a production operations surface for Explore moderation,
 Current frontend entry points:
 
 - `src/components/layout/AdminLayout.tsx` owns the admin shell, sidebar, topbar, refresh action, and system status pills.
-- `src/pages/admin/AdminDashboardPage.tsx` owns overview, users, content, moderation, insights, and analytics-foundation sections.
+- `src/pages/admin/AdminDashboardPage.tsx` owns section-driven operations; `src/features/admin/dashboard/ExecutiveOverview.tsx` owns the executive overview composition.
 - `src/pages/admin/ReportsAdminPage.tsx` owns the moderation report queue and video moderation workspace.
 - `src/pages/admin/ApiDocsPage.tsx` owns the lazy-loaded Scalar OpenAPI browser (`/admin/api-docs`).
 - `src/features/admin/components/` contains reusable admin UI primitives and the admin error boundary.
@@ -16,7 +16,7 @@ Current frontend entry points:
 
 ## Admin Routes
 
-- `/admin` - admin overview and section-driven operations console.
+- `/admin` - executive overview and section-driven operations console.
 - `/admin?section=users` - user operations.
 - `/admin?section=content` - content inventory.
 - `/admin?section=moderation` - moderation overview.
@@ -24,9 +24,14 @@ Current frontend entry points:
 - `/admin?section=analytics` - analytics foundation status.
 - `/admin?section=system` - System/Observability.
 - `/admin?section=admins` - admin roster (`admin_users`) management.
+- `/admin/analytics` - analytics ingestion, event explorer, dead letters, and aggregation operations.
+- `/admin/analytics/data` - product growth, engagement, content, search, creator, investor, and quality analytics.
+- `/admin/analytics/business` - Tourism Business Intelligence Core v2.
 - `/admin/reports` - moderation reports and video moderation lifecycle.
 - `/admin/waitlist` - waitlist operations.
 - `/admin/api-docs` - Scalar UI over the three governed OpenAPI surfaces (live PostgREST, commit-pinned Edge Functions, and Admin HTTP).
+
+Admin layout and every route page are lazy-loaded so public routes do not import analytics, moderation, Leaflet, Recharts, or Scalar code eagerly.
 
 ## Admin OpenAPI (docs)
 

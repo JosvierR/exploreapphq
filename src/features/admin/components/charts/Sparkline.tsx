@@ -16,7 +16,7 @@ export function Sparkline({
   return (
     <div className="admin-sparkline" aria-hidden="true">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 3, right: 2, bottom: 3, left: 2 }}>
+        <LineChart accessibilityLayer={false} data={data} margin={{ top: 3, right: 2, bottom: 3, left: 2 }}>
           <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} dot={false} isAnimationActive={false} />
         </LineChart>
       </ResponsiveContainer>

@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 
 export type AdminTone = "blue" | "green" | "amber" | "red" | "slate" | "purple";
 
@@ -112,7 +112,7 @@ export function AdminDataTable({
   className?: string;
 }) {
   return (
-    <div className="admin-table-wrap" role="region" aria-label={label}>
+    <div className="admin-table-wrap" role="region" aria-label={label} tabIndex={0}>
       <table className={className ? `admin-table ${className}` : "admin-table"}>{children}</table>
     </div>
   );
@@ -189,16 +189,27 @@ export function ConfirmModal({
   onConfirm: () => void;
 }) {
   const dialogRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
 
   useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialogRef.current?.focus();
-  }, []);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCancel();
+      if (event.key === "Tab" && dialogRef.current) keepFocusInside(event, dialogRef.current);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, [onCancel]);
 
   return (
     <div className="admin-confirmation" role="presentation" onMouseDown={(event) => event.currentTarget === event.target && onCancel()}>
-      <section ref={dialogRef} className="admin-confirmation__dialog" role="dialog" aria-modal="true" tabIndex={-1}>
+      <section ref={dialogRef} className="admin-confirmation__dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
         <p className="admin-eyebrow">Confirm</p>
-        <h3>{title}</h3>
+        <h3 id={titleId}>{title}</h3>
         <p className="admin-muted">{message}</p>
         <div className="admin-confirmation__actions">
           <button type="button" className="admin-btn admin-btn--ghost" onClick={onCancel} disabled={busy}>
@@ -214,14 +225,32 @@ export function ConfirmModal({
 }
 
 export function Drawer({ title, open, onClose, children }: { title: string; open: boolean; onClose: () => void; children: ReactNode }) {
+  const panelRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    panelRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+      if (event.key === "Tab" && panelRef.current) keepFocusInside(event, panelRef.current);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, [onClose, open]);
+
   if (!open) return null;
   return (
     <div className="admin-drawer" role="presentation" onMouseDown={(event) => event.currentTarget === event.target && onClose()}>
-      <aside className="admin-drawer__panel" role="dialog" aria-modal="true" aria-label={title}>
+      <aside ref={panelRef} className="admin-drawer__panel" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
         <div className="admin-drawer__header">
           <div>
             <p className="admin-eyebrow">Details</p>
-            <h3>{title}</h3>
+            <h3 id={titleId}>{title}</h3>
           </div>
           <button type="button" className="admin-drawer__close" onClick={onClose}>
             Close
@@ -295,4 +324,24 @@ function toneToPill(tone: AdminTone) {
 
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function keepFocusInside(event: KeyboardEvent, container: HTMLElement) {
+  const focusable = [...container.querySelectorAll<HTMLElement>(
+    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  )].filter((element) => !element.hasAttribute("hidden"));
+  if (!focusable.length) {
+    event.preventDefault();
+    container.focus();
+    return;
+  }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
 }

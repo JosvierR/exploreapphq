@@ -12,6 +12,8 @@ netlify.env
 .firebase-service-account.json
 SETUP_CREDENTIALS.local.md
 coverage/
+playwright-report/
+test-results/
 *.tsbuildinfo
 .vite/
 dev-server*.log

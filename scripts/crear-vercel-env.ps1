@@ -10,8 +10,5 @@ if (-not (Test-Path $src)) {
 
 $content = Get-Content $src -Raw -Encoding UTF8
 $content = $content -replace "https://sunny-dolphin-b73804\.netlify\.app", "https://exploreapphq.vercel.app"
-if ($content -notmatch "(?m)^ADMIN_PASSWORD=") {
-  $content += "`r`nADMIN_PASSWORD=Admin`r`n"
-}
 Set-Content -Path $dst -Value $content.TrimEnd() -Encoding UTF8
 Write-Host "Created vercel.env - import in Vercel Settings -> Environment Variables -> Import .env"

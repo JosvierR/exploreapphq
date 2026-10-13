@@ -615,20 +615,20 @@ export function formatAnalyticsJson(payload: unknown): AnalyticsJsonField[] {
 }
 
 export function formatNumber(value: unknown) {
-  if (value == null) return "0";
+  if (value == null) return "—";
   if (typeof value === "string") return value;
-  if (typeof value !== "number" || Number.isNaN(value)) return "0";
+  if (typeof value !== "number" || Number.isNaN(value)) return "—";
   return new Intl.NumberFormat().format(value);
 }
 
 export function formatPercent(value: unknown) {
-  if (value == null || typeof value !== "number" || Number.isNaN(value)) return "0%";
+  if (value == null || typeof value !== "number" || Number.isNaN(value)) return "—";
   const rounded = Math.round(value * 100) / 100;
   return `${rounded}%`;
 }
 
 export function formatCompact(value: unknown) {
-  if (typeof value !== "number" || Number.isNaN(value)) return "0";
+  if (typeof value !== "number" || Number.isNaN(value)) return "—";
   return new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(value);
 }
 

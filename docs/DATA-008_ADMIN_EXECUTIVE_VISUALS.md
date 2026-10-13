@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Turn `/admin/analytics/business` into a decision-first command center that a founder, CEO, or investor can read without analytics terminology or operational context.
+Turn `/admin/analytics/data` into a decision-first product analytics surface that a founder, CEO, or investor can read without analytics terminology or operational context.
 
 The redesign is presentation-only. API routes, event names, filters, Supabase schemas, privacy rules, and CSV data contracts remain unchanged.
 
@@ -17,7 +17,7 @@ The redesign is presentation-only. API routes, event names, filters, Supabase sc
 7. Investor snapshot: a boardroom-style metric card with copy and CSV export
 8. Data quality: Healthy, Needs data, and Warning states with cause and next-action copy
 
-The admin overview at `/admin?section=overview` now leads with a product health statement, Users / Content / Pending reports, a primary Business Insights CTA, and a reduced moderation preview.
+The admin overview at `/admin` now leads with a product health statement, canonical analytics KPIs, a growth story, observed engagement stages, leading markets, operational alerts, and investigation links.
 
 ## Chart foundation
 
@@ -52,7 +52,7 @@ Pages use the wrappers instead of importing Recharts directly. Tooltips use form
 
 ## QA
 
-1. Open `/admin/analytics/business` and scan the company pulse, growth story, funnel, content leader, search quality, top market, and data quality.
+1. Open `/admin/analytics/data` and scan the company pulse, growth story, funnel, content leader, search quality, top market, and data quality.
 2. Change range from `7d` to `30d`; verify every section reloads.
 3. Change platform, source, and content filters; verify readable option labels and unchanged technical values.
 4. Hover the usage, platform, funnel, and market charts; verify formatted tooltips.
@@ -60,7 +60,7 @@ Pages use the wrappers instead of importing Recharts directly. Tooltips use form
 6. Switch through all content tabs and confirm ranked rows and top-three treatment.
 7. Copy and export the investor snapshot; export overview, growth, funnel, content, search, and markets.
 8. Use an empty filter combination and confirm the missing-data cause and next action are clear.
-9. Open `/admin?section=overview`; confirm health status, three key KPIs, Business Insights CTA, and moderation preview.
+9. Open `/admin`; confirm executive KPIs, growth, engagement context, market activity, operations alerts, and investigation links.
 10. Run `npm run lint`, `npm test`, and `npm run build`.
 
 ## Related
