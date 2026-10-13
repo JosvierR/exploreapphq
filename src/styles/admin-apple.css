@@ -103,6 +103,39 @@
   z-index: 30;
 }
 
+/* Guard against legacy dark-sidebar color leaks (white text on light bg). */
+.admin-console__sidebar,
+.admin-console__sidebar a,
+.admin-console__sidebar button {
+  color: inherit;
+}
+
+.admin-console__sidebar .admin-console__brand-link,
+.admin-console__sidebar .admin-console__brand-copy strong {
+  color: var(--admin-ink);
+}
+
+.admin-console__sidebar .admin-console__nav-title {
+  color: var(--admin-muted-2);
+}
+
+.admin-console__sidebar .admin-console__link {
+  color: var(--admin-muted);
+}
+
+.admin-console__sidebar .admin-console__link .admin-console__link-icon {
+  color: var(--admin-muted-2);
+}
+
+.admin-console__sidebar .admin-console__link.is-active,
+.admin-console__sidebar .admin-console__link.is-active .admin-console__link-icon {
+  color: var(--admin-blue);
+}
+
+.admin-console__sidebar .admin-console__utility-link {
+  color: var(--admin-blue);
+}
+
 .admin-console__brand {
   margin-bottom: 1.15rem;
   padding: 0.15rem 0.55rem 0.35rem;
