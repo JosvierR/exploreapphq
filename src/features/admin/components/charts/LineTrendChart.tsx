@@ -5,6 +5,7 @@ export type TrendSeries = {
   key: string;
   label: string;
   color?: string;
+  strokeDasharray?: string;
 };
 
 export function LineTrendChart({
@@ -41,6 +42,7 @@ export function LineTrendChart({
               name={item.label}
               stroke={item.color || chartPalette[index % chartPalette.length]}
               strokeWidth={2.5}
+              strokeDasharray={item.strokeDasharray}
               dot={false}
               activeDot={{ r: 4, strokeWidth: 2, fill: chartColors.surface }}
               isAnimationActive={false}

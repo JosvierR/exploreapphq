@@ -29,6 +29,8 @@
     "business:provision-identities": "node --env-file-if-exists=.env.local scripts/business-provision-controlled-identities.mjs",
     "business:provision-pilot": "node --env-file-if-exists=.env.local --env-file-if-exists=.tmp/bi-qa.env scripts/business-provision-pilot.mjs",
     "business:audit": "node --env-file-if-exists=.env.local scripts/business-data-quality-audit.mjs",
+    "analytics:ingestion-audit": "node --env-file-if-exists=.env.local scripts/analytics-ingestion-audit.mjs",
+    "analytics:executive-reconcile": "node --env-file-if-exists=.env.local scripts/admin-executive-reconcile.mjs",
     "business:fingerprint": "node --env-file-if-exists=.env.local scripts/business-fact-fingerprint.mjs",
     "business:production-smoke": "node --env-file-if-exists=.env.local --env-file-if-exists=.tmp/bi-qa.env scripts/business-production-smoke.mjs",
     "business:cron-smoke": "node --env-file-if-exists=.env.local --env-file-if-exists=.tmp/bi-qa.env scripts/business-cron-production-smoke.mjs",

@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+import type { MetricDataState } from "@/features/admin/analytics/metricRegistry";
 import { formatNumber, metricLabel } from "@/lib/analyticsDisplay";
 import { Sparkline } from "./Sparkline";
 
@@ -36,6 +38,11 @@ export function KpiTrendCard({
   loading = false,
   inverseTrend = false,
   sparkline,
+  description,
+  to,
+  state = "available",
+  compact = false,
+  comparisonEnabled = true,
 }: {
   metricKey: string;
   value: unknown;
@@ -44,33 +51,46 @@ export function KpiTrendCard({
   loading?: boolean;
   inverseTrend?: boolean;
   sparkline?: Array<Record<string, unknown>>;
+  description?: string;
+  to?: string;
+  state?: MetricDataState;
+  compact?: boolean;
+  comparisonEnabled?: boolean;
 }) {
   const trend = trendDetails(delta, inverseTrend);
   const iconToneClass =
     trend.tone === "positive" ? " admin-kpi-card__icon--green" : trend.tone === "negative" ? " admin-kpi-card__icon--red" : "";
 
-  return (
-    <article className={`admin-kpi-card admin-kpi-card--${trend.tone}`}>
-      <div className="admin-kpi-card__top">
-        <span className={`admin-kpi-card__icon${iconToneClass}`} aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 19V11M11 19V5M18 19v-6" />
-          </svg>
-        </span>
-        {sparkline && <Sparkline data={sparkline} dataKey={metricKey} tone={trend.tone} />}
-      </div>
+  const card = (
+    <article className={`admin-kpi-card admin-kpi-card--${trend.tone}${compact ? " admin-kpi-card--compact" : ""}`}>
+      {!compact ? (
+        <div className="admin-kpi-card__top">
+          <span className={`admin-kpi-card__icon${iconToneClass}`} aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 19V11M11 19V5M18 19v-6" />
+            </svg>
+          </span>
+          {sparkline && <Sparkline data={sparkline} dataKey={metricKey} tone={trend.tone} />}
+        </div>
+      ) : null}
       <div className="admin-kpi-card__topline">
         <span>{metricLabel(metricKey)}</span>
+        {!loading && state !== "available" ? <em className={`admin-metric-state admin-metric-state--${state}`}>{state}</em> : null}
       </div>
       {loading ? (
         <span className="admin-skeleton admin-skeleton--number" aria-label="Loading" />
       ) : (
-        <strong>{formatNumber(value)}</strong>
+        <strong>{state === "unavailable" || state === "error" ? "—" : formatNumber(value)}</strong>
       )}
-      <div className="admin-kpi-card__trend">
-        <span className="admin-kpi-card__delta"><b aria-hidden="true">{trend.symbol}</b>{trend.label}</span>
-        <small>vs previous {periodLabel}</small>
-      </div>
+      {description ? <p className="admin-kpi-card__description">{description}</p> : null}
+      {comparisonEnabled ? (
+        <div className="admin-kpi-card__trend">
+          <span className="admin-kpi-card__delta"><b aria-hidden="true">{trend.symbol}</b>{trend.label}</span>
+          <small>vs previous {periodLabel}</small>
+        </div>
+      ) : null}
     </article>
   );
+
+  return to ? <Link className="admin-kpi-card-link" to={to} aria-label={`Open ${metricLabel(metricKey)} analytics`}>{card}</Link> : card;
 }

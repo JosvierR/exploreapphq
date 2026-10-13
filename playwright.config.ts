@@ -9,7 +9,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : 2,
   reporter: [["list"], ["html", { open: "never" }]],
   outputDir: "test-results",
-  snapshotPathTemplate: "{testDir}/../../docs/admin-v2/screenshots/{arg}{ext}",
+  snapshotPathTemplate: "{testDir}/../../docs/admin-v3/screenshots/{arg}{ext}",
   expect: {
     timeout: 10_000,
     toHaveScreenshot: {

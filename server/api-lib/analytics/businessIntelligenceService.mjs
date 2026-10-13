@@ -1003,6 +1003,7 @@ function buildTimeseries(rows, granularity) {
       sessions: new Set(),
       place_views: 0,
       route_views: 0,
+      route_starts: 0,
       searches: 0,
       saves: 0,
       commercial_actions: 0,
@@ -1012,6 +1013,7 @@ function buildTimeseries(rows, granularity) {
     if (row.session_id) current.sessions.add(row.session_id);
     if (isPlaceView(row)) current.place_views += 1;
     if (isRouteView(row)) current.route_views += 1;
+    if (row.event_name === "route_start") current.route_starts += 1;
     if (isSearchEvent(row)) current.searches += 1;
     if (SAVE_EVENTS.has(row.event_name)) current.saves += 1;
     if (PLACE_COMMERCE_EVENTS.has(row.event_name)) current.commercial_actions += 1;
@@ -1025,6 +1027,7 @@ function buildTimeseries(rows, granularity) {
       sessions: bucket.sessions.size,
       place_views: bucket.place_views,
       route_views: bucket.route_views,
+      route_starts: bucket.route_starts,
       searches: bucket.searches,
       saves: bucket.saves,
       commercial_actions: bucket.commercial_actions,
@@ -2023,6 +2026,7 @@ export async function getBusinessIntelligenceDashboard(supabase, params) {
       previous_sessions: previousPoint.sessions || 0,
       previous_place_views: previousPoint.place_views || 0,
       previous_route_views: previousPoint.route_views || 0,
+      previous_route_starts: previousPoint.route_starts || 0,
       previous_searches: previousPoint.searches || 0,
       previous_saves: previousPoint.saves || 0,
       previous_commercial_actions: previousPoint.commercial_actions || 0,

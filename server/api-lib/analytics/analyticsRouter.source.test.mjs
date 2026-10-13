@@ -155,3 +155,36 @@ const botPlace = normalizeAnalyticsEvent(
 );
 assert.equal(botPlace.row.analytics_eligible, false);
 assert.equal(botPlace.row.analytics_exclusion_reason, "automated_traffic");
+
+const sessionLifecycle = normalizeAnalyticsEvent(
+  buildEvent({
+    event_id: "test-session-lifecycle",
+    event_name: "session_end",
+    entity_type: "session",
+    entity_id: "session-test-001",
+  }),
+);
+assert.equal(sessionLifecycle.rejected, undefined, "session lifecycle events match the database entity contract");
+assert.equal(sessionLifecycle.row.entity_type, "session");
+
+for (const eventName of [
+  "app_background",
+  "app_foreground",
+  "route_publish_step_view",
+  "route_publish_step_complete",
+  "route_difficulty_corrected",
+  "route_record_start",
+  "route_recorded_choice",
+  "route_publish_exit",
+  "route_publish_complete",
+  "route_transport_corrected",
+]) {
+  const result = normalizeAnalyticsEvent(
+    buildEvent({
+      event_name: eventName,
+      entity_type: eventName.startsWith("route_") ? "route" : "session",
+      entity_id: eventName.startsWith("route_") ? "route-test-001" : "session-test-001",
+    }),
+  );
+  assert.equal(result.rejected, undefined, `${eventName} is accepted by the production event contract`);
+}

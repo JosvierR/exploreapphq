@@ -179,6 +179,8 @@ Invalid bearer tokens return `401`.
 Session/app:
 
 - `app_open`
+- `app_background`
+- `app_foreground`
 - `session_start`
 - `session_end`
 - `screen_view`
@@ -228,10 +230,18 @@ Route:
 - `route_save`
 - `route_unsave`
 - `route_start`
+- `route_record_start`
+- `route_recorded_choice`
 - `route_step_view`
 - `route_stop_view`
 - `route_complete`
 - `route_share`
+- `route_publish_step_view`
+- `route_publish_step_complete`
+- `route_publish_exit`
+- `route_publish_complete`
+- `route_difficulty_corrected`
+- `route_transport_corrected`
 
 Canonical content/engagement:
 

@@ -490,7 +490,7 @@ export function getInvestorSnapshot(params: BusinessParams = {}) {
   }>("/api/admin/analytics/business/investor-snapshot", params);
 }
 
-export type BusinessIntelRange = "7d" | "30d" | "90d" | "12m";
+export type BusinessIntelRange = "24h" | "7d" | "30d" | "90d" | "12m";
 export type BusinessIntelCompare = "previous" | "previous_year" | "none";
 export type BusinessIntelMapMetric =
   | "demand"

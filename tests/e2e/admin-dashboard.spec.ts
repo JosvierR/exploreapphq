@@ -10,7 +10,7 @@ import {
 } from "./admin-fixtures";
 
 const principalViews = [
-  { slug: "executive", url: "/admin", title: "Executive Dashboard" },
+  { slug: "executive", url: "/admin", title: "Overview" },
   { slug: "analytics-ops", url: "/admin/analytics", title: "Analytics Operations" },
   { slug: "product-analytics", url: "/admin/analytics/data", title: "Product Analytics" },
   { slug: "tourism-intelligence", url: "/admin/analytics/business", title: "Tourism Intelligence" },
@@ -42,8 +42,9 @@ test.describe("admin authentication and permissions", () => {
     await page.getByLabel("Work email").fill(TEST_ADMIN_EMAIL);
     await page.getByLabel("Password").fill(TEST_ADMIN_PASSWORD);
     await page.getByRole("button", { name: "Sign in to console" }).click();
-    await expect(page.getByRole("heading", { name: "Executive Dashboard", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Overview", exact: true })).toBeVisible();
 
+    await page.getByLabel("Open admin profile menu").click();
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect(page).toHaveURL(/\/$/);
   });
@@ -72,7 +73,7 @@ test.describe("admin authentication and permissions", () => {
 
     state.adminMeFailure = undefined;
     await page.getByRole("button", { name: "Retry" }).click();
-    await expect(page.getByRole("heading", { name: "Executive Dashboard", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Overview", exact: true })).toBeVisible();
 
     state.adminMeFailure = "unauthenticated";
     await page.getByRole("button", { name: "Refresh admin data" }).click();
@@ -120,6 +121,33 @@ test.describe("admin workflows", () => {
     await expect(page.locator(".admin-console")).toHaveClass(/is-nav-open/);
     await page.keyboard.press("Escape");
     await expect(page.locator(".admin-console")).not.toHaveClass(/is-nav-open/);
+  });
+
+  test("executive reporting controls own the URL and expose accessible chart data", async ({ page }) => {
+    await page.goto("/admin");
+    await expect(page.locator(".admin-executive__kpis .admin-kpi-card")).toHaveCount(4);
+    await page.getByRole("button", { name: "30 days" }).click();
+    await expect(page).toHaveURL(/range=30d/);
+
+    await page.getByRole("button", { name: "Custom" }).click();
+    await page.getByLabel("From").fill("2026-09-01");
+    await page.getByRole("textbox", { name: "To", exact: true }).fill("2026-09-30");
+    await expect(page).toHaveURL(/range=custom/);
+    await expect(page).toHaveURL(/start=2026-09-01/);
+    await expect(page).toHaveURL(/end=2026-09-30/);
+
+    await page.getByLabel("Compare previous period").click();
+    await expect(page).toHaveURL(/compare=none/);
+    await expect(page.getByLabel("Compare previous period")).not.toBeChecked();
+    await expect(page.getByText(/vs previous/)).toHaveCount(0);
+    await page.getByRole("button", { name: "Route starts", exact: true }).click();
+    await page.getByText("View accessible data table").click();
+    await expect(page.getByRole("table")).toBeVisible();
+
+    await page.getByRole("button", { name: "Use dark theme" }).click();
+    await expect(page.locator(".admin-console")).toHaveAttribute("data-theme", "dark");
+    await page.reload();
+    await expect(page.locator(".admin-console")).toHaveAttribute("data-theme", "dark");
   });
 
   test("product filters own the URL, survive history navigation, and export CSV", async ({ page }) => {

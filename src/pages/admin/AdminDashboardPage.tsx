@@ -114,7 +114,7 @@ function AdminDashboardContent() {
 
   return (
     <div className="admin-moderation admin-moderation--dashboard admin-console-page admin-section-stack">
-      <header className="admin-page-header admin-page-header--compact">
+      {section !== "overview" ? <header className="admin-page-header admin-page-header--compact">
         <div className="admin-page-header__actions">
           <button type="button" className="admin-btn admin-btn--secondary admin-btn--sm" onClick={() => void load()} disabled={loading}>
             {loading ? "Refreshing…" : "Refresh"}
@@ -123,7 +123,7 @@ function AdminDashboardContent() {
             Open queue
           </Link>
         </div>
-      </header>
+      </header> : null}
 
       {error && (
         <ErrorState
@@ -133,9 +133,16 @@ function AdminDashboardContent() {
         />
       )}
 
-      {summary?.warnings.length ? <WarningsPanel warnings={summary.warnings} /> : null}
+      {section !== "overview" && summary?.warnings.length ? <WarningsPanel warnings={summary.warnings} /> : null}
 
-      {section === "overview" && <ExecutiveOverview operations={summary} pendingReports={pending} operationsLoading={loading} />}
+      {section === "overview" && (
+        <ExecutiveOverview
+          operations={summary}
+          pendingReports={pending}
+          operationsLoading={loading}
+          onRefreshOperations={load}
+        />
+      )}
       {section === "users" && <UsersSection summary={summary} />}
       {section === "content" && <ContentSection summary={summary} loading={loading} />}
       {section === "moderation" && <ModerationSection summary={summary} pending={pending} loading={loading} />}

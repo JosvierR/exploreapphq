@@ -2,16 +2,16 @@ import type { CSSProperties } from "react";
 import { formatCompact, formatNumber } from "@/lib/analyticsDisplay";
 
 export const chartColors = {
-  primary: "#006edc",
-  secondary: "#00aeff",
-  positive: "#138a57",
-  warning: "#a96209",
-  negative: "#c72c41",
-  slate: "#98a2b3",
-  ink: "#111318",
-  muted: "#667085",
-  grid: "#eef0f4",
-  surface: "#ffffff",
+  primary: "var(--admin-chart-primary, #006edc)",
+  secondary: "var(--admin-chart-secondary, #00aeff)",
+  positive: "var(--admin-positive, #138a57)",
+  warning: "var(--admin-warning, #a96209)",
+  negative: "var(--admin-negative, #c72c41)",
+  slate: "var(--admin-chart-comparison, #98a2b3)",
+  ink: "var(--admin-ink, #111318)",
+  muted: "var(--admin-muted, #667085)",
+  grid: "var(--admin-chart-grid, #eef0f4)",
+  surface: "var(--admin-surface, #ffffff)",
 } as const;
 
 export const chartPalette = [
@@ -31,11 +31,11 @@ export const chartAxisStyle = {
 } as const;
 
 export const chartTooltipStyle: CSSProperties = {
-  border: `1px solid #e7eaf0`,
+  border: "1px solid var(--admin-border-soft, #e7eaf0)",
   borderRadius: 12,
-  background: "#ffffff",
+  background: "var(--admin-surface-raised, #ffffff)",
   boxShadow: "0 12px 30px rgba(17,19,24,0.10)",
-  color: chartColors.ink,
+  color: "var(--admin-ink, #111318)",
   fontSize: 12,
   letterSpacing: "-0.005em",
   padding: "8px 10px",

@@ -57,6 +57,8 @@ const ANALYTICS_DEAD_LETTER_COLUMNS = ["event_id", "user_id", "anonymous_id", "r
 
 const EVENT_NAMES = new Set([
   "app_open",
+  "app_background",
+  "app_foreground",
   "session_start",
   "session_end",
   "screen_view",
@@ -94,10 +96,18 @@ const EVENT_NAMES = new Set([
   "route_save",
   "route_unsave",
   "route_start",
+  "route_record_start",
+  "route_recorded_choice",
   "route_step_view",
   "route_stop_view",
   "route_complete",
   "route_share",
+  "route_publish_step_view",
+  "route_publish_step_complete",
+  "route_publish_exit",
+  "route_publish_complete",
+  "route_difficulty_corrected",
+  "route_transport_corrected",
   "content_impression",
   "content_view",
   "content_save",
@@ -117,7 +127,7 @@ const EVENT_NAMES = new Set([
   "error_boundary_shown",
 ]);
 
-const ENTITY_TYPES = new Set(["video", "content", "post", "place", "route", "profile", "user", "search", "screen", "notification", "business", "system", null]);
+const ENTITY_TYPES = new Set(["video", "content", "post", "place", "route", "profile", "user", "search", "session", "screen", "notification", "business", "system", null]);
 const PLATFORMS = new Set(["ios", "android", "web", "server", null]);
 const ANALYTICS_SOURCES = new Set(["mobile", "web", "backend", "admin"]);
 const ATTRIBUTION_SOURCE_TYPES = new Set(["search", "map", "feed", "video", "post", "content", "route", "creator", "recommendation", "profile", "direct_link", null]);

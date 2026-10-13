@@ -16,6 +16,8 @@ type NavItem = {
   exactQuery?: boolean;
 };
 
+type AdminTheme = "light" | "dark";
+
 /** Small outline icon glyphs for the sidebar nav (no external icon library). */
 function Icon({ children }: { children: ReactNode }) {
   return (
@@ -190,7 +192,7 @@ function routeMeta(pathname: string, search: string) {
     if (section === "insights" || section === "analytics") return { group: "Analytics", title: "Growth & Engagement", description: "Product signals and decision context" };
     if (section === "system") return { group: "System", title: "System Health", description: "Services, observability, and data readiness" };
     if (section === "admins") return { group: "System", title: "Admin Management", description: "Authorized operators and roles" };
-    return { group: "Overview", title: "Executive Dashboard", description: "Explore at a glance" };
+    return { group: "Overview", title: "Overview", description: "Explore at a glance" };
   }
 
   if (pathname === "/admin/analytics/data") {
@@ -271,6 +273,10 @@ function isItemActive(item: NavItem, pathname: string, search: string) {
   if (pathname !== targetPath) return false;
 
   if (!query) {
+    if (targetPath === "/admin") {
+      const current = new URLSearchParams(search);
+      return pathname === targetPath && (!current.get("section") || current.get("section") === "overview");
+    }
     return pathname === targetPath && !search;
   }
 
@@ -336,13 +342,21 @@ function NavGroup({ title, items, onNavigate }: { title: string; items: NavItem[
   );
 }
 
-function HealthPill({ label, tone }: { label: string; tone: "ok" | "warning" | "error" }) {
+function StatusRow({ label, tone }: { label: string; tone: "ok" | "warning" | "error" }) {
   return (
-    <span className={`admin-system-pill admin-system-pill--${tone}`}>
+    <span className={`admin-system-row admin-system-row--${tone}`}>
       <span aria-hidden="true" />
-      {label}
+      <span>{label}</span>
+      <strong>{tone === "ok" ? "Operational" : tone === "warning" ? "Checking" : "Attention"}</strong>
     </span>
   );
+}
+
+function initialTheme(): AdminTheme {
+  if (typeof window === "undefined") return "light";
+  const saved = window.localStorage.getItem("admin:theme");
+  if (saved === "light" || saved === "dark") return saved;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 export function AdminLayout() {
@@ -357,6 +371,7 @@ export function AdminLayout() {
   const [health, setHealth] = useState<AdminHealth | null>(null);
   const [healthLoading, setHealthLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [theme, setTheme] = useState<AdminTheme>(initialTheme);
   const displayEmail = moderationAdmin.user?.email ?? "Not signed in";
   const hasSession = Boolean(moderationAdmin.user);
   const meta = useMemo(() => routeMeta(location.pathname, location.search), [location.pathname, location.search]);
@@ -411,13 +426,29 @@ export function AdminLayout() {
     });
   }
 
+  function toggleTheme() {
+    setTheme((current) => {
+      const next = current === "dark" ? "light" : "dark";
+      window.localStorage.setItem("admin:theme", next);
+      return next;
+    });
+  }
+
   const supabaseConfigured =
     Boolean(health?.supabaseUrlConfigured && health.publishableKeyConfigured && health.secretKeyConfigured) ||
     (moderationAdmin.configured && health === null);
   const adminAuthorized = moderationAdmin.status === "authorized";
+  const apiTone = health?.ok ? "ok" : healthLoading ? "warning" : "error";
+  const supabaseTone = supabaseConfigured ? "ok" : "error";
+  const adminTone = adminAuthorized
+    ? "ok"
+    : moderationAdmin.status === "checking" && !moderationAdmin.sessionRefreshing
+      ? "warning"
+      : "error";
+  const systemHealthy = apiTone === "ok" && supabaseTone === "ok" && adminTone === "ok";
 
   return (
-    <div className={`admin-console${navOpen ? " is-nav-open" : ""}${collapsed ? " is-collapsed" : ""}`}>
+    <div data-theme={theme} className={`admin-console${navOpen ? " is-nav-open" : ""}${collapsed ? " is-collapsed" : ""}`}>
       <button
         type="button"
         className="admin-console__scrim"
@@ -483,26 +514,25 @@ export function AdminLayout() {
           </button>
 
           <div className="admin-console__page-title">
-            <span>{meta.group} / {meta.title}</span>
+            <span>{meta.group} / {meta.title === "Overview" ? "Dashboard" : meta.title}</span>
             <h1>{meta.title}</h1>
             <p>{meta.description}</p>
           </div>
 
           <div className="admin-console__topbar-actions">
-            <div className="admin-system-status" aria-label="System status">
-              <HealthPill label="API" tone={health?.ok ? "ok" : healthLoading ? "warning" : "error"} />
-              <HealthPill label="Supabase" tone={supabaseConfigured ? "ok" : "error"} />
-              <HealthPill
-                label="Admin"
-                tone={
-                  adminAuthorized
-                    ? "ok"
-                    : moderationAdmin.status === "checking" && !moderationAdmin.sessionRefreshing
-                      ? "warning"
-                      : "error"
-                }
-              />
-            </div>
+            <details className="admin-system-menu">
+              <summary aria-label="Open system status">
+                <span className={`admin-system-menu__dot admin-system-menu__dot--${systemHealthy ? "ok" : "error"}`} aria-hidden="true" />
+                <span>{systemHealthy ? "Operational" : "Attention"}</span>
+              </summary>
+              <div className="admin-system-menu__popover">
+                <header><strong>System status</strong><small>{systemHealthy ? "All required services are available" : "One or more services require attention"}</small></header>
+                <StatusRow label="API" tone={apiTone} />
+                <StatusRow label="Supabase" tone={supabaseTone} />
+                <StatusRow label="Admin access" tone={adminTone} />
+                <Link to="/admin?section=system">Open System Health →</Link>
+              </div>
+            </details>
 
             <div className="admin-console__refresh">
               <span title={moderationAdmin.sessionRefreshing ? "Refreshing session…" : undefined}>
@@ -519,20 +549,28 @@ export function AdminLayout() {
               </button>
             </div>
 
-            <div className="admin-console__identity">
-              <span className="admin-console__avatar" aria-hidden="true">
-                {initials(displayEmail)}
-              </span>
-              <span className="admin-console__identity-copy">
-                <strong>{displayEmail}</strong>
-                <small>{displayRole}</small>
-              </span>
-              {hasSession && (
-                <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm" onClick={() => void handleSignOut()}>
-                  Sign out
-                </button>
-              )}
-            </div>
+            <button
+              type="button"
+              className="admin-console__theme-toggle"
+              aria-label={theme === "dark" ? "Use light theme" : "Use dark theme"}
+              title={theme === "dark" ? "Use light theme" : "Use dark theme"}
+              onClick={toggleTheme}
+            >
+              <Icon>{theme === "dark" ? <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></> : <><path d="M20.2 15.2A8.2 8.2 0 018.8 3.8 8.5 8.5 0 1020.2 15.2z" /></>}</Icon>
+            </button>
+
+            <details className="admin-profile-menu">
+              <summary aria-label="Open admin profile menu">
+                <span className="admin-console__avatar" aria-hidden="true">{initials(displayEmail)}</span>
+                <span className="admin-console__identity-copy"><strong>{displayEmail}</strong><small>{displayRole}</small></span>
+                <span aria-hidden="true">⌄</span>
+              </summary>
+              <div className="admin-profile-menu__popover">
+                <div><strong>{displayEmail}</strong><small>{displayRole} · {envLabel}</small></div>
+                <button type="button" onClick={toggleTheme}>{theme === "dark" ? "Use light theme" : "Use dark theme"}</button>
+                {hasSession ? <button type="button" onClick={() => void handleSignOut()}>Sign out</button> : null}
+              </div>
+            </details>
           </div>
         </header>
 
