@@ -1,0 +1,14 @@
+{
+  "generated_from": "npm run build && node scripts/report-bundle-sizes.mjs dist",
+  "initial_totals": {
+    "raw": 1148076,
+    "gzip": 329564,
+    "brotli": 278795
+  },
+  "selected_lazy_chunks": {
+    "AdminReportBuilderPage": { "raw": 11400, "gzip": 3600 },
+    "AdminRevenuePage": { "raw": 7520, "gzip": 2700 },
+    "AdminAnalyticsPage": { "raw": 23550, "gzip": 5850 }
+  },
+  "comparison": "Initial raw bytes are unchanged from 3.2; gzip is +3 bytes and Brotli is +20 bytes."
+}

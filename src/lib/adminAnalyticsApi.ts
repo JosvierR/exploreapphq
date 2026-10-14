@@ -738,7 +738,18 @@ export type BusinessIntelDashboard = {
     note?: string;
   };
   opportunities: {
-    cards: Array<{ type: string; title: string; evidence: string; opportunity: string; confidence: string }>;
+    cards: Array<{
+      type: string;
+      title: string;
+      question: string;
+      finding: string;
+      evidence: string;
+      business_implication: string;
+      recommended_investigation: string;
+      limitation: string;
+      opportunity: string;
+      confidence: string;
+    }>;
     category_scores: BusinessIntelDashboard["categories"];
     matrix: BusinessIntelDashboard["supply_demand_matrix"];
     insufficient_data: boolean;
@@ -758,7 +769,12 @@ export type BusinessIntelDashboard = {
     id: string;
     type: string;
     title: string;
+    question: string;
+    finding: string;
     evidence: string;
+    interpretation: string;
+    next_step: string;
+    limitation: string;
     consideration: string;
     metric: string;
     anchor: string;
@@ -838,11 +854,20 @@ export type RevenueIntelligence = {
       definition: string;
       formula: string;
       source: string;
+      contract: string;
       unit: string;
       availability: string;
+      reporting_availability: string;
+      instrumentation_start_date: string | null;
+      reporting_period: string;
+      freshness: string;
+      identity_requirements: string;
+      known_coverage_gaps: string;
       comparison: boolean;
       privacy: string;
+      privacy_classification: string;
       export_eligibility: string[];
+      interpretation: string;
     }>;
   };
 };
@@ -854,13 +879,16 @@ export function getRevenueIntelligence(params: BusinessIntelParams = {}) {
 }
 
 export type IntelligenceReportOptions = {
-  reportType: "current_dashboard" | "full_executive" | "investor_presentation" | "detailed";
+  reportType: "current_dashboard" | "investor_snapshot" | "executive_report" | "analyst_report" | "investor_presentation";
   dashboard: "overview" | "product" | "growth" | "tourism" | "markets" | "revenue" | "operations";
   format: "a4" | "letter" | "16:9";
   language: "en" | "es";
-  detail: "executive" | "detailed";
+  detail: "summary" | "standard" | "detailed";
   classification: "executive_business" | "investor_safe";
   title?: string;
+  subtitle?: string;
+  recipient?: string;
+  organization?: string;
   note?: string;
   includeDefinitions?: boolean;
   includeDataQuality?: boolean;

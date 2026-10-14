@@ -4,6 +4,7 @@ import { EmptyState } from "@/features/admin/components/AdminPrimitives";
 export function ChartCard({
   title,
   subtitle,
+  context,
   insight,
   actions,
   loading = false,
@@ -15,6 +16,7 @@ export function ChartCard({
 }: {
   title: string;
   subtitle: string;
+  context?: Array<{ label: string; value: string }>;
   insight?: string | null;
   actions?: ReactNode;
   loading?: boolean;
@@ -33,6 +35,11 @@ export function ChartCard({
         </div>
         {actions && <div className="admin-chart-card__actions">{actions}</div>}
       </header>
+      {context?.length ? (
+        <dl className="admin-chart-card__context" aria-label={`${title} reporting context`}>
+          {context.map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}
+        </dl>
+      ) : null}
       {insight && <p className="admin-chart-card__insight">{insight}</p>}
       {loading ? (
         <div className="admin-chart-skeleton" aria-label={`Loading ${title}`}>

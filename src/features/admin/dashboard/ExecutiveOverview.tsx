@@ -51,7 +51,7 @@ export function ExecutiveOverview({
   const compare = searchParams.get("compare") !== "none";
   const customEnd = validDay(searchParams.get("end")) || todayUtc();
   const customStart = validDay(searchParams.get("start")) || addUtcDays(customEnd, -6);
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Local timezone";
+  const timezone = "UTC";
   const hasRangeParam = searchParams.has("range");
   const hasCompareParam = searchParams.has("compare");
 
@@ -201,6 +201,15 @@ export function ExecutiveOverview({
 
       {error ? <ErrorState title="Analytics unavailable" message={error} onRetry={() => void handleRefresh()} /> : null}
 
+      <section className="admin-panel admin-executive__decision-brief" aria-labelledby="executive-business-question">
+        <div>
+          <p className="admin-panel__kicker">Executive question</p>
+          <h2 id="executive-business-question">How is observed product activity changing?</h2>
+        </div>
+        <p>{dashboard?.executive_summary?.text || (loading ? "Loading the canonical reporting snapshot…" : "No qualified executive finding is available for this period.")}</p>
+        <small>Descriptive evidence only. Observed activity does not establish tourism demand, physical visits, transactions, or causality.</small>
+      </section>
+
       <section className="admin-executive__kpis" aria-label="Executive key performance indicators">
         <KpiTrendCard
           metricKey="active_users"
@@ -256,6 +265,12 @@ export function ExecutiveOverview({
         title="Product activity"
         subtitle={`${periodLabel} · canonical normalized events`}
         insight={growthInsight}
+        context={[
+          { label: "Unit", value: selectedMetric.label === "Active users" ? "Observed identities" : "Observed events" },
+          { label: "Period", value: `${periodLabel} · UTC` },
+          { label: "Quality", value: metricState === "available" ? "Available" : metricState.replaceAll("_", " ") },
+          { label: "Data cutoff", value: dataThrough ? `${new Date(dataThrough).toLocaleString(undefined, { timeZone: "UTC" })} UTC` : "Unavailable" },
+        ]}
         loading={loading}
         empty={!activitySeries.length}
         className="admin-executive__activity"

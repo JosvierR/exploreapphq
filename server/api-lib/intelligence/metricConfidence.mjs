@@ -1,9 +1,12 @@
-export const METRIC_CONFIDENCE_VERSION = "metric-confidence-v2";
+export const METRIC_CONFIDENCE_VERSION = "metric-confidence-v3";
 
 const BEHAVIOR_METRICS = [
   "active_users",
   "sessions",
+  "place_views",
+  "route_views",
   "route_starts",
+  "route_completions",
   "commercial_actions",
   "demand_index",
 ];
@@ -29,7 +32,10 @@ function behavioralBaseConfidence(dashboard) {
   }
   const rejectionRate = Number(dashboard.data_quality?.rejection_coverage_pct);
   if (Number.isFinite(rejectionRate) && rejectionRate >= 20) {
-    return statusEntry("under_investigation", `${rejectionRate}% operational rejection coverage affects the selected window.`);
+    return statusEntry(
+      "under_investigation",
+      `${rejectionRate}% of observed ingestion outcomes in the selected window were rejected. Dead letters are not dimensionally complete enough to quantify per-metric undercount.`,
+    );
   }
   if (Number.isFinite(rejectionRate) && rejectionRate > 0) {
     return statusEntry("partial", `${rejectionRate}% operational rejection coverage affects the selected window.`);

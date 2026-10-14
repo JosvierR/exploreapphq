@@ -1,0 +1,29 @@
+{
+  "environment": "local production preview with sanitized deterministic API fixtures",
+  "browser_engine": "Playwright Chromium",
+  "baseline_3_2": {
+    "authenticated_usable_ms": 1618,
+    "product_route_usable_ms": 284,
+    "filter_response_ms": 218,
+    "largest_long_task_ms": 201,
+    "js_heap_used_bytes": 20500000,
+    "cls": 0.0009011882543563843
+  },
+  "release_3_3": {
+    "authenticated_usable_ms": 1509,
+    "product_route_usable_ms": 243,
+    "filter_response_ms": 197,
+    "analytics_request_count": 16,
+    "duplicate_analytics_requests": [],
+    "unrelated_tile_requests": 0,
+    "cls": 0.0009011882543563843,
+    "long_tasks_ms": [89, 67, 173],
+    "dom_content_loaded_ms": 307.8,
+    "resources": 46,
+    "js_heap_used_bytes": 18200000,
+    "task_duration_ms": 1347,
+    "script_duration_ms": 560,
+    "layout_duration_ms": 289,
+    "nodes": 4685
+  }
+}

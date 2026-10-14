@@ -1,0 +1,93 @@
+{
+  "generated_at": "2026-10-14T03:55:34.996Z",
+  "runtime": "v24.19.0",
+  "platform": "win32/x64",
+  "classification": "local synthetic benchmark; not production or end-to-end latency",
+  "measurements": [
+    {
+      "variant": "investor-snapshot-a4-en",
+      "iterations": 25,
+      "duration_ms": {
+        "min": 4.731,
+        "median": 6.995,
+        "p95": 9.718,
+        "max": 46.125
+      },
+      "cpu_ms": 234,
+      "rss_delta_bytes": 13873152,
+      "file_size_bytes": {
+        "min": 37990,
+        "max": 37990
+      }
+    },
+    {
+      "variant": "executive-report-a4-en",
+      "iterations": 25,
+      "duration_ms": {
+        "min": 5.412,
+        "median": 7.299,
+        "p95": 12.442,
+        "max": 13.445
+      },
+      "cpu_ms": 235,
+      "rss_delta_bytes": 8314880,
+      "file_size_bytes": {
+        "min": 55414,
+        "max": 55414
+      }
+    },
+    {
+      "variant": "investor-presentation-16x9-es",
+      "iterations": 25,
+      "duration_ms": {
+        "min": 5.171,
+        "median": 6.848,
+        "p95": 13.63,
+        "max": 15.325
+      },
+      "cpu_ms": 219,
+      "rss_delta_bytes": 10645504,
+      "file_size_bytes": {
+        "min": 44730,
+        "max": 44730
+      }
+    },
+    {
+      "variant": "analyst-report-letter-en",
+      "iterations": 25,
+      "duration_ms": {
+        "min": 9.415,
+        "median": 10.944,
+        "p95": 13.46,
+        "max": 13.988
+      },
+      "cpu_ms": 312,
+      "rss_delta_bytes": 8585216,
+      "file_size_bytes": {
+        "min": 66681,
+        "max": 66681
+      }
+    },
+    {
+      "variant": "current-revenue-letter-en",
+      "iterations": 25,
+      "duration_ms": {
+        "min": 0.596,
+        "median": 0.845,
+        "p95": 2.206,
+        "max": 2.816
+      },
+      "cpu_ms": 31,
+      "rss_delta_bytes": 1261568,
+      "file_size_bytes": {
+        "min": 23879,
+        "max": 23879
+      }
+    }
+  ],
+  "concurrency_guard": {
+    "maximum_active_reports": 2,
+    "third_request_error_code": "report_capacity_reached",
+    "passed": true
+  }
+}

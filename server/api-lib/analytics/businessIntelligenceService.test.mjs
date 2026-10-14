@@ -126,7 +126,7 @@ test("decision insights expose evidence and suppress low samples", () => {
 
 test("metric dictionary exposes versioned formulas", () => {
   const dictionary = metricDefinitionsForClient();
-  assert.equal(dictionary.version, "v1");
+  assert.equal(dictionary.version, "v2");
   assert.match(dictionary.metrics.intent_rate.description, /high-intent action/i);
   assert.equal(dictionary.metrics.demand_index.version, "v1");
 });

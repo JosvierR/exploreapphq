@@ -1,0 +1,265 @@
+{
+  "ok": true,
+  "generated_at": "2026-10-14T03:51:19.606Z",
+  "scope": "read_only",
+  "contract_version": "analytics-ingestion-v2",
+  "outcome_rate_formula": "rejected / (accepted + rejected)",
+  "cumulative": {
+    "accepted": 29953,
+    "rejected": 9285,
+    "rejection_rate_pct": 23.66,
+    "first_rejection_at": "2026-07-05T12:37:32.289342+00:00",
+    "latest_rejection_at": "2026-10-13T22:28:08.538269+00:00",
+    "latest_accepted_at": "2026-10-14T02:20:06.332131+00:00"
+  },
+  "windows": {
+    "1h": {
+      "accepted": 0,
+      "rejected": 0,
+      "rejection_rate_pct": 0
+    },
+    "6h": {
+      "accepted": 237,
+      "rejected": 41,
+      "rejection_rate_pct": 14.75
+    },
+    "24h": {
+      "accepted": 593,
+      "rejected": 217,
+      "rejection_rate_pct": 26.79
+    },
+    "7d": {
+      "accepted": 2357,
+      "rejected": 1235,
+      "rejection_rate_pct": 34.38
+    },
+    "30d": {
+      "accepted": 10963,
+      "rejected": 4895,
+      "rejection_rate_pct": 30.87
+    }
+  },
+  "since_release_cutoff": null,
+  "taxonomy": {
+    "reasons": [
+      {
+        "value": "entity_type is invalid",
+        "count": 6493
+      },
+      {
+        "value": "event_name is not allowed",
+        "count": 2792
+      }
+    ],
+    "sources": [
+      {
+        "value": "mobile",
+        "count": 9285
+      }
+    ],
+    "event_names": [
+      {
+        "value": "session_end",
+        "count": 3372
+      },
+      {
+        "value": "app_open",
+        "count": 1828
+      },
+      {
+        "value": "app_background",
+        "count": 1560
+      },
+      {
+        "value": "session_start",
+        "count": 1293
+      },
+      {
+        "value": "app_foreground",
+        "count": 1110
+      },
+      {
+        "value": "route_publish_step_view",
+        "count": 50
+      },
+      {
+        "value": "route_publish_step_complete",
+        "count": 37
+      },
+      {
+        "value": "route_difficulty_corrected",
+        "count": 8
+      },
+      {
+        "value": "route_record_start",
+        "count": 8
+      },
+      {
+        "value": "route_recorded_choice",
+        "count": 6
+      },
+      {
+        "value": "route_publish_exit",
+        "count": 5
+      },
+      {
+        "value": "route_publish_complete",
+        "count": 4
+      },
+      {
+        "value": "route_transport_corrected",
+        "count": 4
+      }
+    ],
+    "entity_types": [
+      {
+        "value": "session",
+        "count": 9163
+      },
+      {
+        "value": "route",
+        "count": 122
+      }
+    ],
+    "reason_diagnostics": {
+      "entity_type is invalid": "Producer entity_type does not match the canonical entity vocabulary.",
+      "event_name is not allowed": "Producer sent an event outside the canonical allowlist."
+    }
+  },
+  "duplicate_behavior": {
+    "dead_letter_rows_with_repeated_event_id": 1320,
+    "repeated_event_ids": 586,
+    "accepted_event_id_constraint": "analytics_events.event_id is UNIQUE"
+  },
+  "recent_rejections_by_day": [
+    {
+      "value": "2026-10-10",
+      "count": 360
+    },
+    {
+      "value": "2026-09-19",
+      "count": 289
+    },
+    {
+      "value": "2026-09-27",
+      "count": 283
+    },
+    {
+      "value": "2026-08-29",
+      "count": 282
+    },
+    {
+      "value": "2026-09-26",
+      "count": 234
+    },
+    {
+      "value": "2026-09-21",
+      "count": 231
+    },
+    {
+      "value": "2026-09-29",
+      "count": 230
+    },
+    {
+      "value": "2026-10-12",
+      "count": 230
+    },
+    {
+      "value": "2026-10-13",
+      "count": 221
+    },
+    {
+      "value": "2026-09-08",
+      "count": 220
+    },
+    {
+      "value": "2026-09-25",
+      "count": 216
+    },
+    {
+      "value": "2026-09-22",
+      "count": 212
+    },
+    {
+      "value": "2026-07-10",
+      "count": 177
+    },
+    {
+      "value": "2026-10-04",
+      "count": 177
+    },
+    {
+      "value": "2026-10-08",
+      "count": 177
+    },
+    {
+      "value": "2026-09-15",
+      "count": 174
+    },
+    {
+      "value": "2026-09-16",
+      "count": 170
+    },
+    {
+      "value": "2026-10-07",
+      "count": 164
+    },
+    {
+      "value": "2026-10-06",
+      "count": 162
+    },
+    {
+      "value": "2026-09-20",
+      "count": 158
+    },
+    {
+      "value": "2026-09-24",
+      "count": 156
+    },
+    {
+      "value": "2026-07-11",
+      "count": 145
+    },
+    {
+      "value": "2026-10-05",
+      "count": 145
+    },
+    {
+      "value": "2026-10-03",
+      "count": 141
+    },
+    {
+      "value": "2026-07-12",
+      "count": 139
+    },
+    {
+      "value": "2026-09-23",
+      "count": 139
+    },
+    {
+      "value": "2026-07-25",
+      "count": 129
+    },
+    {
+      "value": "2026-07-05",
+      "count": 128
+    },
+    {
+      "value": "2026-09-09",
+      "count": 128
+    },
+    {
+      "value": "2026-07-09",
+      "count": 125
+    },
+    {
+      "value": "2026-09-10",
+      "count": 116
+    }
+  ],
+  "limitations": {
+    "authentication_failures": "Bearer-token failures return before event validation and are not represented in the dead-letter table.",
+    "payloads": "Only event_name and entity_type categories are emitted; raw payload values are not printed.",
+    "reprocessing": "No records were replayed. Corrected events can rely on the accepted-table event_id uniqueness guard, but replay still needs a reviewed idempotent tool."
+  }
+}

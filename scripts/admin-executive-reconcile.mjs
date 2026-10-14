@@ -1,4 +1,4 @@
-import { calculateCanonicalKpis, periodDelta } from "../server/api-lib/analytics/businessAnalyticsCore.mjs";
+import { BUSINESS_ANALYTICS_CORE_VERSION, calculateCanonicalKpis, periodDelta } from "../server/api-lib/analytics/businessAnalyticsCore.mjs";
 import { createBusinessServiceClient, exactCount, safeError } from "./business-runtime.mjs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
@@ -94,7 +94,7 @@ async function main() {
     scope: "read_only",
     source: "analytics_normalized_events",
     formula_module: "server/api-lib/analytics/businessAnalyticsCore.mjs",
-    formula_version: "business-analytics-core-v1",
+    formula_version: `business-analytics-core-${BUSINESS_ANALYTICS_CORE_VERSION}`,
     timezone: "UTC",
     data_quality: {
       status: qualityStatus,

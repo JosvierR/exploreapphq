@@ -6,9 +6,9 @@
  * can all return the same metrics and interpretations.
  */
 
-export const BUSINESS_ANALYTICS_CORE_VERSION = "v2";
+export const BUSINESS_ANALYTICS_CORE_VERSION = "v3";
 export const EVENT_TAXONOMY_VERSION = "v1";
-export const METRICS_DICTIONARY_VERSION = "v1";
+export const METRICS_DICTIONARY_VERSION = "v2";
 export const DEMAND_INDEX_VERSION = "v1";
 export const OPPORTUNITY_SCORE_VERSION = "v1";
 export const BUSINESS_SCORE_VERSION = "v1";
@@ -471,16 +471,19 @@ export function insightConfidence(sampleSize, comparisonSampleSize = null) {
 
 export function buildExecutiveSummary({ marketLabel, range, kpis = {}, previousKpis = {}, categories = [], peak = null }) {
   const demand = calculateDemandIndex(kpis, previousKpis);
-  const travelerDelta = periodDelta(kpis.active_users, previousKpis.active_users);
+  const userDelta = periodDelta(kpis.active_users, previousKpis.active_users);
   const intentDelta = periodDelta(kpis.commercial_intent, previousKpis.commercial_intent);
   const leader = [...categories].filter((item) => item.reliable).sort((a, b) => safeNumber(b.intent) - safeNumber(a.intent))[0] || null;
   const fastest = [...categories].filter((item) => item.reliable && item.growth_pct != null).sort((a, b) => b.growth_pct - a.growth_pct)[0] || null;
   const statements = [];
 
-  if (travelerDelta.reliable && travelerDelta.percent != null) {
-    statements.push(`Traveler demand ${travelerDelta.percent >= 0 ? "increased" : "decreased"} ${Math.abs(travelerDelta.percent)}% compared with the previous period.`);
+  if (userDelta.reliable && userDelta.percent != null) {
+    statements.push(
+      `Observed user activity ${userDelta.percent >= 0 ? "increased" : "decreased"} ${Math.abs(userDelta.percent)}% ` +
+      `(${userDelta.current} vs ${userDelta.previous}; ${userDelta.absolute >= 0 ? "+" : ""}${userDelta.absolute}) compared with the previous period.`,
+    );
   } else {
-    statements.push("There is not enough comparison volume yet to make a reliable traveler-demand claim.");
+    statements.push("There is not enough comparison volume to characterize the user-activity movement reliably.");
   }
   if (leader && safeNumber(leader.intent) > 0) statements.push(`${leader.category} generated the largest measured share of commercial intent.`);
   if (fastest && safeNumber(fastest.previous_demand) >= MIN_TREND_BASELINE && fastest.growth_pct >= 15) {
@@ -497,8 +500,8 @@ export function buildExecutiveSummary({ marketLabel, range, kpis = {}, previousK
     statements,
     demand_index: demand,
     evidence: {
-      active_travelers: safeNumber(kpis.active_users),
-      previous_active_travelers: safeNumber(previousKpis.active_users),
+      active_users: safeNumber(kpis.active_users),
+      previous_active_users: safeNumber(previousKpis.active_users),
       commercial_intent: safeNumber(kpis.commercial_intent),
       previous_commercial_intent: safeNumber(previousKpis.commercial_intent),
       intent_growth_pct: intentDelta.reliable ? intentDelta.percent : null,
@@ -518,14 +521,25 @@ export function buildDecisionInsights({ range, comparisonRange, kpis = {}, previ
   for (const [key, label] of candidates) {
     const delta = periodDelta(kpis[key], previousKpis[key]);
     if (!delta.reliable || delta.percent == null || Math.abs(delta.percent) < 10) continue;
+    const direction = delta.percent > 0 ? "increased" : "decreased";
+    const limitation = Math.min(delta.current, delta.previous) < 30
+      ? "The comparison is based on a small observed event baseline; treat the percentage as directional."
+      : "This is an observed association and does not identify the cause of the movement.";
     insights.push({
       id: `${key}_change`,
       type: delta.percent > 0 ? "growth" : "decline",
-      title: `${label} ${delta.percent > 0 ? "increased" : "decreased"} ${Math.abs(delta.percent)}%`,
-      evidence: `${delta.current} current vs ${delta.previous} comparison-period events`,
+      question: `How did ${label.toLowerCase()} change versus the comparison period?`,
+      finding: `${label} ${direction} by ${Math.abs(delta.absolute)} observed events.`,
+      title: `${label} ${direction} ${Math.abs(delta.percent)}%`,
+      evidence: `${delta.current} current vs ${delta.previous} comparison-period events (${delta.absolute >= 0 ? "+" : ""}${delta.absolute}; ${delta.percent >= 0 ? "+" : ""}${delta.percent}%)`,
+      interpretation: `${label} moved ${direction === "increased" ? "above" : "below"} the preceding equivalent-period level.`,
+      next_step: delta.percent > 0
+        ? `Investigate which sources and time windows contributed to the ${label.toLowerCase()} increase.`
+        : `Review source, geography, and timing changes behind the ${label.toLowerCase()} decline.`,
       consideration: delta.percent > 0
         ? `Investigate which sources and time windows contributed to the ${label.toLowerCase()} increase.`
         : `Review source, geography, and timing changes behind the ${label.toLowerCase()} decline.`,
+      limitation,
       metric: key,
       anchor: key === "route_starts" ? "routes" : "market-pulse",
       confidence: insightConfidence(delta.current, delta.previous),
@@ -542,9 +556,14 @@ export function buildDecisionInsights({ range, comparisonRange, kpis = {}, previ
     insights.push({
       id: `category_${opportunity.category}_opportunity`,
       type: "opportunity",
+      question: `Which category has the strongest measured supply-demand signal?`,
+      finding: `${opportunity.category} has the highest eligible opportunity score in the selected cohort.`,
       title: `${opportunity.category} shows a measurable supply-demand gap`,
       evidence: `Opportunity ${opportunity.opportunity_score}/100 · demand ${opportunity.demand_index ?? "—"} · supply ${opportunity.supply_index ?? "—"}`,
+      interpretation: "The observed category signals justify deeper inventory and market validation; they do not establish market size or revenue.",
+      next_step: "Validate destination coverage, available inventory, and partner economics before prioritizing action.",
       consideration: "Explore data indicates a potential supply-demand opportunity worth investigating.",
+      limitation: "The score is a relative Explore activity index, not a percentage, forecast, or financial value.",
       metric: "opportunity_score",
       anchor: "opportunities",
       confidence: insightConfidence(opportunity.sample_size, opportunity.previous_demand),
@@ -558,9 +577,14 @@ export function buildDecisionInsights({ range, comparisonRange, kpis = {}, previ
     insights.push({
       id: "peak_window",
       type: "timing",
+      question: "When is the strongest observed activity window?",
+      finding: `${peak.peak_window.label} has the highest eligible activity level.`,
       title: `${peak.peak_window.label} is the strongest measured demand window`,
       evidence: `${peak.peak_window.sample_size} eligible events · ${peak.peak_window.above_average_pct}% above the weekly window average`,
+      interpretation: "The timing pattern may be useful for planning tests, subject to repeated observation across periods.",
+      next_step: "Compare the same window across additional periods before changing staffing or campaign timing.",
       consideration: "Consider testing staffing, content, or campaigns during this period.",
+      limitation: "The pattern is descriptive and does not establish why activity occurred in that window.",
       metric: "peak_demand",
       anchor: "time-intelligence",
       confidence: insightConfidence(peak.peak_window.sample_size),
@@ -574,9 +598,14 @@ export function buildDecisionInsights({ range, comparisonRange, kpis = {}, previ
     insights.push({
       id: `mover_${mover.type}_${mover.label}`,
       type: "trend",
+      question: `Which ${mover.type} is gaining observed engagement?`,
+      finding: `${mover.label} increased ${mover.trend_pct}% against the enforced comparison baseline.`,
       title: `${mover.label} is gaining momentum`,
       evidence: `+${mover.trend_pct}% with the minimum comparison baseline enforced`,
+      interpretation: "The entity merits a drill-down to determine which sources and actions contributed to the movement.",
+      next_step: "Review the entity trend, discovery sources, and downstream actions before drawing a commercial conclusion.",
       consideration: "Review the related place or route detail to understand what is driving the change.",
+      limitation: "The movement is observational and may be affected by content exposure or instrumentation coverage.",
       metric: "growth",
       anchor: mover.type === "route" ? "routes" : "places",
       confidence: "medium",

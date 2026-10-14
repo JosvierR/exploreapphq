@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { formatNumber } from "@/lib/analyticsDisplay";
 
 export type ChartDataColumn = {
@@ -15,10 +16,13 @@ export function ChartDataTable({
   rows: Array<Record<string, unknown>>;
   columns: ChartDataColumn[];
 }) {
+  const [hasOpened, setHasOpened] = useState(false);
   return (
-    <details className="admin-chart-data-table">
+    <details className="admin-chart-data-table" onToggle={(event) => {
+      if (event.currentTarget.open) setHasOpened(true);
+    }}>
       <summary>View accessible data table</summary>
-      <div className="admin-table-wrap">
+      {hasOpened ? <div className="admin-table-wrap">
         <table>
           <caption>{caption}</caption>
           <thead>
@@ -36,7 +40,7 @@ export function ChartDataTable({
             ))}
           </tbody>
         </table>
-      </div>
+      </div> : null}
     </details>
   );
 }

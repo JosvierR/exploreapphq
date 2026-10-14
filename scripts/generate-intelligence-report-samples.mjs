@@ -3,35 +3,34 @@ import { fileURLToPath } from "node:url";
 import { buildInvestorSafeSnapshot } from "../server/api-lib/intelligence/reportSnapshotService.mjs";
 import { renderIntelligencePdf } from "../server/api-lib/intelligence/pdfReportService.mjs";
 import { intelligenceReportFixture } from "../server/api-lib/intelligence/reportFixture.mjs";
+import { reportProductTitle } from "../server/api-lib/intelligence/reportRequest.mjs";
 
-const output = fileURLToPath(new URL("../docs/admin-v3.2/reports/", import.meta.url));
+const output = fileURLToPath(new URL("../docs/admin-v3.3/reports/", import.meta.url));
 await mkdir(output, { recursive: true });
-const snapshot = buildInvestorSafeSnapshot(intelligenceReportFixture(), {
-  classification: "investor_safe",
-  generatedAt: "2026-10-14T12:00:00.000Z",
-  env: {},
-});
-const partialDashboard = intelligenceReportFixture();
-partialDashboard.data_quality = {
-  ...partialDashboard.data_quality,
-  rejected_events_in_range: 1068,
-  rejection_coverage_pct: 26.8,
-  rejection_coverage_note: "Synthetic partial-quality scenario for report validation.",
-};
-const partialSnapshot = buildInvestorSafeSnapshot(partialDashboard, {
-  classification: "investor_safe",
-  generatedAt: "2026-10-14T12:00:00.000Z",
-  env: {},
-});
+
 const samples = [
-  [snapshot, "explore-intelligence-sample-en-a4.pdf", { reportType: "full_executive", dashboard: "overview", format: "a4", language: "en", detail: "executive", classification: "investor_safe", includeDataQuality: true, includeOpportunities: true, fixture: true, title: "Explore Executive Intelligence" }],
-  [snapshot, "explore-intelligence-sample-es-16x9.pdf", { reportType: "investor_presentation", dashboard: "overview", format: "16:9", language: "es", detail: "executive", classification: "investor_safe", includeDataQuality: true, includeOpportunities: true, fixture: true, title: "Inteligencia Ejecutiva de Explore" }],
-  [snapshot, "explore-intelligence-sample-revenue-en-letter.pdf", { reportType: "current_dashboard", dashboard: "revenue", format: "letter", language: "en", detail: "executive", classification: "investor_safe", includeDataQuality: true, fixture: true, title: "Explore Revenue Readiness" }],
-  [snapshot, "explore-intelligence-sample-tourism-es-a4.pdf", { reportType: "current_dashboard", dashboard: "tourism", format: "a4", language: "es", detail: "executive", classification: "investor_safe", includeDataQuality: true, fixture: true, title: "Inteligencia Turística de Explore" }],
-  [partialSnapshot, "explore-intelligence-sample-partial-quality-en-letter.pdf", { reportType: "detailed", dashboard: "operations", format: "letter", language: "en", detail: "detailed", classification: "investor_safe", includeDataQuality: true, includeDefinitions: true, fixture: true, title: "Explore Intelligence Reliability, Coverage, Confidence, and Reporting Integrity Review", note: "Synthetic validation scenario: the selected window contains material historical rejections; behavioral metrics are under investigation and must not be presented without this qualification." }],
+  ["explore-investor-snapshot-en-a4.pdf", { reportType: "investor_snapshot", dashboard: "overview", format: "a4", language: "en", detail: "summary", classification: "investor_safe", includeDataQuality: false, includeOpportunities: true }],
+  ["explore-executive-business-report-eduardo-en-letter.pdf", { reportType: "executive_report", dashboard: "overview", format: "letter", language: "en", detail: "standard", classification: "investor_safe", includeDataQuality: true, includeDefinitions: true, includeOpportunities: true, recipient: "Eduardo", organization: "Explore Board", note: "Prepared for an executive review of observed company activity, reporting confidence, and bounded next investigations." }],
+  ["explore-analyst-report-en-letter.pdf", { reportType: "analyst_report", dashboard: "overview", format: "letter", language: "en", detail: "detailed", classification: "executive_business", includeDataQuality: true, includeDefinitions: true, includeOpportunities: true }],
+  ["explore-investor-presentation-en-16x9.pdf", { reportType: "investor_presentation", dashboard: "overview", format: "16:9", language: "en", detail: "standard", classification: "investor_safe", includeDataQuality: true, includeOpportunities: true }],
+  ["explore-informe-ejecutivo-es-a4.pdf", { reportType: "executive_report", dashboard: "overview", format: "a4", language: "es", detail: "standard", classification: "investor_safe", includeDataQuality: true, includeDefinitions: true, includeOpportunities: true }],
+  ["explore-current-overview-en-a4.pdf", { reportType: "current_dashboard", dashboard: "overview", format: "a4", language: "en", detail: "standard", classification: "investor_safe", includeDataQuality: false, includeOpportunities: false }],
+  ["explore-current-revenue-en-letter.pdf", { reportType: "current_dashboard", dashboard: "revenue", format: "letter", language: "en", detail: "standard", classification: "investor_safe", includeDataQuality: false, includeOpportunities: false }],
 ];
-for (const [sampleSnapshot, filename, options] of samples) {
-  const { bytes } = renderIntelligencePdf(sampleSnapshot, options);
+
+for (const [filename, baseOptions] of samples) {
+  const options = {
+    ...baseOptions,
+    fixture: true,
+    title: reportProductTitle(baseOptions.reportType, baseOptions.language),
+  };
+  const snapshot = buildInvestorSafeSnapshot(intelligenceReportFixture(), {
+    classification: options.classification,
+    reportType: options.reportType,
+    generatedAt: "2026-10-14T12:00:00.000Z",
+    env: {},
+  });
+  const { bytes, pageCount, outline } = renderIntelligencePdf(snapshot, options);
   await writeFile(new URL(filename, `file:///${output.replaceAll("\\", "/")}/`), bytes);
-  console.log(`${filename}: ${bytes.length} bytes`);
+  console.log(`${filename}: ${bytes.length} bytes, ${pageCount} pages, ${outline.join(" > ")}`);
 }

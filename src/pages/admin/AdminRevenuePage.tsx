@@ -184,8 +184,14 @@ function AdminRevenueContent() {
               <AdminDataTable label="Revenue metric definition">
                 <thead><tr><th>Metric</th><th>Definition</th><th>Source</th><th>Availability</th><th>Export</th></tr></thead>
                 <tbody>
-                  {Object.entries(data.metric_catalog.metrics).filter(([id]) => id === "revenue" || id === "commercial_actions").map(([id, metric]) => (
-                    <tr key={id}><td><strong>{metric.label}</strong></td><td>{metric.definition}</td><td>{metric.source}</td><td>{metric.availability.replaceAll("_", " ")}</td><td>{metric.export_eligibility.join(", ")}</td></tr>
+                  {Object.entries(data.metric_catalog.metrics).filter(([id]) => id === "verified_revenue" || id === "revenue" || id === "commercial_actions").map(([id, metric]) => (
+                    <tr key={id}>
+                      <td><strong>{metric.label}</strong>{metric.interpretation ? <><br /><small>{metric.interpretation}</small></> : null}</td>
+                      <td>{metric.definition}<br /><small>Coverage: {metric.known_coverage_gaps || "Not supplied by this contract version"}</small></td>
+                      <td>{metric.source}</td>
+                      <td>{(metric.reporting_availability || metric.availability || "unavailable").replaceAll("_", " ")}</td>
+                      <td>{metric.export_eligibility.join(", ")}</td>
+                    </tr>
                   ))}
                 </tbody>
               </AdminDataTable>

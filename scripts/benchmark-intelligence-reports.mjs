@@ -6,22 +6,25 @@ import { renderIntelligencePdf } from "../server/api-lib/intelligence/pdfReportS
 import { intelligenceReportFixture } from "../server/api-lib/intelligence/reportFixture.mjs";
 import { withReportCapacity } from "../server/api-lib/intelligence/reportRequest.mjs";
 
-const output = fileURLToPath(new URL("../docs/admin-v3.2/reports/pdf-benchmark.json", import.meta.url));
-await mkdir(fileURLToPath(new URL("../docs/admin-v3.2/reports/", import.meta.url)), { recursive: true });
-const snapshot = buildInvestorSafeSnapshot(intelligenceReportFixture(), {
-  classification: "investor_safe",
-  generatedAt: "2026-10-14T12:00:00.000Z",
-  env: {},
-});
+const outputDirectory = fileURLToPath(new URL("../docs/admin-v3.3/benchmarks/", import.meta.url));
+const output = fileURLToPath(new URL("../docs/admin-v3.3/benchmarks/pdf-benchmark.json", import.meta.url));
+await mkdir(outputDirectory, { recursive: true });
 const variants = [
-  { name: "full-executive-a4-en", reportType: "full_executive", dashboard: "overview", format: "a4", language: "en" },
-  { name: "investor-16x9-es", reportType: "investor_presentation", dashboard: "overview", format: "16:9", language: "es" },
-  { name: "detailed-letter-en", reportType: "detailed", dashboard: "operations", format: "letter", language: "en", includeDefinitions: true },
-  { name: "current-revenue-letter-en", reportType: "current_dashboard", dashboard: "revenue", format: "letter", language: "en" },
+  { name: "investor-snapshot-a4-en", reportType: "investor_snapshot", dashboard: "overview", format: "a4", language: "en", detail: "summary" },
+  { name: "executive-report-a4-en", reportType: "executive_report", dashboard: "overview", format: "a4", language: "en", detail: "standard", includeDefinitions: true },
+  { name: "investor-presentation-16x9-es", reportType: "investor_presentation", dashboard: "overview", format: "16:9", language: "es", detail: "standard" },
+  { name: "analyst-report-letter-en", reportType: "analyst_report", dashboard: "operations", format: "letter", language: "en", detail: "detailed", includeDefinitions: true },
+  { name: "current-revenue-letter-en", reportType: "current_dashboard", dashboard: "revenue", format: "letter", language: "en", detail: "standard" },
 ];
 
 const measurements = [];
 for (const variant of variants) {
+  const snapshot = buildInvestorSafeSnapshot(intelligenceReportFixture(), {
+    classification: "investor_safe",
+    reportType: variant.reportType,
+    generatedAt: "2026-10-14T12:00:00.000Z",
+    env: {},
+  });
   const durations = [];
   const sizes = [];
   const rssBefore = process.memoryUsage().rss;
@@ -31,7 +34,6 @@ for (const variant of variants) {
     const rendered = renderIntelligencePdf(snapshot, {
       ...variant,
       classification: "investor_safe",
-      detail: variant.reportType === "detailed" ? "detailed" : "executive",
       includeDataQuality: true,
       includeOpportunities: true,
       fixture: true,
@@ -73,7 +75,7 @@ const report = {
   generated_at: new Date().toISOString(),
   runtime: process.version,
   platform: `${process.platform}/${process.arch}`,
-  classification: "local synthetic benchmark; not production latency",
+  classification: "local synthetic benchmark; not production or end-to-end latency",
   measurements,
   concurrency_guard: { maximum_active_reports: 2, third_request_error_code: capacityCode, passed: capacityCode === "report_capacity_reached" },
 };

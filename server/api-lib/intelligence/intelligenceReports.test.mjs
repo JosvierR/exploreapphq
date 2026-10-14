@@ -88,10 +88,14 @@ test("investor-safe snapshot suppresses small cohorts and identifiers", () => {
   assert.doesNotMatch(serialized, /private query|secret user email/i);
   assert.equal(snapshot.headline.active_users, 18420);
   assert.equal(snapshot.headline.verified_revenue, null);
-  assert.equal(snapshot.contract_version, "explore-intelligence-report-v2");
-  assert.equal(snapshot.metric_catalog_version, "investor-metrics-v2");
+  assert.equal(snapshot.contract_version, "explore-intelligence-report-v3");
+  assert.equal(snapshot.metric_catalog_version, "investor-metrics-v3");
   assert.equal(snapshot.metric_confidence.metrics.active_users.status, "verified");
   assert.equal(snapshot.metric_confidence.metrics.verified_revenue.status, "unavailable");
+  assert.equal(snapshot.data_readiness.metrics.active_users.investor_headline_eligible, true);
+  assert.match(snapshot.insights[0].question, /category/i);
+  assert.match(snapshot.insights[0].limitation, /not market demand/i);
+  assert.ok(snapshot.routes.every((row) => !Object.hasOwn(row, "route_id")));
   assert.equal(snapshot.timezone, "UTC");
 });
 
@@ -100,13 +104,15 @@ test("PDF variants are valid, selectable, deterministic report structures", () =
     generatedAt: "2026-10-13T12:00:00.000Z",
     env: {},
   });
-  const variants = ["current_dashboard", "full_executive", "investor_presentation", "detailed"].flatMap((reportType) =>
-    ["overview", "product", "growth", "tourism", "markets", "revenue", "operations"].flatMap((dashboard) =>
-      ["a4", "letter", "16:9"].flatMap((format) =>
-        ["en", "es"].map((language) => ({ reportType, dashboard, format, language, includeDefinitions: reportType === "detailed" })),
-      ),
+  const variants = [
+    ...["overview", "product", "growth", "tourism", "markets", "revenue", "operations"].flatMap((dashboard) =>
+      ["en", "es"].map((language) => ({ reportType: "current_dashboard", dashboard, format: "a4", language })),
     ),
-  );
+    ...["investor_snapshot", "executive_report", "analyst_report"].flatMap((reportType) =>
+      ["a4", "letter"].flatMap((format) => ["en", "es"].map((language) => ({ reportType, dashboard: "overview", format, language, includeDefinitions: reportType === "analyst_report" }))),
+    ),
+    ...["en", "es"].map((language) => ({ reportType: "investor_presentation", dashboard: "overview", format: "16:9", language })),
+  ];
   for (const variant of variants) {
     const rendered = renderIntelligencePdf(snapshot, { ...variant, classification: "investor_safe", fixture: true });
     const raw = rendered.bytes.toString("latin1");
@@ -114,14 +120,29 @@ test("PDF variants are valid, selectable, deterministic report structures", () =
     assert.ok(raw.endsWith("%%EOF\n"));
     assert.equal((raw.match(/\/Type \/Page\b/g) || []).length, rendered.pageCount);
     assert.match(raw, /EXPLORE/);
-    assert.match(raw, /Revenue|revenue|ingresos|Ingresos/);
-    if (variant.reportType !== "current_dashboard") assert.match(raw, /Unavailable|No disponible/);
+    assert.match(raw, /\/Subtype \/Image/);
     assert.doesNotMatch(raw, /private query|SECRET USER EMAIL/i);
-    assert.ok(rendered.bytes.length > 4_000);
-    if (variant.reportType === "full_executive") assert.match(raw, /\(18,420\)/);
+    assert.ok(rendered.bytes.length > 15_000);
+    if (variant.reportType === "executive_report") assert.match(raw, /\(18[,\.]420\)/);
     if (variant.format === "16:9") assert.match(raw, /\/MediaBox \[0 0 960 540\]/);
+    if (variant.reportType === "investor_snapshot") assert.ok(!rendered.outline.includes("revenue"), "unverified revenue must not dominate the investor snapshot");
+    if (variant.reportType === "analyst_report") assert.ok(rendered.outline.includes("analyst_trends"));
   }
-  assert.equal(variants.length, 168, "all report type, dashboard, format, and language combinations are covered");
+  assert.equal(variants.length, 28, "every report product and dashboard family is covered in supported formats and languages");
+});
+
+test("report title remains a document title when a recipient is supplied", () => {
+  const snapshot = buildInvestorSafeSnapshot(intelligenceReportFixture(), {
+    generatedAt: "2026-10-13T12:00:00.000Z",
+    env: {},
+  });
+  const options = validateReportOptions({ reportType: "executive_report", recipient: "Eduardo", organization: "Explore Board" });
+  const rendered = renderIntelligencePdf(snapshot, { ...options, fixture: true });
+  const raw = rendered.bytes.toString("latin1");
+  assert.match(raw, /\/Title \(Explore Executive Business Report\)/);
+  assert.match(raw, /\(Prepared for: Eduardo\)/);
+  assert.doesNotMatch(raw, /\/Title \(Eduardo\)/);
+  assert.equal(rendered.outline[0], "cover");
 });
 
 test("partial and unavailable quality states remain explicit in investor PDFs", () => {
@@ -130,7 +151,7 @@ test("partial and unavailable quality states remain explicit in investor PDFs", 
   partialDashboard.data_quality.rejection_coverage_pct = 25;
   const partial = buildInvestorSafeSnapshot(partialDashboard, { generatedAt: "2026-10-14T12:00:00.000Z", env: {} });
   assert.equal(partial.metric_confidence.metrics.active_users.status, "under_investigation");
-  const partialPdf = renderIntelligencePdf(partial, { reportType: "detailed", dashboard: "operations", format: "letter", language: "en", classification: "investor_safe", fixture: true });
+  const partialPdf = renderIntelligencePdf(partial, { reportType: "analyst_report", dashboard: "operations", format: "letter", language: "en", classification: "investor_safe", includeDefinitions: true, fixture: true });
   assert.match(partialPdf.bytes.toString("latin1"), /under_investigation/);
 
   const unavailableDashboard = intelligenceReportFixture();
@@ -138,7 +159,7 @@ test("partial and unavailable quality states remain explicit in investor PDFs", 
   unavailableDashboard.data_quality.valid_events = 0;
   const unavailable = buildInvestorSafeSnapshot(unavailableDashboard, { generatedAt: "2026-10-14T12:00:00.000Z", env: {} });
   assert.equal(unavailable.metric_confidence.metrics.active_users.status, "unavailable");
-  const unavailablePdf = renderIntelligencePdf(unavailable, { reportType: "full_executive", dashboard: "overview", format: "a4", language: "en", classification: "investor_safe", fixture: true });
+  const unavailablePdf = renderIntelligencePdf(unavailable, { reportType: "executive_report", dashboard: "overview", format: "a4", language: "en", classification: "investor_safe", fixture: true });
   assert.match(unavailablePdf.bytes.toString("latin1"), /Unavailable/);
 });
 
@@ -146,12 +167,17 @@ test("report requests are allowlisted and filenames are deterministic", () => {
   const options = validateReportOptions({ reportType: "investor_presentation", format: "16:9", language: "es", title: "  Consejo  " });
   assert.equal(options.title, "Consejo");
   assert.throws(() => validateReportOptions({ reportType: "../../unsafe" }), /Invalid report_type/);
-  assert.throws(() => validateReportOptions({ title: "x".repeat(101) }), /too long/);
+  assert.throws(() => validateReportOptions({ title: "x".repeat(121) }), /too long/);
   assert.throws(() => validateReportOptions([]), /JSON object/);
   assert.throws(() => validateReportOptions({ sections: ["executive", "raw_events"] }), /Invalid report section/);
   assert.throws(() => validateReportOptions({ note: { unsafe: true } }), /must be text/);
+  assert.throws(() => validateReportOptions({ reportType: "investor_presentation", format: "a4" }), /require 16:9/);
   const snapshot = buildInvestorSafeSnapshot(intelligenceReportFixture(), { generatedAt: "2026-10-13T12:00:00.000Z", env: {} });
   assert.equal(reportFilename(snapshot, options), "explore-intelligence_investor_presentation_2026-09-13_2026-10-12_es.pdf");
+  const analystOptions = validateReportOptions({ reportType: "analyst_report", sections: ["traction", "analyst_tables", "technical"] });
+  const analyst = renderIntelligencePdf(snapshot, { ...analystOptions, fixture: true });
+  assert.ok(analyst.outline.includes("analyst_trends"));
+  assert.ok(analyst.outline.includes("analyst_entities"));
 });
 
 test("report generation rejects excess concurrent work", async () => {

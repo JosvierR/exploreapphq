@@ -352,10 +352,37 @@ function isSearchEvent(row) {
   return SEARCH_EVENTS.has(row.event_name) && row.event_name !== "search_result_clicked";
 }
 
+const CATEGORY_ALIASES = new Map([
+  ["food", "Food & Dining"],
+  ["restaurant", "Food & Dining"],
+  ["restaurants", "Food & Dining"],
+  ["dining", "Food & Dining"],
+  ["cafe", "Food & Dining"],
+  ["cafes", "Food & Dining"],
+  ["beach", "Beaches"],
+  ["beaches", "Beaches"],
+  ["museum", "Culture"],
+  ["museums", "Culture"],
+  ["culture", "Culture"],
+  ["adventure", "Adventure"],
+  ["outdoors", "Adventure"],
+  ["outdoor", "Adventure"],
+  ["nightlife", "Nightlife"],
+  ["shopping", "Shopping"],
+]);
+
+export function normalizeCategoryLabel(value) {
+  const trimmed = String(value || "").replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.toLowerCase();
+  if (["unknown", "uncategorized", "other", "n/a", "none"].includes(normalized)) return "Uncategorized";
+  return CATEGORY_ALIASES.get(normalized) || trimmed;
+}
+
 function extractCategoryHint(row, meta) {
-  if (meta?.category) return String(meta.category);
+  if (meta?.category) return normalizeCategoryLabel(meta.category);
   const props = row?.properties || {};
-  return props.category || props.place_category || props.entity_category || null;
+  return normalizeCategoryLabel(props.category || props.place_category || props.entity_category);
 }
 
 function hourBucket(iso) {
@@ -1301,7 +1328,7 @@ async function enrichPlaces(supabase, rows, previousRows, params) {
       place_id: item.entity_id,
       place_name: info.name || "Unknown place",
       name_resolved: Boolean(info.name),
-      category: info.category || "Uncategorized",
+      category: normalizeCategoryLabel(info.category) || "Uncategorized",
       location: [info.city, info.region, info.country].filter(Boolean).join(", ") || null,
       city: info.city,
       region: info.region,
@@ -1351,7 +1378,7 @@ async function enrichRoutes(supabase, rows, previousRows, params) {
       route_id: item.entity_id,
       route_name: info.name || "Unknown route",
       name_resolved: Boolean(info.name),
-      category: info.category || "Uncategorized",
+      category: normalizeCategoryLabel(info.category) || "Uncategorized",
       area: params.city || params.region || (params.country ? countryLabel(params.country) : null),
       stops: info.stops,
       views: item.views,
@@ -1388,7 +1415,7 @@ function aggregateCategories(rows) {
   for (const row of rows) {
     if (!(isPlaceView(row) || isRouteView(row) || row.entity_type === "place" || row.entity_type === "route" || SEARCH_EVENTS.has(row.event_name))) continue;
     const hint = extractCategoryHint(row, { category: row._category });
-    const key = hint ? String(hint) : "Uncategorized";
+    const key = hint || "Uncategorized";
     const current = groups.get(key) || {
       category: key,
       demand: 0,
@@ -1746,7 +1773,12 @@ function buildOpportunities({ geography, kpis, previousKpis, categories, places,
       type: "growing_destination",
       title: topRegion.label,
       evidence: `${topRegion.events} events · ${topRegion.share_pct}% of filtered demand`,
-      opportunity: `Prioritize partnerships and inventory in ${topRegion.label}.`,
+      question: "Where is eligible destination activity concentrated?",
+      finding: `${topRegion.label} has the largest eligible share of observed activity.`,
+      business_implication: "Concentration may justify a deeper review of content coverage and partner activity in this destination.",
+      recommended_investigation: `Compare content supply, repeat activity, and commercial actions in ${topRegion.label} before prioritizing investment.`,
+      opportunity: `Investigate content and partner coverage in ${topRegion.label}.`,
+      limitation: "Observed Explore activity is not a complete measure of the tourism market.",
       confidence: topRegion.events >= 50 ? "medium" : "low",
     });
   }
@@ -1758,7 +1790,12 @@ function buildOpportunities({ geography, kpis, previousKpis, categories, places,
       type: "high_restaurant_intent",
       title: intentPlaces.location || intentPlaces.place_name,
       evidence: `${intentPlaces.actions} commercial actions on ${intentPlaces.place_name}`,
-      opportunity: "Restaurant acquisition / promotions for high-intent venues.",
+      question: "Which place has the strongest observed commercial-action signal?",
+      finding: `${intentPlaces.place_name} recorded the most eligible commercial actions in this result set.`,
+      business_implication: "The place may be useful for testing whether observed intent can support a measurable partner proposition.",
+      recommended_investigation: "Validate action sources, repeat behavior, and partner economics before commercial outreach.",
+      opportunity: "Investigate a controlled partner-value test for this place.",
+      limitation: "Commercial actions are intent signals, not confirmed visits, transactions, or revenue.",
       confidence: intentPlaces.actions >= 20 ? "medium" : "low",
     });
   } else if (restaurantIntent.length === 0 && kpis.commercial_intent === 0) {
@@ -1772,7 +1809,12 @@ function buildOpportunities({ geography, kpis, previousKpis, categories, places,
       type: "high_demand_low_supply",
       title: `${experienceDemand.category} demand`,
       evidence: `${experienceDemand.share_pct}% category share · only ${routeSupply} active routes ranked`,
-      opportunity: "Recruit local tour / experience operators.",
+      question: "Which category may have an observed content-supply gap?",
+      finding: `${experienceDemand.category} has eligible activity while the ranked route set is limited.`,
+      business_implication: "The signal may indicate a content-coverage gap worth validating.",
+      recommended_investigation: "Audit published inventory and category assignment before considering operator acquisition.",
+      opportunity: "Validate the category's route and partner coverage.",
+      limitation: "Ranked route count is not a complete measure of destination supply.",
       confidence: "low",
     });
   }
@@ -1782,8 +1824,15 @@ function buildOpportunities({ geography, kpis, previousKpis, categories, places,
     cards.push({
       type: "demand_surge",
       title: "Place demand rising",
-      evidence: `Place views ${placeDelta.percent}% vs comparison period`,
-      opportunity: growing[0] ? `Lean into ${growing[0].label} for campaigns.` : "Increase place inventory and creator coverage.",
+      evidence: `${placeDelta.current} place views vs ${placeDelta.previous} (${placeDelta.absolute >= 0 ? "+" : ""}${placeDelta.absolute}; ${placeDelta.percent >= 0 ? "+" : ""}${placeDelta.percent}%)`,
+      question: "Did place-detail interest change materially?",
+      finding: `Observed place views increased by ${placeDelta.absolute}.`,
+      business_implication: "The movement warrants segment analysis but does not establish broader destination demand.",
+      recommended_investigation: growing[0]
+        ? `Review source, category, and repeat activity within ${growing[0].label}.`
+        : "Review source, category, and repeat activity before changing inventory strategy.",
+      opportunity: "Investigate the composition of the place-view increase.",
+      limitation: "A place view is an interest signal, not a physical visit or booking.",
       confidence: "medium",
     });
   }
@@ -1986,9 +2035,7 @@ async function loadScoped(supabase, params) {
 }
 
 export async function getBusinessIntelligenceDashboard(supabase, params) {
-  const current = await loadScoped(supabase, params);
   const prevParams = previousParams(params);
-  const previous = prevParams ? await loadScoped(supabase, prevParams) : { rows: [], warnings: [] };
   const productionQualityPromise =
     params.access_scope === "admin_global"
       ? supabase.rpc("business_intelligence_quality_report")
@@ -2009,15 +2056,21 @@ export async function getBusinessIntelligenceDashboard(supabase, params) {
         .gte("created_at", params.start)
         .lt("created_at", params.end)
     : Promise.resolve({ count: null, error: null });
+  const [current, previous] = await Promise.all([
+    loadScoped(supabase, params),
+    prevParams ? loadScoped(supabase, prevParams) : Promise.resolve({ rows: [], warnings: [] }),
+  ]);
 
   const kpis = computeKpis(current.rows);
   const previousKpis = computeKpis(previous.rows);
   const deltas = Object.fromEntries(Object.keys(kpis).map((key) => [key, buildDelta(kpis[key] ?? 0, previousKpis[key] ?? 0)]));
 
   const geography = buildGeography(current.rows, params, params.map_metric, previous.rows);
-  const placesPack = await enrichPlaces(supabase, current.rows, previous.rows, params);
-  const routesPack = await enrichRoutes(supabase, current.rows, previous.rows, params);
-  const categories = await buildCategories(supabase, current.rows, previous.rows);
+  const [placesPack, routesPack, categories] = await Promise.all([
+    enrichPlaces(supabase, current.rows, previous.rows, params),
+    enrichRoutes(supabase, current.rows, previous.rows, params),
+    buildCategories(supabase, current.rows, previous.rows),
+  ]);
   const filteredPlaces =
     params.category != null && params.category !== ""
       ? placesPack.places.filter((place) => String(place.category).toLowerCase() === params.category.toLowerCase())

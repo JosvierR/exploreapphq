@@ -1,0 +1,744 @@
+{
+  "validator": "PyMuPDF text, metadata, language, image, bounds, reconciliation markers, and 2x page rendering",
+  "pdf_count": 7,
+  "page_count": 58,
+  "status": "passed",
+  "failures": [],
+  "files": [
+    {
+      "file": "explore-analyst-report-en-letter.pdf",
+      "bytes": 66691,
+      "page_count": 14,
+      "metadata": {
+        "title": "Explore Analyst Report",
+        "author": "Explore",
+        "subject": "explore-intelligence-report-v3 | executive_business | 2026-09-13 to 2026-10-12 | verified",
+        "creator": "Explore Intelligence 3.3",
+        "creationDate": "D:20261014120000Z"
+      },
+      "language_tag_present": true,
+      "required_text": {
+        "EXPLORE": true,
+        "INTELLIGENCE 3.3": true
+      },
+      "contains_fixture_label": true,
+      "contains_fixture_kpi_18420": true,
+      "contains_comparison_context": true,
+      "contains_unavailable_boundary": true,
+      "contains_sensitive_text": false,
+      "contains_replacement_character": false,
+      "embedded_image_count": 14,
+      "contact_sheets": [
+        "docs/admin-v3.3/reports/rendered/_contact-sheets/explore-analyst-report-en-letter-01-04.png",
+        "docs/admin-v3.3/reports/rendered/_contact-sheets/explore-analyst-report-en-letter-05-08.png",
+        "docs/admin-v3.3/reports/rendered/_contact-sheets/explore-analyst-report-en-letter-09-12.png",
+        "docs/admin-v3.3/reports/rendered/_contact-sheets/explore-analyst-report-en-letter-13-14.png"
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 262,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-analyst-report-en-letter/page-01.png"
+        },
+        {
+          "page": 2,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 683,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-analyst-report-en-letter/page-02.png"
+        },
+        {
+          "page": 3,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 430,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-analyst-report-en-letter/page-03.png"
+        },
+        {
+          "page": 4,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 661,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-analyst-report-en-letter/page-04.png"
+        },
+        {
+          "page": 5,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 610,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-analyst-report-en-letter/page-05.png"
+        },
+        {
+          "page": 6,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 1603,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-analyst-report-en-letter/page-06.png"
+        },
+        {
+          "page": 7,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 916,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-analyst-report-en-letter/page-07.png"
+        },
+        {
+          "page": 8,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 872,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-analyst-report-en-letter/page-08.png"
+        },
+        {
+          "page": 9,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 779,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-analyst-report-en-letter/page-09.png"
+        },
+        {
+          "page": 10,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 602,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-analyst-report-en-letter/page-10.png"
+        },
+        {
+          "page": 11,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 1584,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-analyst-report-en-letter/page-11.png"
+        },
+        {
+          "page": 12,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 1406,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-analyst-report-en-letter/page-12.png"
+        },
+        {
+          "page": 13,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 1610,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-analyst-report-en-letter/page-13.png"
+        },
+        {
+          "page": 14,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 877,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-analyst-report-en-letter/page-14.png"
+        }
+      ]
+    },
+    {
+      "file": "explore-current-overview-en-a4.pdf",
+      "bytes": 20272,
+      "page_count": 2,
+      "metadata": {
+        "title": "Explore Dashboard Report",
+        "author": "Explore",
+        "subject": "explore-intelligence-report-v3 | investor_safe | 2026-09-13 to 2026-10-12 | verified",
+        "creator": "Explore Intelligence 3.3",
+        "creationDate": "D:20261014120000Z"
+      },
+      "language_tag_present": true,
+      "required_text": {
+        "EXPLORE": true,
+        "INTELLIGENCE 3.3": true
+      },
+      "contains_fixture_label": true,
+      "contains_fixture_kpi_18420": true,
+      "contains_comparison_context": true,
+      "contains_unavailable_boundary": false,
+      "contains_sensitive_text": false,
+      "contains_replacement_character": false,
+      "embedded_image_count": 2,
+      "contact_sheets": [
+        "docs/admin-v3.3/reports/rendered/_contact-sheets/explore-current-overview-en-a4-01-02.png"
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 264,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-current-overview-en-a4/page-01.png"
+        },
+        {
+          "page": 2,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 682,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-current-overview-en-a4/page-02.png"
+        }
+      ]
+    },
+    {
+      "file": "explore-current-revenue-en-letter.pdf",
+      "bytes": 20545,
+      "page_count": 2,
+      "metadata": {
+        "title": "Explore Dashboard Report",
+        "author": "Explore",
+        "subject": "explore-intelligence-report-v3 | investor_safe | 2026-09-13 to 2026-10-12 | verified",
+        "creator": "Explore Intelligence 3.3",
+        "creationDate": "D:20261014120000Z"
+      },
+      "language_tag_present": true,
+      "required_text": {
+        "EXPLORE": true,
+        "INTELLIGENCE 3.3": true
+      },
+      "contains_fixture_label": true,
+      "contains_fixture_kpi_18420": false,
+      "contains_comparison_context": false,
+      "contains_unavailable_boundary": true,
+      "contains_sensitive_text": false,
+      "contains_replacement_character": false,
+      "embedded_image_count": 2,
+      "contact_sheets": [
+        "docs/admin-v3.3/reports/rendered/_contact-sheets/explore-current-revenue-en-letter-01-02.png"
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 264,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-current-revenue-en-letter/page-01.png"
+        },
+        {
+          "page": 2,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 915,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-current-revenue-en-letter/page-02.png"
+        }
+      ]
+    },
+    {
+      "file": "explore-executive-business-report-eduardo-en-letter.pdf",
+      "bytes": 55638,
+      "page_count": 12,
+      "metadata": {
+        "title": "Explore Executive Business Report",
+        "author": "Explore",
+        "subject": "explore-intelligence-report-v3 | investor_safe | 2026-09-13 to 2026-10-12 | verified",
+        "creator": "Explore Intelligence 3.3",
+        "creationDate": "D:20261014120000Z"
+      },
+      "language_tag_present": true,
+      "required_text": {
+        "EXPLORE": true,
+        "INTELLIGENCE 3.3": true
+      },
+      "contains_fixture_label": true,
+      "contains_fixture_kpi_18420": true,
+      "contains_comparison_context": true,
+      "contains_unavailable_boundary": true,
+      "contains_sensitive_text": false,
+      "contains_replacement_character": false,
+      "embedded_image_count": 12,
+      "contact_sheets": [
+        "docs/admin-v3.3/reports/rendered/_contact-sheets/explore-executive-business-report-eduardo-en-letter-01-04.png",
+        "docs/admin-v3.3/reports/rendered/_contact-sheets/explore-executive-business-report-eduardo-en-letter-05-08.png",
+        "docs/admin-v3.3/reports/rendered/_contact-sheets/explore-executive-business-report-eduardo-en-letter-09-12.png"
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 441,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-executive-business-report-eduardo-en-letter/page-01.png"
+        },
+        {
+          "page": 2,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 683,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-executive-business-report-eduardo-en-letter/page-02.png"
+        },
+        {
+          "page": 3,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 430,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-executive-business-report-eduardo-en-letter/page-03.png"
+        },
+        {
+          "page": 4,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 661,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-executive-business-report-eduardo-en-letter/page-04.png"
+        },
+        {
+          "page": 5,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 610,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-executive-business-report-eduardo-en-letter/page-05.png"
+        },
+        {
+          "page": 6,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 1603,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-executive-business-report-eduardo-en-letter/page-06.png"
+        },
+        {
+          "page": 7,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 916,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-executive-business-report-eduardo-en-letter/page-07.png"
+        },
+        {
+          "page": 8,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 872,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-executive-business-report-eduardo-en-letter/page-08.png"
+        },
+        {
+          "page": 9,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 838,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-executive-business-report-eduardo-en-letter/page-09.png"
+        },
+        {
+          "page": 10,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 1584,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-executive-business-report-eduardo-en-letter/page-10.png"
+        },
+        {
+          "page": 11,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 1406,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-executive-business-report-eduardo-en-letter/page-11.png"
+        },
+        {
+          "page": 12,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 1610,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-executive-business-report-eduardo-en-letter/page-12.png"
+        }
+      ]
+    },
+    {
+      "file": "explore-informe-ejecutivo-es-a4.pdf",
+      "bytes": 55912,
+      "page_count": 12,
+      "metadata": {
+        "title": "Informe ejecutivo de negocios de Explore",
+        "author": "Explore",
+        "subject": "explore-intelligence-report-v3 | investor_safe | 2026-09-13 to 2026-10-12 | verified",
+        "creator": "Explore Intelligence 3.3",
+        "creationDate": "D:20261014120000Z"
+      },
+      "language_tag_present": true,
+      "required_text": {
+        "EXPLORE": true,
+        "INTELLIGENCE 3.3": true
+      },
+      "contains_fixture_label": true,
+      "contains_fixture_kpi_18420": true,
+      "contains_comparison_context": true,
+      "contains_unavailable_boundary": true,
+      "contains_sensitive_text": false,
+      "contains_replacement_character": false,
+      "embedded_image_count": 12,
+      "contact_sheets": [
+        "docs/admin-v3.3/reports/rendered/_contact-sheets/explore-informe-ejecutivo-es-a4-01-04.png",
+        "docs/admin-v3.3/reports/rendered/_contact-sheets/explore-informe-ejecutivo-es-a4-05-08.png",
+        "docs/admin-v3.3/reports/rendered/_contact-sheets/explore-informe-ejecutivo-es-a4-09-12.png"
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 294,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-informe-ejecutivo-es-a4/page-01.png"
+        },
+        {
+          "page": 2,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 710,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-informe-ejecutivo-es-a4/page-02.png"
+        },
+        {
+          "page": 3,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 433,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-informe-ejecutivo-es-a4/page-03.png"
+        },
+        {
+          "page": 4,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 724,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-informe-ejecutivo-es-a4/page-04.png"
+        },
+        {
+          "page": 5,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 634,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-informe-ejecutivo-es-a4/page-05.png"
+        },
+        {
+          "page": 6,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 1643,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-informe-ejecutivo-es-a4/page-06.png"
+        },
+        {
+          "page": 7,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 934,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-informe-ejecutivo-es-a4/page-07.png"
+        },
+        {
+          "page": 8,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 859,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-informe-ejecutivo-es-a4/page-08.png"
+        },
+        {
+          "page": 9,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 874,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-informe-ejecutivo-es-a4/page-09.png"
+        },
+        {
+          "page": 10,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 1620,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-informe-ejecutivo-es-a4/page-10.png"
+        },
+        {
+          "page": 11,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 1442,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-informe-ejecutivo-es-a4/page-11.png"
+        },
+        {
+          "page": 12,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 1646,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-informe-ejecutivo-es-a4/page-12.png"
+        }
+      ]
+    },
+    {
+      "file": "explore-investor-presentation-en-16x9.pdf",
+      "bytes": 44489,
+      "page_count": 9,
+      "metadata": {
+        "title": "Explore Investor Presentation",
+        "author": "Explore",
+        "subject": "explore-intelligence-report-v3 | investor_safe | 2026-09-13 to 2026-10-12 | verified",
+        "creator": "Explore Intelligence 3.3",
+        "creationDate": "D:20261014120000Z"
+      },
+      "language_tag_present": true,
+      "required_text": {
+        "EXPLORE": true,
+        "INTELLIGENCE 3.3": true
+      },
+      "contains_fixture_label": true,
+      "contains_fixture_kpi_18420": true,
+      "contains_comparison_context": true,
+      "contains_unavailable_boundary": true,
+      "contains_sensitive_text": false,
+      "contains_replacement_character": false,
+      "embedded_image_count": 9,
+      "contact_sheets": [
+        "docs/admin-v3.3/reports/rendered/_contact-sheets/explore-investor-presentation-en-16x9-01-04.png",
+        "docs/admin-v3.3/reports/rendered/_contact-sheets/explore-investor-presentation-en-16x9-05-08.png",
+        "docs/admin-v3.3/reports/rendered/_contact-sheets/explore-investor-presentation-en-16x9-09-09.png"
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "width_pt": 960.0,
+          "height_pt": 540.0,
+          "text_characters": 269,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-investor-presentation-en-16x9/page-01.png"
+        },
+        {
+          "page": 2,
+          "width_pt": 960.0,
+          "height_pt": 540.0,
+          "text_characters": 682,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-investor-presentation-en-16x9/page-02.png"
+        },
+        {
+          "page": 3,
+          "width_pt": 960.0,
+          "height_pt": 540.0,
+          "text_characters": 429,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-investor-presentation-en-16x9/page-03.png"
+        },
+        {
+          "page": 4,
+          "width_pt": 960.0,
+          "height_pt": 540.0,
+          "text_characters": 660,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-investor-presentation-en-16x9/page-04.png"
+        },
+        {
+          "page": 5,
+          "width_pt": 960.0,
+          "height_pt": 540.0,
+          "text_characters": 609,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-investor-presentation-en-16x9/page-05.png"
+        },
+        {
+          "page": 6,
+          "width_pt": 960.0,
+          "height_pt": 540.0,
+          "text_characters": 1602,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-investor-presentation-en-16x9/page-06.png"
+        },
+        {
+          "page": 7,
+          "width_pt": 960.0,
+          "height_pt": 540.0,
+          "text_characters": 700,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-investor-presentation-en-16x9/page-07.png"
+        },
+        {
+          "page": 8,
+          "width_pt": 960.0,
+          "height_pt": 540.0,
+          "text_characters": 837,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-investor-presentation-en-16x9/page-08.png"
+        },
+        {
+          "page": 9,
+          "width_pt": 960.0,
+          "height_pt": 540.0,
+          "text_characters": 882,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-investor-presentation-en-16x9/page-09.png"
+        }
+      ]
+    },
+    {
+      "file": "explore-investor-snapshot-en-a4.pdf",
+      "bytes": 37990,
+      "page_count": 7,
+      "metadata": {
+        "title": "Explore Investor Snapshot",
+        "author": "Explore",
+        "subject": "explore-intelligence-report-v3 | investor_safe | 2026-09-13 to 2026-10-12 | verified",
+        "creator": "Explore Intelligence 3.3",
+        "creationDate": "D:20261014120000Z"
+      },
+      "language_tag_present": true,
+      "required_text": {
+        "EXPLORE": true,
+        "INTELLIGENCE 3.3": true
+      },
+      "contains_fixture_label": true,
+      "contains_fixture_kpi_18420": true,
+      "contains_comparison_context": true,
+      "contains_unavailable_boundary": false,
+      "contains_sensitive_text": false,
+      "contains_replacement_character": false,
+      "embedded_image_count": 7,
+      "contact_sheets": [
+        "docs/admin-v3.3/reports/rendered/_contact-sheets/explore-investor-snapshot-en-a4-01-04.png",
+        "docs/admin-v3.3/reports/rendered/_contact-sheets/explore-investor-snapshot-en-a4-05-07.png"
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 265,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-investor-snapshot-en-a4/page-01.png"
+        },
+        {
+          "page": 2,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 682,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-investor-snapshot-en-a4/page-02.png"
+        },
+        {
+          "page": 3,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 429,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-investor-snapshot-en-a4/page-03.png"
+        },
+        {
+          "page": 4,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 660,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-investor-snapshot-en-a4/page-04.png"
+        },
+        {
+          "page": 5,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 609,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-investor-snapshot-en-a4/page-05.png"
+        },
+        {
+          "page": 6,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 1602,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-investor-snapshot-en-a4/page-06.png"
+        },
+        {
+          "page": 7,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 837,
+          "image_count": 1,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.3/reports/rendered/explore-investor-snapshot-en-a4/page-07.png"
+        }
+      ]
+    }
+  ]
+}

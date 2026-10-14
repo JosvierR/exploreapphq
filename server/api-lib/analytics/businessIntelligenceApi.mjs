@@ -319,8 +319,11 @@ export async function handleBusinessIntelReports(request) {
     const result = await withReportCapacity(async () => {
       const dashboard = await getBusinessIntelligenceDashboard(admin.supabase, params);
       const actorRef = createHash("sha256").update(String(admin.user?.id || "admin")).digest("hex").slice(0, 12);
+      const revenue = await loadRevenueIntelligence(dashboard);
       const snapshot = buildInvestorSafeSnapshot(dashboard, {
         classification: options.classification,
+        reportType: options.reportType,
+        revenue,
         generatedBy: { role: admin.role || "admin", actor_ref: actorRef },
       });
       const rendered = renderIntelligencePdf(snapshot, options);
