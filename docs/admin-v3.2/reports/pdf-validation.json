@@ -1,0 +1,348 @@
+{
+  "validator": "PyMuPDF text, metadata, bounds, and 2x page rendering",
+  "pdf_count": 5,
+  "page_count": 28,
+  "status": "passed",
+  "failures": [],
+  "files": [
+    {
+      "file": "explore-intelligence-sample-en-a4.pdf",
+      "bytes": 18181,
+      "page_count": 7,
+      "metadata": {
+        "title": "Explore Executive Intelligence",
+        "author": "Explore",
+        "subject": "explore-intelligence-report-v2 | investor_safe | 2026-09-13 to 2026-10-12 | verified",
+        "creator": "Explore Intelligence 3.2",
+        "creationDate": "D:20261014120000Z"
+      },
+      "required_text": {
+        "EXPLORE": true,
+        "INTELLIGENCE 3.2": true,
+        "NONPRODUCTION FIXTURE": true
+      },
+      "contains_fixture_kpi_18420": true,
+      "contains_unavailable_boundary": true,
+      "contains_sensitive_text": false,
+      "contains_replacement_character": false,
+      "pages": [
+        {
+          "page": 1,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 240,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-en-a4/page-01.png"
+        },
+        {
+          "page": 2,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 664,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-en-a4/page-02.png"
+        },
+        {
+          "page": 3,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 273,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-en-a4/page-03.png"
+        },
+        {
+          "page": 4,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 507,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-en-a4/page-04.png"
+        },
+        {
+          "page": 5,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 474,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-en-a4/page-05.png"
+        },
+        {
+          "page": 6,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 957,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-en-a4/page-06.png"
+        },
+        {
+          "page": 7,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 817,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-en-a4/page-07.png"
+        }
+      ]
+    },
+    {
+      "file": "explore-intelligence-sample-es-16x9.pdf",
+      "bytes": 18697,
+      "page_count": 7,
+      "metadata": {
+        "title": "Inteligencia Ejecutiva de Explore",
+        "author": "Explore",
+        "subject": "explore-intelligence-report-v2 | investor_safe | 2026-09-13 to 2026-10-12 | verified",
+        "creator": "Explore Intelligence 3.2",
+        "creationDate": "D:20261014120000Z"
+      },
+      "required_text": {
+        "EXPLORE": true,
+        "INTELLIGENCE 3.2": true,
+        "NONPRODUCTION FIXTURE": true
+      },
+      "contains_fixture_kpi_18420": true,
+      "contains_unavailable_boundary": true,
+      "contains_sensitive_text": false,
+      "contains_replacement_character": false,
+      "pages": [
+        {
+          "page": 1,
+          "width_pt": 960.0,
+          "height_pt": 540.0,
+          "text_characters": 257,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-es-16x9/page-01.png"
+        },
+        {
+          "page": 2,
+          "width_pt": 960.0,
+          "height_pt": 540.0,
+          "text_characters": 499,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-es-16x9/page-02.png"
+        },
+        {
+          "page": 3,
+          "width_pt": 960.0,
+          "height_pt": 540.0,
+          "text_characters": 299,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-es-16x9/page-03.png"
+        },
+        {
+          "page": 4,
+          "width_pt": 960.0,
+          "height_pt": 540.0,
+          "text_characters": 525,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-es-16x9/page-04.png"
+        },
+        {
+          "page": 5,
+          "width_pt": 960.0,
+          "height_pt": 540.0,
+          "text_characters": 763,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-es-16x9/page-05.png"
+        },
+        {
+          "page": 6,
+          "width_pt": 960.0,
+          "height_pt": 540.0,
+          "text_characters": 945,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-es-16x9/page-06.png"
+        },
+        {
+          "page": 7,
+          "width_pt": 960.0,
+          "height_pt": 540.0,
+          "text_characters": 898,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-es-16x9/page-07.png"
+        }
+      ]
+    },
+    {
+      "file": "explore-intelligence-sample-partial-quality-en-letter.pdf",
+      "bytes": 21780,
+      "page_count": 8,
+      "metadata": {
+        "title": "Explore Intelligence Reliability, Coverage, Confidence, and Reporting Integrity Review",
+        "author": "Explore",
+        "subject": "explore-intelligence-report-v2 | investor_safe | 2026-09-13 to 2026-10-12 | under_investigation",
+        "creator": "Explore Intelligence 3.2",
+        "creationDate": "D:20261014120000Z"
+      },
+      "required_text": {
+        "EXPLORE": true,
+        "INTELLIGENCE 3.2": true,
+        "NONPRODUCTION FIXTURE": true
+      },
+      "contains_fixture_kpi_18420": true,
+      "contains_unavailable_boundary": true,
+      "contains_sensitive_text": false,
+      "contains_replacement_character": false,
+      "pages": [
+        {
+          "page": 1,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 485,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-partial-quality-en-letter/page-01.png"
+        },
+        {
+          "page": 2,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 672,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-partial-quality-en-letter/page-02.png"
+        },
+        {
+          "page": 3,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 273,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-partial-quality-en-letter/page-03.png"
+        },
+        {
+          "page": 4,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 507,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-partial-quality-en-letter/page-04.png"
+        },
+        {
+          "page": 5,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 474,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-partial-quality-en-letter/page-05.png"
+        },
+        {
+          "page": 6,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 957,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-partial-quality-en-letter/page-06.png"
+        },
+        {
+          "page": 7,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 831,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-partial-quality-en-letter/page-07.png"
+        },
+        {
+          "page": 8,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 1075,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-partial-quality-en-letter/page-08.png"
+        }
+      ]
+    },
+    {
+      "file": "explore-intelligence-sample-revenue-en-letter.pdf",
+      "bytes": 8228,
+      "page_count": 3,
+      "metadata": {
+        "title": "Explore Revenue Readiness",
+        "author": "Explore",
+        "subject": "explore-intelligence-report-v2 | investor_safe | 2026-09-13 to 2026-10-12 | verified",
+        "creator": "Explore Intelligence 3.2",
+        "creationDate": "D:20261014120000Z"
+      },
+      "required_text": {
+        "EXPLORE": true,
+        "INTELLIGENCE 3.2": true,
+        "NONPRODUCTION FIXTURE": true
+      },
+      "contains_fixture_kpi_18420": false,
+      "contains_unavailable_boundary": true,
+      "contains_sensitive_text": false,
+      "contains_replacement_character": false,
+      "pages": [
+        {
+          "page": 1,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 235,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-revenue-en-letter/page-01.png"
+        },
+        {
+          "page": 2,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 957,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-revenue-en-letter/page-02.png"
+        },
+        {
+          "page": 3,
+          "width_pt": 612.0,
+          "height_pt": 792.0,
+          "text_characters": 817,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-revenue-en-letter/page-03.png"
+        }
+      ]
+    },
+    {
+      "file": "explore-intelligence-sample-tourism-es-a4.pdf",
+      "bytes": 8308,
+      "page_count": 3,
+      "metadata": {
+        "title": "Inteligencia Tur\u00edstica de Explore",
+        "author": "Explore",
+        "subject": "explore-intelligence-report-v2 | investor_safe | 2026-09-13 to 2026-10-12 | verified",
+        "creator": "Explore Intelligence 3.2",
+        "creationDate": "D:20261014120000Z"
+      },
+      "required_text": {
+        "EXPLORE": true,
+        "INTELLIGENCE 3.2": true,
+        "NONPRODUCTION FIXTURE": true
+      },
+      "contains_fixture_kpi_18420": false,
+      "contains_unavailable_boundary": false,
+      "contains_sensitive_text": false,
+      "contains_replacement_character": false,
+      "pages": [
+        {
+          "page": 1,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 257,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-tourism-es-a4/page-01.png"
+        },
+        {
+          "page": 2,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 525,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-tourism-es-a4/page-02.png"
+        },
+        {
+          "page": 3,
+          "width_pt": 595.28,
+          "height_pt": 841.89,
+          "text_characters": 898,
+          "overflow_blocks": [],
+          "render": "docs/admin-v3.2/reports/rendered/explore-intelligence-sample-tourism-es-a4/page-03.png"
+        }
+      ]
+    }
+  ]
+}

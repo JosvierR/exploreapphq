@@ -60,7 +60,15 @@ export function intelligenceReportFixture() {
       { title: "SECRET USER EMAIL", evidence: "This record must be suppressed.", consideration: "Never export it.", confidence: "low", sample_size: 2 },
     ],
     searches: { top_searches: [{ display_query: "private query that must never export", count: 99 }] },
-    data_quality: { status: "ready", valid_events: 286400, destination_geo_coverage_pct: 94.8, validity_view_active: true },
+    data_quality: {
+      status: "ready",
+      valid_events: 286400,
+      destination_geo_coverage_pct: 94.8,
+      validity_view_active: true,
+      rejected_events_in_range: 0,
+      rejection_coverage_pct: 0,
+      rejection_coverage_note: "Validation fixture includes a complete matched-window quality result.",
+    },
     warnings: [],
   };
 }

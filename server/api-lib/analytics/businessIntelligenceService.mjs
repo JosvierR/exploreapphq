@@ -1997,6 +1997,18 @@ export async function getBusinessIntelligenceDashboard(supabase, params) {
     params.access_scope === "admin_global"
       ? supabase.rpc("business_destination_geography_quality_report")
       : Promise.resolve({ data: null, error: null });
+  const rangeQualityEligible =
+    params.access_scope === "admin_global" &&
+    !params.country && !params.region && !params.city && !params.neighborhood &&
+    !params.category && !params.category_id && !params.business_id && !params.location_id &&
+    !params.platform && !params.source;
+  const rangeRejectionsPromise = rangeQualityEligible
+    ? supabase
+        .from("analytics_event_dead_letters")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", params.start)
+        .lt("created_at", params.end)
+    : Promise.resolve({ count: null, error: null });
 
   const kpis = computeKpis(current.rows);
   const previousKpis = computeKpis(previous.rows);
@@ -2087,14 +2099,21 @@ export async function getBusinessIntelligenceDashboard(supabase, params) {
   const unresolvedRoutes = filteredRoutes.filter((item) => !item.name_resolved).length;
   const missingGeography = current.rows.filter((row) => !marketCountry(row)).length;
   let productionQuality = null;
+  let rejectedEventsInRange = null;
   try {
-    const [coreResult, destinationResult] = await Promise.all([productionQualityPromise, destinationQualityPromise]);
+    const [coreResult, destinationResult, rangeRejectionsResult] = await Promise.all([
+      productionQualityPromise,
+      destinationQualityPromise,
+      rangeRejectionsPromise,
+    ]);
     productionQuality = {
       ...(coreResult?.error ? {} : coreResult?.data || {}),
       ...(destinationResult?.error ? {} : destinationResult?.data || {}),
     };
+    rejectedEventsInRange = rangeRejectionsResult?.error ? null : rangeRejectionsResult?.count ?? 0;
   } catch {
     productionQuality = null;
+    rejectedEventsInRange = null;
   }
 
   return {
@@ -2177,6 +2196,16 @@ export async function getBusinessIntelligenceDashboard(supabase, params) {
       place_resolution_pct: productionQuality?.place_resolution_pct ?? null,
       route_resolution_pct: productionQuality?.route_resolution_pct ?? null,
       rejected_events: productionQuality?.rejected_events ?? null,
+      rejected_events_in_range: rejectedEventsInRange,
+      rejection_coverage_pct:
+        rejectedEventsInRange == null
+          ? null
+          : current.rows.length + rejectedEventsInRange > 0
+            ? Math.round((rejectedEventsInRange / (current.rows.length + rejectedEventsInRange)) * 1000) / 10
+            : 0,
+      rejection_coverage_note: rangeQualityEligible
+        ? "Operational proxy: rejected rows divided by valid normalized rows plus rejected rows for the reporting window. Retries may repeat event IDs."
+        : "Unavailable for filtered views because rejected payloads are not a dimensionally complete analytical source.",
       aggregation_failures: productionQuality?.aggregation_failures ?? null,
       possible_duplicate_places: productionQuality?.possible_duplicate_places ?? null,
       last_aggregation: productionQuality?.last_aggregation ?? null,

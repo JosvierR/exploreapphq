@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import { INVESTOR_METRIC_CATALOG_VERSION, investorMetricCatalogForClient } from "./investorMetricCatalog.mjs";
 import { buildRevenueIntelligence } from "./revenueIntelligenceService.mjs";
+import { buildMetricConfidence } from "./metricConfidence.mjs";
 
-export const REPORT_CONTRACT_VERSION = "explore-intelligence-report-v1";
+export const REPORT_CONTRACT_VERSION = "explore-intelligence-report-v2";
 export const MIN_INVESTOR_COHORT = 5;
 
 function finite(value) {
@@ -40,6 +41,7 @@ function cleanText(value, max = 240) {
 
 export function buildInvestorSafeSnapshot(dashboard, options = {}) {
   const revenue = buildRevenueIntelligence(dashboard, options.env);
+  const metricConfidence = buildMetricConfidence(dashboard, revenue);
   const snapshot = {
     contract_version: REPORT_CONTRACT_VERSION,
     core_version: dashboard.core_version,
@@ -47,6 +49,9 @@ export function buildInvestorSafeSnapshot(dashboard, options = {}) {
     classification: options.classification || "investor_safe",
     generated_by: options.generatedBy || { role: "admin", actor_ref: "not-recorded" },
     generated_at: options.generatedAt || new Date().toISOString(),
+    timezone: "UTC",
+    data_cutoff: dashboard.data_as_of || null,
+    reporting_window: dashboard.range,
     data_as_of: dashboard.data_as_of || null,
     range: dashboard.range,
     filters: {
@@ -66,6 +71,7 @@ export function buildInvestorSafeSnapshot(dashboard, options = {}) {
       demand_index: finite(dashboard.demand_index?.score),
       verified_revenue: null,
     },
+    metric_confidence: metricConfidence,
     comparison: {
       mode: dashboard.comparison?.mode || "none",
       period: dashboard.comparison?.previous_period || null,
@@ -80,6 +86,11 @@ export function buildInvestorSafeSnapshot(dashboard, options = {}) {
       market: cleanText(dashboard.executive_summary?.market || "Global", 80),
       summary: cleanText(dashboard.executive_summary?.text, 420),
       statements: (dashboard.executive_summary?.statements || []).slice(0, 4).map((item) => cleanText(item, 220)),
+    },
+    claim_categories: {
+      verified_observations: "Headline metrics are direct canonical observations subject to the attached confidence status.",
+      business_interpretation: "Narrative and insights interpret observed behavior; they are not audited financial conclusions.",
+      scenarios: "Opportunities are planning scenarios and do not constitute forecasts or commitments.",
     },
     trends: (dashboard.timeseries || []).slice(-31).map((point) => ({
       date: cleanText(point.date || point.period || point.label, 32),
@@ -108,6 +119,9 @@ export function buildInvestorSafeSnapshot(dashboard, options = {}) {
       valid_events: finite(dashboard.data_quality?.valid_events),
       destination_geo_coverage_pct: finite(dashboard.data_quality?.destination_geo_coverage_pct),
       validity_view_active: Boolean(dashboard.data_quality?.validity_view_active),
+      rejected_events_in_range: finite(dashboard.data_quality?.rejected_events_in_range),
+      rejection_coverage_pct: finite(dashboard.data_quality?.rejection_coverage_pct),
+      rejection_coverage_note: cleanText(dashboard.data_quality?.rejection_coverage_note, 300),
       warnings: (dashboard.warnings || []).slice(0, 8).map((item) => ({
         code: cleanText(item.code, 60),
         severity: cleanText(item.severity, 20),

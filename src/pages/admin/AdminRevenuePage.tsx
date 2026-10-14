@@ -37,6 +37,14 @@ function maturityLabel(value: RevenueMaturity) {
   return value.replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
 }
 
+function formatEstimatedValue(value: number | null | undefined, currency: string | null | undefined) {
+  if (value == null) return "Unavailable";
+  if (currency && /^[A-Z]{3}$/.test(currency)) {
+    return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(value);
+  }
+  return `${currency || "Currency unavailable"} ${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+}
+
 function AdminRevenueContent() {
   const [params, setParams] = useSearchParams();
   const range = (RANGES.some((item) => item.value === params.get("range")) ? params.get("range") : "30d") as BusinessIntelRange;
@@ -77,6 +85,8 @@ function AdminRevenueContent() {
     setMode(next);
     window.localStorage.setItem("admin:intelligence-mode", next);
   }
+
+  const advertisingStream = data?.streams.find((stream) => stream.id === "advertising");
 
   return (
     <AdminPageShell
@@ -126,7 +136,7 @@ function AdminRevenueContent() {
       {!loading && data ? (
         <>
           <AdminNotice
-            title="Revenue is unavailable — not zero"
+            title="Final recognized revenue is unavailable — not zero"
             message={data.unavailable_reason || "Only reconciled values from an authorized financial system qualify as revenue."}
             tone="amber"
           />
@@ -135,6 +145,12 @@ function AdminRevenueContent() {
             <SectionHeader kicker="Company view" title="Verified performance" meta={<StatusBadge label="Investor-safe" tone="green" />} />
             <div className="admin-revenue-kpis">
               <StatCard label="Verified revenue" value="Unavailable" hint="No reconciled financial source" tone="amber" />
+              <StatCard
+                label="AdMob estimate"
+                value={formatEstimatedValue(advertisingStream?.estimated_value, advertisingStream?.currency)}
+                hint={advertisingStream?.estimated_value == null ? "Read-only provider integration is disconnected or unverified" : "Provider-reported estimate · not final revenue"}
+                tone={advertisingStream?.estimated_value == null ? "amber" : "blue"}
+              />
               <StatCard label="Currency" value="Unavailable" hint="Established by the source integration" />
               <StatCard label="Commercial actions" value={data.commercial_signals.actions?.toLocaleString() ?? "Unavailable"} hint="Intent only — not revenue" tone="blue" />
               <StatCard label="Measured streams" value={String(data.streams.filter((stream) => stream.maturity === "active_measured").length)} hint={`of ${data.streams.length} modeled streams`} />
@@ -144,12 +160,15 @@ function AdminRevenueContent() {
           <section className="admin-panel admin-panel--workspace">
             <SectionHeader kicker="Revenue architecture" title="Stream readiness" meta={`${data.streams.length} streams`} />
             <AdminDataTable label="Revenue stream readiness">
-              <thead><tr><th>Stream</th><th>Verified value</th><th>Maturity</th><th>Current state</th>{mode === "detailed" ? <th>Integration requirement</th> : null}</tr></thead>
+              <thead><tr><th>Stream</th><th>Verified / estimated value</th><th>Maturity</th><th>Current state</th>{mode === "detailed" ? <th>Integration requirement</th> : null}</tr></thead>
               <tbody>
                 {data.streams.map((stream) => (
                   <tr key={stream.id}>
                     <td><strong>{stream.label}</strong></td>
-                    <td>Unavailable</td>
+                    <td>
+                      {stream.verified_value == null ? "Verified: unavailable" : `Verified: ${formatEstimatedValue(stream.verified_value, stream.currency)}`}
+                      {stream.estimated_value != null ? <><br /><small>Estimate: {formatEstimatedValue(stream.estimated_value, stream.currency)}</small></> : null}
+                    </td>
                     <td><StatusBadge label={maturityLabel(stream.maturity)} tone={maturityTone(stream.maturity)} /></td>
                     <td>{stream.status_message}</td>
                     {mode === "detailed" ? <td>{stream.integration_requirement}</td> : null}

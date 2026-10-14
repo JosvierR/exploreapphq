@@ -284,17 +284,19 @@ test("principal visual matrix has no horizontal document overflow", async ({ pag
 });
 
 test("analytical destinations render without overflow in dark mode", async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(300_000);
   await installAdminFixtures(page, { mode: "ready", authorized: true });
   await loginAsAdmin(page);
-  await page.setViewportSize({ width: 1440, height: 900 });
   await page.getByRole("button", { name: "Use dark theme" }).click();
-  for (const view of principalViews) {
-    await page.goto(view.url);
-    await settleVisuals(page);
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    expect(overflow, `${view.url} dark`).toBeLessThanOrEqual(1);
-    await expect(page).toHaveScreenshot(`dark/${view.slug}--desktop-1440x900.png`);
+  for (const viewport of viewports) {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    for (const view of principalViews) {
+      await page.goto(view.url);
+      await settleVisuals(page);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow, `${view.url} dark at ${viewport.width}x${viewport.height}`).toBeLessThanOrEqual(1);
+      await expect(page).toHaveScreenshot(`dark/${view.slug}--${viewport.slug}.png`);
+    }
   }
 });
 
@@ -341,6 +343,7 @@ test("important loading, empty, error, navigation, collapse, and chart states ar
 });
 
 test("core pages have no critical or serious axe violations", async ({ page }) => {
+  test.setTimeout(120_000);
   await installAdminFixtures(page, { mode: "ready", authorized: true });
   await loginAsAdmin(page);
   for (const url of ["/admin", "/admin/analytics/data", "/admin/analytics/business", "/admin/analytics/revenue", "/admin/analytics/report-builder", "/admin/reports"]) {

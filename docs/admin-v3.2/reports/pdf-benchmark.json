@@ -1,0 +1,77 @@
+{
+  "generated_at": "2026-10-14T02:11:59.484Z",
+  "runtime": "v24.19.0",
+  "platform": "win32/x64",
+  "classification": "local synthetic benchmark; not production latency",
+  "measurements": [
+    {
+      "variant": "full-executive-a4-en",
+      "iterations": 25,
+      "duration_ms": {
+        "min": 2.56,
+        "median": 3.359,
+        "p95": 7.813,
+        "max": 51.335
+      },
+      "cpu_ms": 141,
+      "rss_delta_bytes": 7847936,
+      "file_size_bytes": {
+        "min": 18177,
+        "max": 18177
+      }
+    },
+    {
+      "variant": "investor-16x9-es",
+      "iterations": 25,
+      "duration_ms": {
+        "min": 3.074,
+        "median": 3.723,
+        "p95": 6.071,
+        "max": 10.187
+      },
+      "cpu_ms": 94,
+      "rss_delta_bytes": 913408,
+      "file_size_bytes": {
+        "min": 18750,
+        "max": 18750
+      }
+    },
+    {
+      "variant": "detailed-letter-en",
+      "iterations": 25,
+      "duration_ms": {
+        "min": 2.668,
+        "median": 3.484,
+        "p95": 6.77,
+        "max": 15.304
+      },
+      "cpu_ms": 94,
+      "rss_delta_bytes": 1183744,
+      "file_size_bytes": {
+        "min": 21181,
+        "max": 21181
+      }
+    },
+    {
+      "variant": "current-revenue-letter-en",
+      "iterations": 25,
+      "duration_ms": {
+        "min": 0.625,
+        "median": 0.708,
+        "p95": 1.408,
+        "max": 2.65
+      },
+      "cpu_ms": 30,
+      "rss_delta_bytes": -139264,
+      "file_size_bytes": {
+        "min": 8234,
+        "max": 8234
+      }
+    }
+  ],
+  "concurrency_guard": {
+    "maximum_active_reports": 2,
+    "third_request_error_code": "report_capacity_reached",
+    "passed": true
+  }
+}

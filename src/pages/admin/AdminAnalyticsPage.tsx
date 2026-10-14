@@ -436,6 +436,9 @@ function AdminAnalyticsContent() {
 
   const qualityWarnings: AnalyticsQualityWarning[] = health.data?.quality_warnings || [];
   const freshness = health.data?.aggregation_freshness;
+  const sourceFreshness = health.data?.source_freshness;
+  const ingestionWindows = health.data?.ingestion_windows;
+  const ingestionAlerts = health.data?.alerts || [];
 
   return (
     <AdminPageShell
@@ -646,7 +649,51 @@ function AdminAnalyticsContent() {
               <StatCard label={metricLabel("is_today_aggregated")} value={freshness?.is_today_aggregated ? "Yes" : "No"} loading={health.loading} />
               <StatCard label={metricLabel("is_yesterday_aggregated")} value={freshness?.is_yesterday_aggregated ? "Yes" : "No"} loading={health.loading} />
               <StatCard label={metricLabel("latest_aggregation_day")} value={freshness?.latest_admin_metrics_day || freshness?.latest_overview_day || "Not available"} loading={health.loading} />
+              <StatCard label="Data updated" value={formatDate(health.data?.data_updated_at)} loading={health.loading} />
+              <StatCard
+                label="Source freshness"
+                value={sourceFreshness?.lag_seconds == null ? "Not available" : `${sourceFreshness.status} · ${sourceFreshness.lag_seconds}s lag`}
+                loading={health.loading}
+                tone={sourceFreshness?.status === "fresh" ? "green" : "amber"}
+              />
             </div>
+            {ingestionWindows && (
+              <div className="admin-panel admin-panel--nested">
+                <SectionHeader kicker="Outcomes" title="Accepted versus rejected" meta={<code>{health.data?.contract_version || "contract unavailable"}</code>} />
+                <div className="admin-stats-grid">
+                  {(["last_1h", "last_6h", "last_24h"] as const).map((windowKey) => {
+                    const window = ingestionWindows[windowKey];
+                    return (
+                      <StatCard
+                        key={windowKey}
+                        label={`${windowKey.replace("last_", "Last ")} · accepted / rejected`}
+                        value={`${formatNumber(window.accepted)} / ${formatNumber(window.rejected)} · ${window.rejection_rate}%`}
+                        loading={health.loading}
+                        tone={window.rejection_rate >= 5 ? "amber" : "green"}
+                      />
+                    );
+                  })}
+                </div>
+                {!sourceFreshness?.is_complete && <p className="admin-muted">The latest reporting window is incomplete because source freshness exceeds the 15-minute target.</p>}
+              </div>
+            )}
+            {ingestionAlerts.length > 0 && (
+              <div className="admin-panel admin-panel--nested" aria-live="polite">
+                <SectionHeader kicker="Alerts" title="Operational diagnostics" />
+                <div className="admin-executive__alerts">
+                  {ingestionAlerts.map((alert) => (
+                    <article className={`admin-executive-alert admin-executive-alert--${alert.severity}`} key={alert.code}>
+                      <span aria-hidden="true" />
+                      <div>
+                        <small>{alert.window} · {alert.threshold}</small>
+                        <strong>{alert.title}</strong>
+                        <p>{alert.message}</p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            )}
             {qualityWarnings.length > 0 && (
               <div className="admin-panel admin-panel--nested">
                 <SectionHeader kicker="Quality" title="Data quality warnings" />

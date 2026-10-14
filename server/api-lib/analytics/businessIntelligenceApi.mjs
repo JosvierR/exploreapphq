@@ -38,7 +38,7 @@ import {
   businessCacheTtl,
   readThroughBusinessCache,
 } from "./businessIntelligenceCache.mjs";
-import { buildRevenueIntelligence } from "../intelligence/revenueIntelligenceService.mjs";
+import { loadRevenueIntelligence } from "../intelligence/revenueIntelligenceService.mjs";
 import { buildInvestorSafeSnapshot } from "../intelligence/reportSnapshotService.mjs";
 import { renderIntelligencePdf } from "../intelligence/pdfReportService.mjs";
 import {
@@ -286,7 +286,7 @@ export async function handleBusinessIntelHealth(request) {
 export async function handleBusinessIntelRevenue(request) {
   return handleLoader(request, "admin/business/revenue", async (supabase, params) => {
     const dashboard = await getBusinessIntelligenceDashboard(supabase, params);
-    return buildRevenueIntelligence(dashboard);
+    return loadRevenueIntelligence(dashboard);
   });
 }
 

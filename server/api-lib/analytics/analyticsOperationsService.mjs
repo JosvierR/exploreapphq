@@ -1,6 +1,10 @@
 import { timingSafeEqual } from "node:crypto";
 import { classifySupabaseAnalyticsError, serializeErrorForLog } from "./analyticsRouter.mjs";
 import { makeAnalyticsWarning } from "./analyticsAdminShapes.mjs";
+import {
+  ANALYTICS_EVENT_CONTRACT_VERSION,
+  ANALYTICS_REJECTION_DIAGNOSTICS,
+} from "./analyticsEventContract.mjs";
 
 const EVENTS_TABLE = "analytics_events";
 const DEAD_LETTERS_TABLE = "analytics_event_dead_letters";
@@ -50,6 +54,106 @@ function qualityWarning(code, severity, message, count = null) {
     severity,
     count,
     message,
+  };
+}
+
+export function calculateRejectionRate(accepted, rejected) {
+  const safeAccepted = Math.max(0, Number(accepted) || 0);
+  const safeRejected = Math.max(0, Number(rejected) || 0);
+  const attempts = safeAccepted + safeRejected;
+  return attempts ? Math.round((safeRejected / attempts) * 1000) / 10 : 0;
+}
+
+export function calculateAnalyticsFreshness(lastReceivedAt, { now = new Date() } = {}) {
+  const receivedAt = Date.parse(String(lastReceivedAt || ""));
+  const observedAt = now instanceof Date ? now.getTime() : Date.parse(String(now));
+  if (!Number.isFinite(receivedAt) || !Number.isFinite(observedAt)) {
+    return { status: "unknown", lag_seconds: null, threshold_seconds: 900, is_complete: false };
+  }
+  const lagSeconds = Math.max(0, Math.round((observedAt - receivedAt) / 1000));
+  return {
+    status: lagSeconds <= 900 ? "fresh" : lagSeconds <= 3600 ? "delayed" : "stale",
+    lag_seconds: lagSeconds,
+    threshold_seconds: 900,
+    is_complete: lagSeconds <= 900,
+  };
+}
+
+export function buildAnalyticsIngestionAlerts({ windows, freshness, latestRejectionAt = null } = {}) {
+  const alerts = [];
+  const oneHour = windows?.last_1h || { accepted: 0, rejected: 0, total: 0, rejection_rate: 0 };
+  const twentyFourHours = windows?.last_24h || { accepted: 0, rejected: 0, total: 0, rejection_rate: 0 };
+
+  if (oneHour.total >= 20 && oneHour.rejection_rate >= 20) {
+    alerts.push({
+      code: "ingestion_rejection_rate_critical",
+      severity: "critical",
+      title: "Ingestion rejection rate is critical",
+      message: `${oneHour.rejection_rate}% of observed attempts were rejected in the last hour.`,
+      window: "1h",
+      observed: oneHour.total,
+      threshold: "rate >= 20% and attempts >= 20",
+    });
+  } else if (oneHour.total >= 20 && oneHour.rejection_rate >= 5) {
+    alerts.push({
+      code: "ingestion_rejection_rate_warning",
+      severity: "warning",
+      title: "Ingestion rejection rate is elevated",
+      message: `${oneHour.rejection_rate}% of observed attempts were rejected in the last hour.`,
+      window: "1h",
+      observed: oneHour.total,
+      threshold: "rate >= 5% and attempts >= 20",
+    });
+  }
+
+  if (oneHour.accepted === 0 && twentyFourHours.total >= 100) {
+    alerts.push({
+      code: "ingestion_possible_outage",
+      severity: "critical",
+      title: "No successful ingestion in the last hour",
+      message: "Recent daily volume establishes expected traffic, so zero accepted events may indicate an outage.",
+      window: "1h",
+      observed: 0,
+      threshold: "accepted = 0 and 24h attempts >= 100",
+    });
+  }
+
+  if (freshness?.lag_seconds != null && freshness.lag_seconds > freshness.threshold_seconds && twentyFourHours.total >= 20) {
+    alerts.push({
+      code: "analytics_source_delayed",
+      severity: freshness.lag_seconds > 3600 ? "critical" : "warning",
+      title: "Analytics source is delayed",
+      message: `Latest accepted event is ${freshness.lag_seconds} seconds behind the observation time.`,
+      window: "freshness",
+      observed: freshness.lag_seconds,
+      threshold: `lag > ${freshness.threshold_seconds}s and 24h attempts >= 20`,
+    });
+  }
+
+  if (latestRejectionAt && oneHour.rejected > 0) {
+    alerts.push({
+      code: "recent_rejections_observed",
+      severity: "info",
+      title: "Recent rejections observed",
+      message: `Latest rejection was recorded at ${latestRejectionAt}.`,
+      window: "1h",
+      observed: oneHour.rejected,
+      threshold: "rejected > 0",
+    });
+  }
+
+  return alerts;
+}
+
+function ingestionWindow(accepted, rejected, freshness) {
+  const safeAccepted = Math.max(0, Number(accepted) || 0);
+  const safeRejected = Math.max(0, Number(rejected) || 0);
+  return {
+    accepted: safeAccepted,
+    rejected: safeRejected,
+    total: safeAccepted + safeRejected,
+    rejection_rate: calculateRejectionRate(safeAccepted, safeRejected),
+    complete: Boolean(freshness?.is_complete),
   };
 }
 
@@ -382,27 +486,38 @@ export async function getDeadLetterSummary(supabase, context = {}) {
 
   if (!timestampColumn) {
     return {
+      last_1h: 0,
+      last_6h: 0,
       last_24h: 0,
       last_7d: 0,
       by_reason: [],
       by_source: [],
+      by_event_name: [],
+      latest_rejection_at: null,
       timestamp_column: null,
       warnings: [makeAnalyticsWarning("dead_letters_time_column_unavailable", "Dead-letter timestamp column unavailable.")],
     };
   }
 
+  const since1h = lastMinutes(60);
+  const since6h = lastMinutes(6 * 60);
   const since24h = lastMinutes(24 * 60);
   const since7d = lastMinutes(7 * 24 * 60);
 
-  const [last24h, last7d, reasonRows] = await Promise.all([
+  const [last1h, last6h, last24h, last7d, reasonRows, latestRejection] = await Promise.all([
+    countDeadLettersSince(supabase, since1h, timestampColumn),
+    countDeadLettersSince(supabase, since6h, timestampColumn),
     countDeadLettersSince(supabase, since24h, timestampColumn),
     countDeadLettersSince(supabase, since7d, timestampColumn),
     supabase
       .from(DEAD_LETTERS_TABLE)
-      .select("reason, source")
+      .select("reason, source, payload")
       .gte(timestampColumn, since7d)
       .limit(1000),
+    supabase.from(DEAD_LETTERS_TABLE).select(timestampColumn).order(timestampColumn, { ascending: false }).limit(1),
   ]);
+
+  if (latestRejection.error) throw latestRejection.error;
 
   if (reasonRows.error) {
     const code = classifySupabaseAnalyticsError(reasonRows.error);
@@ -414,10 +529,14 @@ export async function getDeadLetterSummary(supabase, context = {}) {
         .limit(1000);
       if (minimal.error) throw minimal.error;
       return {
+        last_1h: last1h,
+        last_6h: last6h,
         last_24h: last24h,
         last_7d: last7d,
         by_reason: countBy(minimal.data || [], "reason"),
         by_source: [],
+        by_event_name: [],
+        latest_rejection_at: latestRejection.data?.[0]?.[timestampColumn] || null,
         timestamp_column: timestampColumn,
         warnings: [makeAnalyticsWarning("dead_letters_source_unavailable", "Dead-letter source column unavailable.")],
       };
@@ -426,10 +545,17 @@ export async function getDeadLetterSummary(supabase, context = {}) {
   }
 
   return {
+    last_1h: last1h,
+    last_6h: last6h,
     last_24h: last24h,
     last_7d: last7d,
     by_reason: countBy(reasonRows.data || [], "reason"),
     by_source: countBy(reasonRows.data || [], "source"),
+    by_event_name: countBy(
+      (reasonRows.data || []).map((row) => ({ event_name: row?.payload?.event_name || "unknown" })),
+      "event_name",
+    ),
+    latest_rejection_at: latestRejection.data?.[0]?.[timestampColumn] || null,
     timestamp_column: timestampColumn,
     warnings: [],
   };
@@ -550,12 +676,15 @@ function computeStatus({
   deadLetterRate24h,
   aggregationFreshness,
   qualityWarnings,
+  alerts = [],
 }) {
   if (!eventsSelectable) return "critical";
+  if (alerts.some((item) => item.severity === "critical")) return "critical";
   if (deadLetterRate24h > 20) return "critical";
   if (qualityWarnings.some((item) => item.severity === "critical")) return "critical";
 
   if (!deadLettersSelectable) return "warning";
+  if (alerts.some((item) => item.severity === "warning")) return "warning";
   if (events24h === 0) return "warning";
   if (deadLetterRate24h >= 5) return "warning";
   if (!aggregationFreshness.is_today_aggregated && !aggregationFreshness.is_yesterday_aggregated) return "warning";
@@ -573,14 +702,17 @@ export async function getAnalyticsIngestionHealth(supabase, context = {}) {
 
   const since5m = lastMinutes(5);
   const since1h = lastMinutes(60);
+  const since6h = lastMinutes(6 * 60);
   const since24h = lastMinutes(24 * 60);
 
-  const [events5m, events1h, events24h, deadLetters1h, deadLetters24h, latest, overviewDaily, topContentDaily, searchDaily, adminMetricsDaily, deadLetterSummary] =
+  const [events5m, events1h, events6h, events24h, deadLetters1h, deadLetters6h, deadLetters24h, latest, overviewDaily, topContentDaily, searchDaily, adminMetricsDaily, deadLetterSummary] =
     await Promise.all([
       countEventsSince(supabase, since5m),
       countEventsSince(supabase, since1h),
+      countEventsSince(supabase, since6h),
       countEventsSince(supabase, since24h),
       countDeadLettersSince(supabase, since1h, deadLettersTimeColumn),
+      countDeadLettersSince(supabase, since6h, deadLettersTimeColumn),
       countDeadLettersSince(supabase, since24h, deadLettersTimeColumn),
       supabase.from(EVENTS_TABLE).select("received_at").order("received_at", { ascending: false }).limit(1),
       queryViewLatestDay(supabase, "admin_analytics_overview_daily"),
@@ -604,8 +736,20 @@ export async function getAnalyticsIngestionHealth(supabase, context = {}) {
   };
 
   const usingRawEventsFallback = !overviewDaily.available || !overviewDaily.day;
-  const deadLetterRate24h =
-    events24h > 0 ? Math.round((deadLetters24h / events24h) * 1000) / 10 : deadLetters24h > 0 ? 100 : 0;
+  const observedAt = new Date();
+  const lastEventReceivedAt = latest.data?.[0]?.received_at || null;
+  const sourceFreshness = calculateAnalyticsFreshness(lastEventReceivedAt, { now: observedAt });
+  const ingestionWindows = {
+    last_1h: ingestionWindow(events1h, deadLetters1h, sourceFreshness),
+    last_6h: ingestionWindow(events6h, deadLetters6h, sourceFreshness),
+    last_24h: ingestionWindow(events24h, deadLetters24h, sourceFreshness),
+  };
+  const deadLetterRate24h = ingestionWindows.last_24h.rejection_rate;
+  const alerts = buildAnalyticsIngestionAlerts({
+    windows: ingestionWindows,
+    freshness: sourceFreshness,
+    latestRejectionAt: deadLetterSummary.latest_rejection_at,
+  });
 
   const diagnosticsWarnings = [
     eventsProbe.warning,
@@ -647,18 +791,36 @@ export async function getAnalyticsIngestionHealth(supabase, context = {}) {
     deadLetterRate24h,
     aggregationFreshness,
     qualityWarnings,
+    alerts,
   });
 
   return {
     status,
-    last_event_received_at: latest.data?.[0]?.received_at || null,
+    contract_version: ANALYTICS_EVENT_CONTRACT_VERSION,
+    observed_at: observedAt.toISOString(),
+    data_updated_at: lastEventReceivedAt,
+    last_event_received_at: lastEventReceivedAt,
+    latest_rejection_at: deadLetterSummary.latest_rejection_at,
+    source_freshness: sourceFreshness,
+    ingestion_windows: ingestionWindows,
+    alerts,
     events_last_5m: events5m,
     events_last_1h: events1h,
+    events_last_6h: events6h,
     events_last_24h: events24h,
     dead_letters_last_1h: deadLetters1h,
+    dead_letters_last_6h: deadLetters6h,
     dead_letters_last_24h: deadLetters24h,
     dead_letter_rate_24h: deadLetterRate24h,
     top_dead_letter_reasons_24h: deadLetterSummary.by_reason,
+    top_dead_letter_sources_24h: deadLetterSummary.by_source,
+    top_dead_letter_events_24h: deadLetterSummary.by_event_name,
+    rejection_diagnostics: Object.fromEntries(
+      deadLetterSummary.by_reason.map((item) => [
+        item.value,
+        ANALYTICS_REJECTION_DIAGNOSTICS[item.value] || "Review the canonical producer contract and sanitized dead-letter payload.",
+      ]),
+    ),
     aggregation_freshness: aggregationFreshness,
     diagnostics,
     quality_warnings: qualityWarnings,

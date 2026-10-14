@@ -161,15 +161,45 @@ export type AnalyticsQualityWarning = {
 
 export type AnalyticsHealth = {
   status: "healthy" | "warning" | "critical" | string;
+  contract_version?: string;
+  observed_at?: string | null;
+  data_updated_at?: string | null;
   events_last_5m: number;
   events_last_1h: number;
+  events_last_6h?: number;
   events_last_24h: number;
   dead_letters_last_1h?: number;
+  dead_letters_last_6h?: number;
   dead_letters_last_24h: number;
   dead_letter_rate_24h?: number;
   rejection_reasons: BreakdownEntry[];
   rejection_sources: BreakdownEntry[];
+  rejection_events?: BreakdownEntry[];
+  rejection_diagnostics?: Record<string, string>;
   last_successful_received_at: string | null;
+  latest_rejection_at?: string | null;
+  source_freshness?: {
+    status: "fresh" | "delayed" | "stale" | "unknown" | string;
+    lag_seconds: number | null;
+    threshold_seconds: number;
+    is_complete: boolean;
+  };
+  ingestion_windows?: Record<"last_1h" | "last_6h" | "last_24h", {
+    accepted: number;
+    rejected: number;
+    total: number;
+    rejection_rate: number;
+    complete: boolean;
+  }>;
+  alerts?: Array<{
+    code: string;
+    severity: "info" | "warning" | "critical" | string;
+    title: string;
+    message: string;
+    window: string;
+    observed: number;
+    threshold: string;
+  }>;
   latest_aggregation_day?: string | null;
   aggregation_freshness?: {
     latest_admin_metrics_day: string | null;
@@ -756,6 +786,9 @@ export type BusinessIntelDashboard = {
     place_resolution_pct?: number | null;
     route_resolution_pct?: number | null;
     rejected_events?: number | null;
+    rejected_events_in_range?: number | null;
+    rejection_coverage_pct?: number | null;
+    rejection_coverage_note?: string | null;
     aggregation_failures?: number | null;
     possible_duplicate_places?: number | null;
     last_aggregation?: string | null;
@@ -787,7 +820,13 @@ export type RevenueIntelligence = {
     maturity: RevenueMaturity;
     verified_value: number | null;
     currency: string | null;
+    estimated_value?: number | null;
+    value_classification?: string | null;
     availability: "available" | "unavailable";
+    connection_status?: "disconnected" | "configured_unverified" | "connected_estimated" | "error" | string;
+    providers?: Array<{ provider: string; status: string; configured: boolean; missing?: string[]; scope?: string }>;
+    provider_report?: { row_count: number; impressions: number; clicks: number; finality: string; cache: string };
+    error_code?: string;
     status_message: string;
     integration_requirement: string;
   }>;

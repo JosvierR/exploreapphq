@@ -40,6 +40,10 @@ const COPY = {
     verifiedRevenue: "Verified revenue",
     generated: "Generated",
     dataAsOf: "Data as of",
+    dataCutoff: "Data cutoff",
+    timezone: "Timezone",
+    confidence: "Metric confidence",
+    rejectionCoverage: "Rejection coverage",
     period: "Period",
     source: "Source",
     definition: "Definition",
@@ -100,6 +104,10 @@ const COPY = {
     verifiedRevenue: "Ingresos verificados",
     generated: "Generado",
     dataAsOf: "Datos al",
+    dataCutoff: "Corte de datos",
+    timezone: "Zona horaria",
+    confidence: "Confianza de metricas",
+    rejectionCoverage: "Cobertura de rechazos",
     period: "Periodo",
     source: "Fuente",
     definition: "Definición",
@@ -294,12 +302,15 @@ function coverPage(canvas, title, note, fixture) {
   canvas.rect(0, 0, canvas.width, canvas.height, COLORS.ink);
   canvas.rect(0, 0, canvas.width * 0.025, canvas.height, COLORS.blue);
   canvas.text("EXPLORE", 58, canvas.height - 64, 14, { bold: true, color: COLORS.white });
-  canvas.text("INTELLIGENCE 3.1", 58, canvas.height - 92, 8, { bold: true, color: COLORS.cyan });
-  canvas.paragraph(title, 58, canvas.height * 0.66, canvas.width - 116, canvas.width > 700 ? 34 : 30, { bold: true, color: COLORS.white, lineHeight: 40, maxLines: 3 });
+  canvas.text("INTELLIGENCE 3.2", 58, canvas.height - 92, 8, { bold: true, color: COLORS.cyan });
+  const longTitle = cleanPdfText(title).length > 70;
+  const titleSize = longTitle ? (canvas.width > 700 ? 28 : 25) : (canvas.width > 700 ? 34 : 30);
+  canvas.paragraph(title, 58, canvas.height * 0.66, canvas.width - 116, titleSize, { bold: true, color: COLORS.white, lineHeight: titleSize + 6, maxLines: 4 });
   if (note) canvas.paragraph(note, 58, canvas.height * 0.45, canvas.width - 116, 11, { color: [0.76, 0.79, 0.84], maxLines: 4 });
   canvas.text(canvas.copy.confidential, 58, 102, 8, { bold: true, color: COLORS.cyan });
   canvas.text(`${canvas.copy.period}: ${canvas.snapshot.range?.start || "-"} to ${canvas.snapshot.range?.end || "-"}`, 58, 80, 9, { color: COLORS.white });
   canvas.text(`${canvas.copy.dataAsOf}: ${canvas.snapshot.data_as_of || canvas.copy.unavailable}`, 58, 64, 9, { color: COLORS.white });
+  canvas.text(`${canvas.copy.timezone}: ${canvas.snapshot.timezone || "UTC"} | ${canvas.snapshot.classification}`, 58, 48, 8, { color: [0.76, 0.79, 0.84] });
   if (fixture) canvas.text("NONPRODUCTION FIXTURE - FOR VALIDATION ONLY", 58, 38, 8, { bold: true, color: COLORS.amber });
 }
 
@@ -328,7 +339,7 @@ function executivePage(canvas) {
     cursor = canvas.paragraph(statement, 72, cursor + 2, canvas.width - 118, 10, { maxLines: 3 }) - 18;
   });
   canvas.rect(42, 64, canvas.width - 84, 52, [0.92, 0.96, 1]);
-  canvas.paragraph(canvas.copy.intentNote, 56, 94, canvas.width - 112, 9, { bold: true, color: COLORS.blue, maxLines: 2 });
+  canvas.paragraph(`${canvas.copy.confidence}: ${s.metric_confidence?.overall || "unknown"}. ${canvas.copy.intentNote}`, 56, 94, canvas.width - 112, 9, { bold: true, color: COLORS.blue, maxLines: 2 });
 }
 
 function engagementPage(canvas) {
@@ -380,7 +391,10 @@ function opportunityPage(canvas) {
 function revenuePage(canvas) {
   const revenue = canvas.snapshot.revenue;
   canvas.header(canvas.copy.monetization, canvas.copy.revenue, canvas.copy.unavailableRevenue);
-  canvas.valueCard(42, canvas.height - 245, Math.min(220, canvas.width - 84), canvas.copy.verifiedRevenue, null, null, COLORS.amber);
+  const verifiedRevenue = revenue.total_verified_revenue == null
+    ? null
+    : `${revenue.currency || ""} ${formatNumber(revenue.total_verified_revenue)}`.trim();
+  canvas.valueCard(42, canvas.height - 245, Math.min(220, canvas.width - 84), canvas.copy.verifiedRevenue, verifiedRevenue, null, COLORS.amber);
   let cursor = canvas.height - 292;
   revenue.streams.forEach((stream, index) => {
     const tone = stream.maturity === "active_measured" ? COLORS.green : stream.maturity === "active_incomplete" ? COLORS.amber : COLORS.line;
@@ -389,7 +403,7 @@ function revenuePage(canvas) {
     const column = landscape ? index % 2 : 0;
     const row = landscape ? Math.floor(index / 2) : index;
     const itemX = 42 + column * (columnWidth + 21);
-    const itemY = landscape ? canvas.height - 292 - row * 70 : cursor;
+    const itemY = landscape ? canvas.height - 280 - row * 64 : cursor;
     canvas.rect(itemX, itemY - 9, 8, 42, tone);
     const translated = canvas.copy.code === "es" ? REVENUE_ES[stream.id] : null;
     const maturity = canvas.copy.code === "es"
@@ -413,9 +427,12 @@ function qualityPage(canvas) {
     [canvas.copy.metricCatalog, s.metric_catalog_version],
     [canvas.copy.generatedBy, `${s.generated_by?.role || "admin"} / ${s.generated_by?.actor_ref || "not-recorded"}`],
     [canvas.copy.dataQuality, s.data_quality.status],
+    [canvas.copy.confidence, s.metric_confidence?.overall || canvas.copy.unavailable],
     [canvas.copy.validEvents, formatNumber(s.data_quality.valid_events) || canvas.copy.unavailable],
+    [canvas.copy.rejectionCoverage, s.data_quality.rejection_coverage_pct == null ? canvas.copy.unavailable : `${s.data_quality.rejection_coverage_pct}%`],
     [canvas.copy.validityView, s.data_quality.validity_view_active ? canvas.copy.active : canvas.copy.unavailable],
-    [canvas.copy.dataAsOf, s.data_as_of || canvas.copy.unavailable],
+    [canvas.copy.dataCutoff, s.data_cutoff || canvas.copy.unavailable],
+    [canvas.copy.timezone, s.timezone || "UTC"],
     [canvas.copy.fingerprint, s.fingerprint],
   ];
   const landscape = canvas.width > 700;
@@ -518,7 +535,7 @@ function buildPdf(pages, metadata) {
     const pageId = add(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${page.width} ${page.height}] /Resources << /Font << /F1 ${regularId} 0 R /F2 ${boldId} 0 R >> >> /Contents ${contentId} 0 R >>`);
     pageIds.push(pageId);
   }
-  const infoId = add(`<< /Title (${escapePdf(metadata.title)}) /Author (Explore) /Subject (${escapePdf(metadata.subject)}) /Creator (Explore Intelligence 3.1) /CreationDate (D:${metadata.pdfDate}) >>`);
+  const infoId = add(`<< /Title (${escapePdf(metadata.title)}) /Author (Explore) /Subject (${escapePdf(metadata.subject)}) /Creator (Explore Intelligence 3.2) /CreationDate (D:${metadata.pdfDate}) >>`);
   objects[catalogId - 1] = `<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
   objects[pagesId - 1] = `<< /Type /Pages /Count ${pageIds.length} /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] >>`;
 
@@ -548,7 +565,7 @@ export function renderIntelligencePdf(snapshot, options) {
   return {
     bytes: buildPdf(pages, {
       title: options.title || "Explore Intelligence Report",
-      subject: `${snapshot.classification} | ${snapshot.range?.start || ""} to ${snapshot.range?.end || ""}`,
+      subject: `${snapshot.contract_version} | ${snapshot.classification} | ${snapshot.range?.start || ""} to ${snapshot.range?.end || ""} | ${snapshot.metric_confidence?.overall || "unknown"}`,
       pdfDate,
     }),
     pageCount: pages.length,

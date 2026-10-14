@@ -1,4 +1,4 @@
-export const INVESTOR_METRIC_CATALOG_VERSION = "investor-metrics-v1";
+export const INVESTOR_METRIC_CATALOG_VERSION = "investor-metrics-v2";
 
 const canonicalSource = "analytics_normalized_events via Business Analytics Core";
 

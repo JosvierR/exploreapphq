@@ -1,11 +1,17 @@
 import assert from "node:assert/strict";
 import {
+  analyticsEventContractVersion,
   countryFromLocale,
   normalizeAnalyticsEvent,
   normalizeAnalyticsSource,
   resolveRequestMarketGeo,
   validateAnalyticsEventRow,
 } from "./analyticsRouter.mjs";
+import {
+  ANALYTICS_EVENT_CONTRACT_VERSION,
+  analyticsEventContractManifest,
+  analyticsEventProfile,
+} from "./analyticsEventContract.mjs";
 
 const baseEvent = {
   event_id: "test-event-source-default",
@@ -32,6 +38,13 @@ function buildEvent(overrides = {}) {
     ...overrides,
   };
 }
+
+assert.equal(analyticsEventContractVersion(), ANALYTICS_EVENT_CONTRACT_VERSION);
+const contractManifest = analyticsEventContractManifest();
+assert.equal(contractManifest.version, "analytics-ingestion-v2");
+assert.ok(contractManifest.event_names.includes("app_background"));
+assert.ok(contractManifest.entity_types.includes("session"));
+assert.deepEqual(analyticsEventProfile("session_end").entities, ["session"]);
 
 assert.equal(normalizeAnalyticsSource(undefined, "web"), "web");
 assert.equal(normalizeAnalyticsSource(null, "web"), "web");
@@ -188,3 +201,19 @@ for (const eventName of [
   );
   assert.equal(result.rejected, undefined, `${eventName} is accepted by the production event contract`);
 }
+
+const mismatchedLifecycle = normalizeAnalyticsEvent(
+  buildEvent({ event_name: "session_end", entity_type: "route", entity_id: "route-test-001" }),
+);
+assert.equal(mismatchedLifecycle.row, undefined);
+assert.equal(mismatchedLifecycle.rejected.reason, "entity_type does not match event contract");
+
+const routeWithoutId = normalizeAnalyticsEvent(
+  buildEvent({ event_name: "route_publish_complete", entity_type: "route", entity_id: null }),
+);
+assert.equal(routeWithoutId.row, undefined);
+assert.equal(routeWithoutId.rejected.reason, "entity_id is required for this event");
+
+const unlistedEvent = normalizeAnalyticsEvent(buildEvent({ event_name: "unexpected_client_event" }));
+assert.equal(unlistedEvent.row, undefined);
+assert.equal(unlistedEvent.rejected.reason, "event_name is not allowed");

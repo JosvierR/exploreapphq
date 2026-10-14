@@ -660,6 +660,64 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [request_id, status, contract_version, observed_at, ingestion_windows, alerts, health]
+                properties:
+                  request_id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [healthy, warning, critical]
+                  contract_version:
+                    type: string
+                    example: analytics-ingestion-v2
+                  observed_at:
+                    type: string
+                    format: date-time
+                  data_updated_at:
+                    type: [string, "null"]
+                    format: date-time
+                  source_freshness:
+                    type: object
+                    additionalProperties: true
+                  ingestion_windows:
+                    type: object
+                    required: [last_1h, last_6h, last_24h]
+                    properties:
+                      last_1h:
+                        type: object
+                        additionalProperties: true
+                      last_6h:
+                        type: object
+                        additionalProperties: true
+                      last_24h:
+                        type: object
+                        additionalProperties: true
+                    additionalProperties: true
+                  alerts:
+                    type: array
+                    items:
+                      type: object
+                      required: [code, severity, title, message, window, threshold]
+                      properties:
+                        code:
+                          type: string
+                        severity:
+                          type: string
+                          enum: [info, warning, critical]
+                        title:
+                          type: string
+                        message:
+                          type: string
+                        window:
+                          type: string
+                        threshold:
+                          type: string
+                        observed:
+                          type: number
+                      additionalProperties: true
+                  health:
+                    type: object
+                    additionalProperties: true
                 additionalProperties: true
         "401":
           $ref: "#/components/responses/Unauthorized"

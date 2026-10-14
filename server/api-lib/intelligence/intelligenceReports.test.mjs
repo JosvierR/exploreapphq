@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { buildRevenueIntelligence } from "./revenueIntelligenceService.mjs";
+import { admobConfigurationStatus, createAdMobRevenueAdapter } from "./admobRevenueAdapter.mjs";
 import { buildInvestorSafeSnapshot, MIN_INVESTOR_COHORT } from "./reportSnapshotService.mjs";
 import { renderIntelligencePdf } from "./pdfReportService.mjs";
 import { reportFilename, validateReportOptions, withReportCapacity } from "./reportRequest.mjs";
@@ -17,6 +18,63 @@ test("revenue values remain unavailable without a reconciled financial source", 
   assert.match(revenue.commercial_signals.disclaimer, /not transactions, sales, or revenue/i);
 });
 
+test("AdMob adapter remains disconnected without credentials and never invents zero revenue", async () => {
+  assert.deepEqual(admobConfigurationStatus({}).missing, [
+    "ADMOB_PUBLISHER_ID",
+    "ADMOB_OAUTH_CLIENT_ID",
+    "ADMOB_OAUTH_REFRESH_TOKEN",
+  ]);
+  let called = false;
+  const adapter = createAdMobRevenueAdapter({ env: {}, fetchImpl: async () => { called = true; } });
+  const result = await adapter.getNetworkRevenue({ start: "2026-10-01", end: "2026-10-02" });
+  assert.equal(result.status, "disconnected");
+  assert.equal(result.data, null);
+  assert.equal(called, false);
+});
+
+test("AdMob adapter uses read-only reporting and classifies earnings as estimates", async () => {
+  const calls = [];
+  const env = {
+    ADMOB_PUBLISHER_ID: "pub-test-3-2",
+    ADMOB_OAUTH_CLIENT_ID: "client-id",
+    ADMOB_OAUTH_CLIENT_SECRET: "client-secret-value",
+    ADMOB_OAUTH_REFRESH_TOKEN: "refresh-secret-value",
+    ADMOB_CURRENCY_CODE: "USD",
+  };
+  const fetchImpl = async (url, init) => {
+    calls.push({ url, init });
+    if (String(url).includes("oauth2.googleapis.com")) {
+      return new Response(JSON.stringify({ access_token: "short-lived-access-token" }), { status: 200 });
+    }
+    return new Response(JSON.stringify([
+      { header: { localizationSettings: { currencyCode: "USD" } } },
+      { row: {
+        dimensionValues: { DATE: { value: "20261001", displayLabel: "2026-10-01" } },
+        metricValues: {
+          ESTIMATED_EARNINGS: { microsValue: "1230000" },
+          IMPRESSIONS: { integerValue: "500" },
+          CLICKS: { integerValue: "25" },
+        },
+      } },
+      { footer: { matchingRowCount: "1" } },
+    ]), { status: 200 });
+  };
+  const adapter = createAdMobRevenueAdapter({ env, fetchImpl, cacheTtlMs: 1 });
+  const result = await adapter.getNetworkRevenue({
+    start: "2026-10-01",
+    end: "2026-10-02",
+    dimensions: ["DATE", "APP", "COUNTRY", "FORMAT", "PLATFORM"],
+  });
+  assert.equal(result.status, "connected_estimated");
+  assert.equal(result.data.estimated_earnings, 1.23);
+  assert.equal(result.data.currency, "USD");
+  assert.equal(result.data.finality, "estimated_not_final");
+  assert.equal(result.data.impressions, 500);
+  assert.equal(calls.length, 2);
+  assert.equal(JSON.parse(calls[1].init.body).reportSpec.maxReportRows, 10000);
+  assert.doesNotMatch(JSON.stringify(result), /refresh-secret-value|client-secret-value|short-lived-access-token/);
+});
+
 test("investor-safe snapshot suppresses small cohorts and identifiers", () => {
   const snapshot = buildInvestorSafeSnapshot(intelligenceReportFixture(), {
     generatedAt: "2026-10-13T12:00:00.000Z",
@@ -30,6 +88,11 @@ test("investor-safe snapshot suppresses small cohorts and identifiers", () => {
   assert.doesNotMatch(serialized, /private query|secret user email/i);
   assert.equal(snapshot.headline.active_users, 18420);
   assert.equal(snapshot.headline.verified_revenue, null);
+  assert.equal(snapshot.contract_version, "explore-intelligence-report-v2");
+  assert.equal(snapshot.metric_catalog_version, "investor-metrics-v2");
+  assert.equal(snapshot.metric_confidence.metrics.active_users.status, "verified");
+  assert.equal(snapshot.metric_confidence.metrics.verified_revenue.status, "unavailable");
+  assert.equal(snapshot.timezone, "UTC");
 });
 
 test("PDF variants are valid, selectable, deterministic report structures", () => {
@@ -37,12 +100,13 @@ test("PDF variants are valid, selectable, deterministic report structures", () =
     generatedAt: "2026-10-13T12:00:00.000Z",
     env: {},
   });
-  const variants = [
-    { reportType: "current_dashboard", dashboard: "growth", format: "a4", language: "en" },
-    { reportType: "full_executive", dashboard: "overview", format: "letter", language: "es" },
-    { reportType: "investor_presentation", dashboard: "overview", format: "16:9", language: "en" },
-    { reportType: "detailed", dashboard: "overview", format: "a4", language: "es", includeDefinitions: true },
-  ];
+  const variants = ["current_dashboard", "full_executive", "investor_presentation", "detailed"].flatMap((reportType) =>
+    ["overview", "product", "growth", "tourism", "markets", "revenue", "operations"].flatMap((dashboard) =>
+      ["a4", "letter", "16:9"].flatMap((format) =>
+        ["en", "es"].map((language) => ({ reportType, dashboard, format, language, includeDefinitions: reportType === "detailed" })),
+      ),
+    ),
+  );
   for (const variant of variants) {
     const rendered = renderIntelligencePdf(snapshot, { ...variant, classification: "investor_safe", fixture: true });
     const raw = rendered.bytes.toString("latin1");
@@ -57,6 +121,25 @@ test("PDF variants are valid, selectable, deterministic report structures", () =
     if (variant.reportType === "full_executive") assert.match(raw, /\(18,420\)/);
     if (variant.format === "16:9") assert.match(raw, /\/MediaBox \[0 0 960 540\]/);
   }
+  assert.equal(variants.length, 168, "all report type, dashboard, format, and language combinations are covered");
+});
+
+test("partial and unavailable quality states remain explicit in investor PDFs", () => {
+  const partialDashboard = intelligenceReportFixture();
+  partialDashboard.data_quality.rejected_events_in_range = 100;
+  partialDashboard.data_quality.rejection_coverage_pct = 25;
+  const partial = buildInvestorSafeSnapshot(partialDashboard, { generatedAt: "2026-10-14T12:00:00.000Z", env: {} });
+  assert.equal(partial.metric_confidence.metrics.active_users.status, "under_investigation");
+  const partialPdf = renderIntelligencePdf(partial, { reportType: "detailed", dashboard: "operations", format: "letter", language: "en", classification: "investor_safe", fixture: true });
+  assert.match(partialPdf.bytes.toString("latin1"), /under_investigation/);
+
+  const unavailableDashboard = intelligenceReportFixture();
+  unavailableDashboard.state = "zero";
+  unavailableDashboard.data_quality.valid_events = 0;
+  const unavailable = buildInvestorSafeSnapshot(unavailableDashboard, { generatedAt: "2026-10-14T12:00:00.000Z", env: {} });
+  assert.equal(unavailable.metric_confidence.metrics.active_users.status, "unavailable");
+  const unavailablePdf = renderIntelligencePdf(unavailable, { reportType: "full_executive", dashboard: "overview", format: "a4", language: "en", classification: "investor_safe", fixture: true });
+  assert.match(unavailablePdf.bytes.toString("latin1"), /Unavailable/);
 });
 
 test("report requests are allowlisted and filenames are deterministic", () => {

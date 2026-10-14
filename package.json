@@ -20,6 +20,7 @@
     "test:e2e:perf": "playwright test --config playwright.performance.config.ts",
     "report:bundle": "node scripts/report-bundle-sizes.mjs dist",
     "reports:samples": "node scripts/generate-intelligence-report-samples.mjs",
+    "reports:benchmark": "node scripts/benchmark-intelligence-reports.mjs",
     "openapi:lint": "node scripts/lint-openapi-surfaces.mjs",
     "openapi:preview": "redocly preview-docs server/api-lib/docs/openapi.admin.yaml",
     "openapi:sync-edge": "node scripts/sync-edge-openapi.mjs",

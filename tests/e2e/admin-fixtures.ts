@@ -311,7 +311,42 @@ function responseFor(url: URL, method: string) {
   if (path === "/api/admin/analytics/search") return { request_id: "req-search", search: { total_searches: 4860, no_result_searches: 420, click_through_rate: 67.5, top_query_hashes: [{ query_hash: "beachâ€¦7f2a", count: 412 }], query_length_distribution: [{ bucket: "2-3 words", count: 2860 }], entity_type_breakdown: [{ value: "place", count: 2810 }], top_clicked_entities: [{ entity_type: "place", entity_id: "place-001", count: 480 }] }, warnings: [] };
   if (path === "/api/admin/analytics/events") return { request_id: "req-events", events: [analyticsEvent], pagination: { limit: 50, offset: 0, total: 1 }, warnings: [] };
   if (path.startsWith("/api/admin/analytics/events/")) return { request_id: "req-event", event: analyticsEvent };
-  if (path === "/api/admin/analytics/health") return { request_id: "req-analytics-health", status: "healthy", health: { status: "healthy", events_last_5m: 320, events_last_1h: 2840, events_last_24h: 24820, dead_letters_last_1h: 0, dead_letters_last_24h: 0, dead_letter_rate_24h: 0, rejection_reasons: [], rejection_sources: [], last_successful_received_at: now, latest_aggregation_day: "2026-10-12", aggregation_freshness: { latest_admin_metrics_day: "2026-10-12", latest_overview_day: "2026-10-12", is_today_aggregated: true, is_yesterday_aggregated: true }, quality_warnings: [] }, diagnostics: diagnostics(), quality_warnings: [], warnings: [] };
+  if (path === "/api/admin/analytics/health") return {
+    request_id: "req-analytics-health",
+    status: "healthy",
+    health: {
+      status: "healthy",
+      contract_version: "analytics-ingestion-v2",
+      observed_at: now,
+      data_updated_at: now,
+      events_last_5m: 320,
+      events_last_1h: 2840,
+      events_last_6h: 9100,
+      events_last_24h: 24820,
+      dead_letters_last_1h: 0,
+      dead_letters_last_6h: 0,
+      dead_letters_last_24h: 0,
+      dead_letter_rate_24h: 0,
+      rejection_reasons: [],
+      rejection_sources: [],
+      rejection_events: [],
+      last_successful_received_at: now,
+      latest_rejection_at: null,
+      source_freshness: { status: "fresh", lag_seconds: 12, threshold_seconds: 900, is_complete: true },
+      ingestion_windows: {
+        last_1h: { accepted: 2840, rejected: 0, total: 2840, rejection_rate: 0, complete: true },
+        last_6h: { accepted: 9100, rejected: 0, total: 9100, rejection_rate: 0, complete: true },
+        last_24h: { accepted: 24820, rejected: 0, total: 24820, rejection_rate: 0, complete: true },
+      },
+      alerts: [],
+      latest_aggregation_day: "2026-10-12",
+      aggregation_freshness: { latest_admin_metrics_day: "2026-10-12", latest_overview_day: "2026-10-12", is_today_aggregated: true, is_yesterday_aggregated: true },
+      quality_warnings: [],
+    },
+    diagnostics: diagnostics(),
+    quality_warnings: [],
+    warnings: [],
+  };
   if (path === "/api/admin/analytics/dead-letters") return { request_id: "req-dead-letters", items: [], dead_letters: [], summary: { last_24h: 0, last_7d: 0, by_reason: [], by_source: [] }, pagination: { limit: 50, offset: 0, total: 0 }, warnings: [] };
   if (path === "/api/admin/analytics/aggregate" && method === "POST") return { request_id: "req-aggregate", days: [{ day: "2026-10-12", ok: true }], warnings: [], message: "Aggregation complete" };
   if (path === "/api/admin/analytics/business/overview") {
@@ -335,7 +370,7 @@ function responseFor(url: URL, method: string) {
   if (path === "/api/admin/business/dashboard") return tourismDashboard;
   if (path === "/api/admin/business/revenue") return {
     request_id: "req-revenue",
-    core_version: "revenue-intelligence-v1",
+    core_version: "revenue-intelligence-v2",
     data_as_of: tourismDashboard.data_as_of,
     range: tourismDashboard.range,
     state: "unavailable",
@@ -351,7 +386,7 @@ function responseFor(url: URL, method: string) {
       { id: "business_intelligence", label: "Business intelligence", maturity: "planned", verified_value: null, currency: null, availability: "unavailable", status_message: "No verified financial source is connected.", integration_requirement: "Define billable products and connect an invoice or subscription source before reporting value." },
     ],
     maturity_scale: { active_measured: "Live, reconciled, and measured", active_incomplete: "Connected but not fully reconciled", integration_pending: "Product activity may exist; financial integration is pending", planned: "Planned monetization stream; no actual value is reported" },
-    metric_catalog: { version: "investor-metrics-v1", metrics: {
+    metric_catalog: { version: "investor-metrics-v2", metrics: {
       commercial_actions: { label: "Commercial actions", definition: "Observed high-intent actions; not sales or revenue.", formula: "directions + calls + website clicks + map opens", source: "Business Analytics Core", unit: "events", availability: "available", comparison: true, privacy: "aggregate", export_eligibility: ["executive_business", "investor_safe"] },
       revenue: { label: "Verified revenue", definition: "Reconciled monetary value from an authorized financial source.", formula: "recognized revenue", source: "No source configured", unit: "currency", availability: "unavailable_until_verified", comparison: false, privacy: "financial aggregate", export_eligibility: ["executive_business", "investor_safe"] },
     } },

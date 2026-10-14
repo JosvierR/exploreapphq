@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import {
   AnalyticsOperationsError,
   assertAnalyticsCronAuthorized,
+  buildAnalyticsIngestionAlerts,
+  calculateAnalyticsFreshness,
+  calculateRejectionRate,
   clampEventExplorerLimit,
   clampOffset,
   parseAnalyticsDay,
@@ -12,6 +15,40 @@ import {
   runBusinessAggregationForDay,
   runCompleteAnalyticsAggregationWindow,
 } from "./analyticsOperationsService.mjs";
+
+assert.equal(calculateRejectionRate(80, 20), 20, "rejection rate uses accepted plus rejected attempts");
+assert.equal(calculateRejectionRate(0, 20), 100, "all rejected attempts return 100 percent");
+assert.equal(calculateRejectionRate(0, 0), 0, "empty window returns a stable zero rate");
+
+const fresh = calculateAnalyticsFreshness("2026-10-13T23:55:00.000Z", {
+  now: new Date("2026-10-14T00:00:00.000Z"),
+});
+assert.deepEqual(fresh, { status: "fresh", lag_seconds: 300, threshold_seconds: 900, is_complete: true });
+const stale = calculateAnalyticsFreshness("2026-10-13T22:00:00.000Z", {
+  now: new Date("2026-10-14T00:00:00.000Z"),
+});
+assert.equal(stale.status, "stale");
+assert.equal(stale.is_complete, false);
+
+const lowVolumeAlerts = buildAnalyticsIngestionAlerts({
+  windows: {
+    last_1h: { accepted: 1, rejected: 1, total: 2, rejection_rate: 50 },
+    last_24h: { accepted: 3, rejected: 1, total: 4, rejection_rate: 25 },
+  },
+  freshness: fresh,
+});
+assert.equal(lowVolumeAlerts.length, 0, "low volume does not produce a false positive rejection alert");
+
+const highRejectionAlerts = buildAnalyticsIngestionAlerts({
+  windows: {
+    last_1h: { accepted: 80, rejected: 20, total: 100, rejection_rate: 20 },
+    last_24h: { accepted: 800, rejected: 200, total: 1000, rejection_rate: 20 },
+  },
+  freshness: fresh,
+  latestRejectionAt: "2026-10-13T23:59:00.000Z",
+});
+assert.ok(highRejectionAlerts.some((alert) => alert.code === "ingestion_rejection_rate_critical"));
+assert.ok(highRejectionAlerts.some((alert) => alert.code === "recent_rejections_observed"));
 
 function todayUtc() {
   return new Date().toISOString().slice(0, 10);

@@ -7,6 +7,15 @@ import { requireAdmin } from "../moderation/supabaseModeration.mjs";
 import { logger, requestLogMeta } from "../observability/logger.mjs";
 import { incrementCounter, observeTimer, recordSupabaseError } from "../observability/metrics.mjs";
 import { EVENT_TAXONOMY } from "./businessAnalyticsCore.mjs";
+import {
+  ANALYTICS_ATTRIBUTION_SOURCE_TYPES,
+  ANALYTICS_ENTITY_TYPES,
+  ANALYTICS_EVENT_CONTRACT_VERSION,
+  ANALYTICS_EVENT_NAMES,
+  ANALYTICS_PLATFORMS,
+  ANALYTICS_SOURCES as ANALYTICS_SOURCE_VALUES,
+  analyticsEventProfileIssue,
+} from "./analyticsEventContract.mjs";
 
 const ANALYTICS_EVENTS_TABLE = "analytics_events";
 const ANALYTICS_DEAD_LETTERS_TABLE = "analytics_event_dead_letters";
@@ -55,82 +64,11 @@ const ANALYTICS_EVENTS_COLUMNS = [
 
 const ANALYTICS_DEAD_LETTER_COLUMNS = ["event_id", "user_id", "anonymous_id", "reason", "payload", "source"];
 
-const EVENT_NAMES = new Set([
-  "app_open",
-  "app_background",
-  "app_foreground",
-  "session_start",
-  "session_end",
-  "screen_view",
-  "search_submitted",
-  "search_performed",
-  "search_result_clicked",
-  "search_no_results",
-  "video_impression",
-  "video_view_start",
-  "video_view_3s",
-  "video_view_25",
-  "video_view_50",
-  "video_view_75",
-  "video_view_complete",
-  "video_skip_fast",
-  "video_like",
-  "video_unlike",
-  "video_comment",
-  "video_share",
-  "video_open_places_routes",
-  "place_impression",
-  "place_view",
-  "place_click",
-  "place_save",
-  "place_unsave",
-  "place_open_map",
-  "place_map_open",
-  "place_get_directions",
-  "place_share",
-  "place_call",
-  "place_website_click",
-  "route_impression",
-  "route_view",
-  "route_click",
-  "route_save",
-  "route_unsave",
-  "route_start",
-  "route_record_start",
-  "route_recorded_choice",
-  "route_step_view",
-  "route_stop_view",
-  "route_complete",
-  "route_share",
-  "route_publish_step_view",
-  "route_publish_step_complete",
-  "route_publish_exit",
-  "route_publish_complete",
-  "route_difficulty_corrected",
-  "route_transport_corrected",
-  "content_impression",
-  "content_view",
-  "content_save",
-  "content_share",
-  "share",
-  "rating_submit",
-  "profile_view",
-  "follow_user",
-  "unfollow_user",
-  "report_submitted",
-  "content_hidden",
-  "content_unhidden",
-  "block_user",
-  "unblock_user",
-  "push_notification_open",
-  "deep_link_open",
-  "error_boundary_shown",
-]);
-
-const ENTITY_TYPES = new Set(["video", "content", "post", "place", "route", "profile", "user", "search", "session", "screen", "notification", "business", "system", null]);
-const PLATFORMS = new Set(["ios", "android", "web", "server", null]);
-const ANALYTICS_SOURCES = new Set(["mobile", "web", "backend", "admin"]);
-const ATTRIBUTION_SOURCE_TYPES = new Set(["search", "map", "feed", "video", "post", "content", "route", "creator", "recommendation", "profile", "direct_link", null]);
+const EVENT_NAMES = new Set(ANALYTICS_EVENT_NAMES);
+const ENTITY_TYPES = new Set(ANALYTICS_ENTITY_TYPES);
+const PLATFORMS = new Set(ANALYTICS_PLATFORMS);
+const ANALYTICS_SOURCES = new Set(ANALYTICS_SOURCE_VALUES);
+const ATTRIBUTION_SOURCE_TYPES = new Set(ANALYTICS_ATTRIBUTION_SOURCE_TYPES);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SENSITIVE_KEY_RE =
   /(token|secret|password|authorization|refresh[_-]?token|access[_-]?token|service[_-]?role|api[_-]?key|email|user[_-]?id)/i;
@@ -507,6 +445,7 @@ export function validateAnalyticsEventRow(row) {
   if (!cleanString(row.event_id, MAX_ID_LENGTH)) return { valid: false, reason: "event_id is required" };
   if (!cleanString(row.session_id, MAX_ID_LENGTH)) return { valid: false, reason: "session_id is required" };
   if (!cleanString(row.event_name, 80)) return { valid: false, reason: "event_name is required" };
+  if (!EVENT_NAMES.has(row.event_name)) return { valid: false, reason: "event_name is not allowed" };
   if (!Number.isInteger(row.event_version) || row.event_version <= 0) {
     return { valid: false, reason: "event_version is invalid" };
   }
@@ -788,6 +727,8 @@ export function normalizeAnalyticsEvent(event, { userId = null, request = null }
   const normalizedProperties = normalizeSearchProperties(eventName, properties.value);
   const contractIssue = taxonomyContractIssue(eventName, entityId, normalizedProperties);
   if (contractIssue) return { rejected: reject(contractIssue, event, userId), warnings: [] };
+  const profileIssue = analyticsEventProfileIssue(eventName, entityType, entityId);
+  if (profileIssue) return { rejected: reject(profileIssue, event, userId), warnings: [] };
   const locale = cleanString(event.locale, 40);
   const requestGeo = resolveRequestMarketGeo(request, { locale });
   const eligibility = analyticsEligibility(request, source, normalizedProperties, context.value);
@@ -961,6 +902,10 @@ function clientError(error) {
 
 export function analyticsEventAllowlist() {
   return [...EVENT_NAMES].sort();
+}
+
+export function analyticsEventContractVersion() {
+  return ANALYTICS_EVENT_CONTRACT_VERSION;
 }
 
 export async function handleEvents(request) {
