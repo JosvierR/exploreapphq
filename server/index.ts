@@ -286,6 +286,8 @@ const businessIntelligenceSegments = [
   "mobile-overview",
   "definitions",
   "health",
+  "revenue",
+  "reports",
 ] as const;
 
 for (const segment of businessIntelligenceSegments) {

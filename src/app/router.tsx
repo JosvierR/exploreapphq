@@ -26,6 +26,8 @@ const AdminDashboardPage = lazy(() => import("@/pages/admin/AdminDashboardPage")
 const AdminAnalyticsPage = lazy(() => import("@/pages/admin/AdminAnalyticsPage").then((module) => ({ default: module.AdminAnalyticsPage })));
 const AdminBusinessInsightsPage = lazy(() => import("@/pages/admin/AdminBusinessInsightsPage").then((module) => ({ default: module.AdminBusinessInsightsPage })));
 const AdminTourismBusinessPage = lazy(() => import("@/pages/admin/AdminTourismBusinessPage").then((module) => ({ default: module.AdminTourismBusinessPage })));
+const AdminRevenuePage = lazy(() => import("@/pages/admin/AdminRevenuePage").then((module) => ({ default: module.AdminRevenuePage })));
+const AdminReportBuilderPage = lazy(() => import("@/pages/admin/AdminReportBuilderPage").then((module) => ({ default: module.AdminReportBuilderPage })));
 const AdminExploreLabPage = lazy(() => import("@/pages/admin/AdminExploreLabPage").then((module) => ({ default: module.AdminExploreLabPage })));
 const ReportsAdminPage = lazy(() => import("@/pages/admin/ReportsAdminPage").then((module) => ({ default: module.ReportsAdminPage })));
 const WaitlistAdminPage = lazy(() => import("@/pages/admin/WaitlistAdminPage").then((module) => ({ default: module.WaitlistAdminPage })));
@@ -84,6 +86,8 @@ export const router = createBrowserRouter([
           { path: "/admin/analytics", element: <LazyAdminPage><AdminAnalyticsPage /></LazyAdminPage> },
           { path: "/admin/analytics/data", element: <LazyAdminPage><AdminBusinessInsightsPage /></LazyAdminPage> },
           { path: "/admin/analytics/business", element: <LazyAdminPage><AdminTourismBusinessPage /></LazyAdminPage> },
+          { path: "/admin/analytics/revenue", element: <LazyAdminPage><AdminRevenuePage /></LazyAdminPage> },
+          { path: "/admin/analytics/report-builder", element: <LazyAdminPage><AdminReportBuilderPage /></LazyAdminPage> },
           { path: "/admin/reports", element: <LazyAdminPage><ReportsAdminPage /></LazyAdminPage> },
           { path: "/admin/waitlist", element: <LazyAdminPage><WaitlistAdminPage /></LazyAdminPage> },
           { path: "/admin/lab", element: <LazyAdminPage><AdminExploreLabPage /></LazyAdminPage> },

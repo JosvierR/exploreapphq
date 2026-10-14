@@ -13,11 +13,11 @@ const principalViews = [
   { slug: "executive", url: "/admin", title: "Overview" },
   { slug: "analytics-ops", url: "/admin/analytics", title: "Analytics Operations" },
   { slug: "product-analytics", url: "/admin/analytics/data", title: "Product Analytics" },
+  { slug: "growth-engagement", url: "/admin/analytics/data?tab=growth", title: "Product Analytics" },
   { slug: "tourism-intelligence", url: "/admin/analytics/business", title: "Tourism Intelligence" },
-  { slug: "users", url: "/admin?section=users", title: "Users" },
-  { slug: "content", url: "/admin?section=content", title: "Content" },
-  { slug: "reports", url: "/admin/reports", title: "Reports" },
-  { slug: "system", url: "/admin?section=system", title: "System Health" },
+  { slug: "markets-demand", url: "/admin/analytics/business?tab=demand", title: "Tourism Intelligence" },
+  { slug: "revenue", url: "/admin/analytics/revenue", title: "Revenue & Monetization" },
+  { slug: "report-builder", url: "/admin/analytics/report-builder", title: "Intelligence Reports" },
 ] as const;
 
 const viewports = [
@@ -230,6 +230,8 @@ test.describe("admin workflows", () => {
     const destinations = [
       { link: "Growth & Engagement", title: "Product Analytics", url: /\/admin\/analytics\/data\?tab=growth/ },
       { link: "Markets & Demand", title: "Tourism Intelligence", url: /\/admin\/analytics\/business\?tab=demand/ },
+      { link: "Revenue & Monetization", title: "Revenue & Monetization", url: /\/admin\/analytics\/revenue/ },
+      { link: "Intelligence Reports", title: "Intelligence Reports", url: /\/admin\/analytics\/report-builder/ },
       { link: "Places & Routes", title: "Content", url: /section=content.*content=places/ },
       { link: "Moderation", title: "Moderation", url: /section=moderation/ },
       { link: "Reports", title: "Reports", url: /\/admin\/reports/ },
@@ -244,6 +246,22 @@ test.describe("admin workflows", () => {
       await expect(page).toHaveURL(destination.url);
       await expect(page.locator(".admin-console__page-title h1")).toHaveText(destination.title);
     }
+  });
+
+  test("revenue readiness and investor-safe PDF generation are explicit", async ({ page }) => {
+    await page.goto("/admin/analytics/revenue");
+    await expect(page.getByText("Revenue is unavailable — not zero")).toBeVisible();
+    await expect(page.getByText("Unavailable").first()).toBeVisible();
+    await page.getByRole("button", { name: "Detailed" }).click();
+    await expect(page.getByRole("region", { name: "Revenue metric definition" })).toBeVisible();
+
+    await page.goto("/admin/analytics/report-builder?dashboard=revenue&range=30d");
+    await page.getByLabel("Report title").fill("Board briefing");
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Generate & download PDF" }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe("explore-intelligence_full_executive_2026-09-13_2026-10-12_en.pdf");
+    await expect(page.getByText("fixture-fingerprint")).toBeVisible();
   });
 });
 
@@ -262,6 +280,21 @@ test("principal visual matrix has no horizontal document overflow", async ({ pag
       expect(overflow, `${view.url} at ${viewport.width}x${viewport.height}`).toBeLessThanOrEqual(1);
       await expect(page).toHaveScreenshot(`principal/${view.slug}--${viewport.slug}.png`);
     }
+  }
+});
+
+test("analytical destinations render without overflow in dark mode", async ({ page }) => {
+  test.setTimeout(120_000);
+  await installAdminFixtures(page, { mode: "ready", authorized: true });
+  await loginAsAdmin(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.getByRole("button", { name: "Use dark theme" }).click();
+  for (const view of principalViews) {
+    await page.goto(view.url);
+    await settleVisuals(page);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow, `${view.url} dark`).toBeLessThanOrEqual(1);
+    await expect(page).toHaveScreenshot(`dark/${view.slug}--desktop-1440x900.png`);
   }
 });
 
@@ -310,7 +343,7 @@ test("important loading, empty, error, navigation, collapse, and chart states ar
 test("core pages have no critical or serious axe violations", async ({ page }) => {
   await installAdminFixtures(page, { mode: "ready", authorized: true });
   await loginAsAdmin(page);
-  for (const url of ["/admin", "/admin/analytics/data", "/admin/analytics/business", "/admin/reports"]) {
+  for (const url of ["/admin", "/admin/analytics/data", "/admin/analytics/business", "/admin/analytics/revenue", "/admin/analytics/report-builder", "/admin/reports"]) {
     await page.goto(url);
     await settleVisuals(page);
     const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();

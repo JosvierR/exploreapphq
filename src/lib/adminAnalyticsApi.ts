@@ -768,3 +768,103 @@ export function getBusinessIntelligenceDashboard(params: BusinessIntelParams = {
     signal: params.signal,
   });
 }
+
+export type RevenueMaturity = "active_measured" | "active_incomplete" | "integration_pending" | "planned";
+
+export type RevenueIntelligence = {
+  request_id: string;
+  core_version: string;
+  data_as_of: string | null;
+  range: { start: string; end: string; preset: string } | null;
+  state: "partial" | "unavailable";
+  total_verified_revenue: number | null;
+  currency: string | null;
+  unavailable_reason: string | null;
+  commercial_signals: { actions: number | null; label: string; disclaimer: string };
+  streams: Array<{
+    id: string;
+    label: string;
+    maturity: RevenueMaturity;
+    verified_value: number | null;
+    currency: string | null;
+    availability: "available" | "unavailable";
+    status_message: string;
+    integration_requirement: string;
+  }>;
+  maturity_scale: Record<RevenueMaturity, string>;
+  metric_catalog: {
+    version: string;
+    metrics: Record<string, {
+      label: string;
+      definition: string;
+      formula: string;
+      source: string;
+      unit: string;
+      availability: string;
+      comparison: boolean;
+      privacy: string;
+      export_eligibility: string[];
+    }>;
+  };
+};
+
+export function getRevenueIntelligence(params: BusinessIntelParams = {}) {
+  return analyticsFetch<RevenueIntelligence>(`/api/admin/business/revenue?${businessIntelQuery(params)}`, {
+    signal: params.signal,
+  });
+}
+
+export type IntelligenceReportOptions = {
+  reportType: "current_dashboard" | "full_executive" | "investor_presentation" | "detailed";
+  dashboard: "overview" | "product" | "growth" | "tourism" | "markets" | "revenue" | "operations";
+  format: "a4" | "letter" | "16:9";
+  language: "en" | "es";
+  detail: "executive" | "detailed";
+  classification: "executive_business" | "investor_safe";
+  title?: string;
+  note?: string;
+  includeDefinitions?: boolean;
+  includeDataQuality?: boolean;
+  includeOpportunities?: boolean;
+  sections?: string[];
+};
+
+export async function generateIntelligenceReport(options: IntelligenceReportOptions, params: BusinessIntelParams = {}) {
+  const token = await accessToken();
+  const response = await fetch(`/api/admin/business/reports?${businessIntelQuery(params)}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(options),
+    signal: params.signal,
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new AdminApiError(body.error || "Report generation failed.", {
+      status: response.status,
+      requestId: body.request_id,
+    });
+  }
+  const disposition = response.headers.get("content-disposition") || "";
+  const filename = disposition.match(/filename="?([^";]+)"?/i)?.[1] || "explore-intelligence-report.pdf";
+  return {
+    blob: await response.blob(),
+    filename,
+    fingerprint: response.headers.get("x-explore-report-fingerprint"),
+    pageCount: Number(response.headers.get("x-explore-report-pages") || 0) || null,
+  };
+}
+
+export function downloadReportBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

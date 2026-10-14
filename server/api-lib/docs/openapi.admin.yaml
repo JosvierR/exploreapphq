@@ -1216,6 +1216,59 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /api/admin/business/revenue:
+    get:
+      tags: [Business Intelligence]
+      summary: Revenue integration readiness and verified financial values
+      description: Returns unavailable values rather than zero when no reconciled financial source is connected.
+      operationId: getBusinessRevenueIntelligence
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Revenue readiness snapshot }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/admin/business/reports:
+    post:
+      tags: [Business Intelligence]
+      summary: Generate an investor-safe intelligence PDF
+      description: Generates a bounded, non-public PDF from one canonical aggregate snapshot.
+      operationId: createBusinessIntelligenceReport
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reportType: { type: string, enum: [current_dashboard, full_executive, investor_presentation, detailed] }
+                dashboard: { type: string, enum: [overview, product, growth, tourism, markets, revenue, operations] }
+                format: { type: string, enum: [a4, letter, "16:9"] }
+                language: { type: string, enum: [en, es] }
+                detail: { type: string, enum: [executive, detailed] }
+                classification: { type: string, enum: [executive_business, investor_safe] }
+                title: { type: string, maxLength: 100 }
+                note: { type: string, maxLength: 360 }
+                includeDefinitions: { type: boolean }
+                includeDataQuality: { type: boolean }
+                includeOpportunities: { type: boolean }
+                sections:
+                  type: array
+                  maxItems: 7
+                  items: { type: string, enum: [executive, engagement, markets, opportunity, revenue, quality, appendix] }
+      responses:
+        "200":
+          description: Generated report
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "400": { description: Invalid report request }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { description: Report generation capacity reached }
+
   /api/business/v1/overview:
     get:
       tags: [Business Intelligence]

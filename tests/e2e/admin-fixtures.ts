@@ -333,6 +333,29 @@ function responseFor(url: URL, method: string) {
   if (path === "/api/admin/analytics/business/locations") return businessLocations;
   if (path === "/api/admin/analytics/business/investor-snapshot") return investorSnapshot;
   if (path === "/api/admin/business/dashboard") return tourismDashboard;
+  if (path === "/api/admin/business/revenue") return {
+    request_id: "req-revenue",
+    core_version: "revenue-intelligence-v1",
+    data_as_of: tourismDashboard.data_as_of,
+    range: tourismDashboard.range,
+    state: "unavailable",
+    total_verified_revenue: null,
+    currency: null,
+    unavailable_reason: "No authorized revenue integration currently provides reconciled monetary values.",
+    commercial_signals: { actions: tourismDashboard.kpis.commercial_intent, label: "Commercial actions", disclaimer: "Observed intent only — not transactions, sales, or revenue." },
+    streams: [
+      { id: "advertising", label: "Advertising", maturity: "integration_pending", verified_value: null, currency: null, availability: "unavailable", status_message: "No verified financial source is connected.", integration_requirement: "Connect an authorized AdMob or Google Ad Manager reporting credential with account and currency scope." },
+      { id: "subscriptions", label: "Subscriptions", maturity: "integration_pending", verified_value: null, currency: null, availability: "unavailable", status_message: "No verified financial source is connected.", integration_requirement: "Connect an authorized RevenueCat or Stripe source and define recognized-revenue and refund handling." },
+      { id: "promoted_content", label: "Promoted content", maturity: "planned", verified_value: null, currency: null, availability: "unavailable", status_message: "No verified financial source is connected.", integration_requirement: "Implement a promotion contract ledger with booked, delivered, invoiced, and paid states." },
+      { id: "tickets_partners", label: "Tickets & partners", maturity: "planned", verified_value: null, currency: null, availability: "unavailable", status_message: "No verified financial source is connected.", integration_requirement: "Connect partner settlement data with order, refund, fee, currency, and payout identifiers." },
+      { id: "business_intelligence", label: "Business intelligence", maturity: "planned", verified_value: null, currency: null, availability: "unavailable", status_message: "No verified financial source is connected.", integration_requirement: "Define billable products and connect an invoice or subscription source before reporting value." },
+    ],
+    maturity_scale: { active_measured: "Live, reconciled, and measured", active_incomplete: "Connected but not fully reconciled", integration_pending: "Product activity may exist; financial integration is pending", planned: "Planned monetization stream; no actual value is reported" },
+    metric_catalog: { version: "investor-metrics-v1", metrics: {
+      commercial_actions: { label: "Commercial actions", definition: "Observed high-intent actions; not sales or revenue.", formula: "directions + calls + website clicks + map opens", source: "Business Analytics Core", unit: "events", availability: "available", comparison: true, privacy: "aggregate", export_eligibility: ["executive_business", "investor_safe"] },
+      revenue: { label: "Verified revenue", definition: "Reconciled monetary value from an authorized financial source.", formula: "recognized revenue", source: "No source configured", unit: "currency", availability: "unavailable_until_verified", comparison: false, privacy: "financial aggregate", export_eligibility: ["executive_business", "investor_safe"] },
+    } },
+  };
   if (path.startsWith("/api/admin/openapi/")) return { openapi: "3.1.0", info: { title: `Explore ${path.split("/").at(-1)} API`, version: "1.0.0" }, paths: { "/api/health": { get: { operationId: "getHealth", responses: { "200": { description: "Healthy" } } } } } };
   return { ok: true };
 }
@@ -381,6 +404,10 @@ export async function installAdminFixtures(page: Page, state: FixtureState, opti
     if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
     if (state.partialBusinessContent && url.pathname === "/api/admin/analytics/business/content") {
       return fulfillJson(route, { ...businessBase, summary: businessContent.summary });
+    }
+    if (url.pathname === "/api/admin/business/reports" && request.method() === "POST") {
+      const body = Buffer.from("%PDF-1.4\n1 0 obj<< /Type /Catalog >>endobj\n%%EOF\n", "latin1");
+      return route.fulfill({ status: 200, contentType: "application/pdf", body, headers: { "content-disposition": "attachment; filename=\"explore-intelligence_full_executive_2026-09-13_2026-10-12_en.pdf\"", "x-explore-report-fingerprint": "fixture-fingerprint", "x-explore-report-pages": "7" } });
     }
     const empty = state.mode === "empty" ? emptyFor(url.pathname) : null;
     return fulfillJson(route, empty ?? responseFor(url, request.method()));

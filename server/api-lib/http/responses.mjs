@@ -2,7 +2,7 @@ export const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Request-ID, X-Explore-Supabase-Anon-Key",
   "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
-  "Access-Control-Expose-Headers": "X-Request-ID",
+  "Access-Control-Expose-Headers": "X-Request-ID, Content-Disposition, X-Explore-Report-Fingerprint, X-Explore-Report-Pages",
 };
 
 export function jsonResponse(status, body, headers = {}) {

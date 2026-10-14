@@ -550,6 +550,9 @@ function AdminBusinessInsightsContent() {
           <Link className="admin-btn admin-btn--secondary admin-btn--sm" to="/admin/analytics/business">
             Tourism Business
           </Link>
+          <Link className="admin-btn admin-btn--ghost admin-btn--sm" to={`/admin/analytics/report-builder?dashboard=${activeTab === "growth" ? "growth" : "product"}&range=${range}`}>
+            Download PDF
+          </Link>
         </>
       }
     >

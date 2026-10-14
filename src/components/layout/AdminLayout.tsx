@@ -164,6 +164,8 @@ const analyticsItems: NavItem[] = [
   { label: "Growth & Engagement", to: "/admin/analytics/data?tab=growth", icon: "Insights" },
   { label: "Tourism Intelligence", to: "/admin/analytics/business", exactQuery: true, icon: "Places" },
   { label: "Markets & Demand", to: "/admin/analytics/business?tab=demand", icon: "Routes" },
+  { label: "Revenue & Monetization", to: "/admin/analytics/revenue", icon: "Insights" },
+  { label: "Intelligence Reports", to: "/admin/analytics/report-builder", icon: "Reports" },
 ];
 
 const operationsItems: NavItem[] = [
@@ -201,6 +203,14 @@ function routeMeta(pathname: string, search: string) {
 
   if (pathname === "/admin/analytics/business") {
     return { group: "Analytics", title: "Tourism Intelligence", description: "Markets, demand, places, and opportunities" };
+  }
+
+  if (pathname === "/admin/analytics/revenue") {
+    return { group: "Analytics", title: "Revenue & Monetization", description: "Verified value and integration readiness" };
+  }
+
+  if (pathname === "/admin/analytics/report-builder") {
+    return { group: "Analytics", title: "Intelligence Reports", description: "Investor-safe PDF report builder" };
   }
 
   if (pathname === "/admin/analytics") {
@@ -357,6 +367,22 @@ function initialTheme(): AdminTheme {
   const saved = window.localStorage.getItem("admin:theme");
   if (saved === "light" || saved === "dark") return saved;
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function reportBuilderTarget(pathname: string, search: string) {
+  const current = new URLSearchParams(search);
+  const target = new URLSearchParams();
+  for (const key of ["range", "start", "end", "date_from", "date_to", "compare"]) {
+    const value = current.get(key);
+    if (value) target.set(key, value);
+  }
+  let dashboard = "operations";
+  if (pathname === "/admin") dashboard = "overview";
+  else if (pathname === "/admin/analytics/data") dashboard = current.get("tab") === "growth" ? "growth" : "product";
+  else if (pathname === "/admin/analytics/business") dashboard = current.get("tab") === "demand" ? "markets" : "tourism";
+  else if (pathname === "/admin/analytics/revenue") dashboard = "revenue";
+  target.set("dashboard", dashboard);
+  return `/admin/analytics/report-builder?${target.toString()}`;
 }
 
 export function AdminLayout() {
@@ -520,6 +546,11 @@ export function AdminLayout() {
           </div>
 
           <div className="admin-console__topbar-actions">
+            {location.pathname !== "/admin/analytics/report-builder" ? (
+              <Link className="admin-btn admin-btn--ghost admin-btn--sm admin-console__export" to={reportBuilderTarget(location.pathname, location.search)}>
+                Download PDF
+              </Link>
+            ) : null}
             <details className="admin-system-menu">
               <summary aria-label="Open system status">
                 <span className={`admin-system-menu__dot admin-system-menu__dot--${systemHealthy ? "ok" : "error"}`} aria-hidden="true" />

@@ -1,3 +1,7 @@
 # Canonical migrations are byte-preserved from the shared production history.
 # Two upstream files intentionally contain an extra blank line at EOF.
 supabase/migrations/*.sql whitespace=-blank-at-eof
+
+# Generated reports contain byte-offset cross-reference tables and must never
+# be modified by line-ending normalization.
+*.pdf binary

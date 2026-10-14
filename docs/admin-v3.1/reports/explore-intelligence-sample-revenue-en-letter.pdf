@@ -1,0 +1,220 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 3 /Kids [6 0 R 8 0 R 10 0 R] >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Length 641 >>
+stream
+0.055 0.075 0.11 rg
+0.00 0.00 612.00 792.00 re f
+0.075 0.33 0.91 rg
+0.00 0.00 15.30 792.00 re f
+1 1 1 rg
+BT /F2 14 Tf 58.00 728.00 Td (EXPLORE) Tj ET
+0.09 0.67 0.82 rg
+BT /F2 8 Tf 58.00 700.00 Td (INTELLIGENCE 3.1) Tj ET
+1 1 1 rg
+BT /F2 30 Tf 58.00 522.72 Td (Explore Revenue Readiness) Tj ET
+0.09 0.67 0.82 rg
+BT /F2 8 Tf 58.00 102.00 Td (CONFIDENTIAL - INVESTOR-SAFE AGGREGATES) Tj ET
+1 1 1 rg
+BT /F1 9 Tf 58.00 80.00 Td (Period: 2026-09-13 to 2026-10-12) Tj ET
+1 1 1 rg
+BT /F1 9 Tf 58.00 64.00 Td (Data as of: 2026-10-12T18:30:00.000Z) Tj ET
+0.92 0.58 0.12 rg
+BT /F2 8 Tf 58.00 38.00 Td (NONPRODUCTION FIXTURE - FOR VALIDATION ONLY) Tj ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 5 0 R >>
+endobj
+7 0 obj
+<< /Length 2775 >>
+stream
+0.075 0.33 0.91 rg
+BT /F2 11 Tf 42.00 749.00 Td (EXPLORE) Tj ET
+0.35 0.39 0.46 rg
+BT /F2 8 Tf 42.00 716.00 Td (MONETIZATION) Tj ET
+0.055 0.075 0.11 rg
+BT /F2 21 Tf 42.00 687.00 Td (Revenue readiness) Tj ET
+0.35 0.39 0.46 rg
+BT /F1 9.5 Tf 42.00 665.00 Td (No verified financial source is connected. Revenue is unavailable, not zero.) Tj ET
+0.84 0.86 0.89 RG
+0.8 w 42.00 644.00 m 570.00 644.00 l S
+0.94 0.95 0.965 rg
+42.00 547.00 220.00 76.00 re f
+0.92 0.58 0.12 rg
+42.00 619.00 220.00 4.00 re f
+0.35 0.39 0.46 rg
+BT /F2 7 Tf 56.00 600.00 Td (VERIFIED REVENUE) Tj ET
+0.35 0.39 0.46 rg
+BT /F2 12 Tf 56.00 572.00 Td (Unavailable) Tj ET
+0.84 0.86 0.89 rg
+42.00 491.00 8.00 42.00 re f
+0.055 0.075 0.11 rg
+BT /F2 10 Tf 64.00 515.00 Td (Advertising) Tj ET
+0.35 0.39 0.46 rg
+BT /F1 8 Tf 64.00 500.00 Td (Maturity: integration pending) Tj ET
+0.35 0.39 0.46 rg
+BT /F1 7.5 Tf 64.00 484.00 Td (Connect an authorized AdMob or Google Ad Manager reporting credential with account and currency scope.) Tj ET
+0.84 0.86 0.89 rg
+42.00 433.00 8.00 42.00 re f
+0.055 0.075 0.11 rg
+BT /F2 10 Tf 64.00 457.00 Td (Subscriptions) Tj ET
+0.35 0.39 0.46 rg
+BT /F1 8 Tf 64.00 442.00 Td (Maturity: integration pending) Tj ET
+0.35 0.39 0.46 rg
+BT /F1 7.5 Tf 64.00 426.00 Td (Connect an authorized RevenueCat or Stripe source and define recognized-revenue and refund handling.) Tj ET
+0.84 0.86 0.89 rg
+42.00 375.00 8.00 42.00 re f
+0.055 0.075 0.11 rg
+BT /F2 10 Tf 64.00 399.00 Td (Promoted content) Tj ET
+0.35 0.39 0.46 rg
+BT /F1 8 Tf 64.00 384.00 Td (Maturity: planned) Tj ET
+0.35 0.39 0.46 rg
+BT /F1 7.5 Tf 64.00 368.00 Td (Implement a promotion contract ledger with booked, delivered, invoiced, and paid states.) Tj ET
+0.84 0.86 0.89 rg
+42.00 317.00 8.00 42.00 re f
+0.055 0.075 0.11 rg
+BT /F2 10 Tf 64.00 341.00 Td (Tickets & partners) Tj ET
+0.35 0.39 0.46 rg
+BT /F1 8 Tf 64.00 326.00 Td (Maturity: planned) Tj ET
+0.35 0.39 0.46 rg
+BT /F1 7.5 Tf 64.00 310.00 Td (Connect partner settlement data with order, refund, fee, currency, and payout identifiers.) Tj ET
+0.84 0.86 0.89 rg
+42.00 259.00 8.00 42.00 re f
+0.055 0.075 0.11 rg
+BT /F2 10 Tf 64.00 283.00 Td (Business intelligence) Tj ET
+0.35 0.39 0.46 rg
+BT /F1 8 Tf 64.00 268.00 Td (Maturity: planned) Tj ET
+0.35 0.39 0.46 rg
+BT /F1 7.5 Tf 64.00 252.00 Td (Define billable products and connect an invoice or subscription source before reporting value.) Tj ET
+1 0.97 0.9 rg
+42.00 54.00 528.00 44.00 re f
+0.5 0.31 0.04 rg
+BT /F2 8.5 Tf 54.00 80.00 Td (Commercial actions indicate intent; they are not transactions, sales, or revenue.) Tj ET
+0.84 0.86 0.89 RG
+0.6 w 42.00 34.00 m 570.00 34.00 l S
+0.35 0.39 0.46 rg
+BT /F1 6.8 Tf 42.00 19.00 Td (Snapshot fingerprint: bb1ffece3a29f6193a9b7595) Tj ET
+0.35 0.39 0.46 rg
+BT /F1 7 Tf 540.00 19.00 Td (2 / 3) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 7 0 R >>
+endobj
+9 0 obj
+<< /Length 2814 >>
+stream
+0.075 0.33 0.91 rg
+BT /F2 11 Tf 42.00 749.00 Td (EXPLORE) Tj ET
+0.35 0.39 0.46 rg
+BT /F2 8 Tf 42.00 716.00 Td (TRUST & GOVERNANCE) Tj ET
+0.055 0.075 0.11 rg
+BT /F2 21 Tf 42.00 687.00 Td (Data quality & methodology) Tj ET
+0.35 0.39 0.46 rg
+BT /F1 9.5 Tf 42.00 665.00 Td (Definitions, quality state, privacy controls, and lineage travel with every export.) Tj ET
+0.84 0.86 0.89 RG
+0.8 w 42.00 644.00 m 570.00 644.00 l S
+0.94 0.95 0.965 rg
+42.00 591.00 528.00 26.00 re f
+0.35 0.39 0.46 rg
+BT /F2 8.5 Tf 54.00 602.00 Td (Canonical core) Tj ET
+0.055 0.075 0.11 rg
+BT /F2 8.5 Tf 187.00 602.00 Td (business-analytics-core-v2) Tj ET
+0.35 0.39 0.46 rg
+BT /F2 8.5 Tf 54.00 574.00 Td (Report contract) Tj ET
+0.055 0.075 0.11 rg
+BT /F2 8.5 Tf 187.00 574.00 Td (explore-intelligence-report-v1) Tj ET
+0.94 0.95 0.965 rg
+42.00 535.00 528.00 26.00 re f
+0.35 0.39 0.46 rg
+BT /F2 8.5 Tf 54.00 546.00 Td (Metric catalog) Tj ET
+0.055 0.075 0.11 rg
+BT /F2 8.5 Tf 187.00 546.00 Td (investor-metrics-v1) Tj ET
+0.35 0.39 0.46 rg
+BT /F2 8.5 Tf 54.00 518.00 Td (Generated by) Tj ET
+0.055 0.075 0.11 rg
+BT /F2 8.5 Tf 187.00 518.00 Td (admin / not-recorded) Tj ET
+0.94 0.95 0.965 rg
+42.00 479.00 528.00 26.00 re f
+0.35 0.39 0.46 rg
+BT /F2 8.5 Tf 54.00 490.00 Td (Data quality) Tj ET
+0.055 0.075 0.11 rg
+BT /F2 8.5 Tf 187.00 490.00 Td (ready) Tj ET
+0.35 0.39 0.46 rg
+BT /F2 8.5 Tf 54.00 462.00 Td (Valid events) Tj ET
+0.055 0.075 0.11 rg
+BT /F2 8.5 Tf 187.00 462.00 Td (286.4K) Tj ET
+0.94 0.95 0.965 rg
+42.00 423.00 528.00 26.00 re f
+0.35 0.39 0.46 rg
+BT /F2 8.5 Tf 54.00 434.00 Td (Validity view) Tj ET
+0.055 0.075 0.11 rg
+BT /F2 8.5 Tf 187.00 434.00 Td (Active) Tj ET
+0.35 0.39 0.46 rg
+BT /F2 8.5 Tf 54.00 406.00 Td (Data as of) Tj ET
+0.055 0.075 0.11 rg
+BT /F2 8.5 Tf 187.00 406.00 Td (2026-10-12T18:30:00.000Z) Tj ET
+0.94 0.95 0.965 rg
+42.00 367.00 528.00 26.00 re f
+0.35 0.39 0.46 rg
+BT /F2 8.5 Tf 54.00 378.00 Td (Snapshot fingerprint) Tj ET
+0.055 0.075 0.11 rg
+BT /F2 8.5 Tf 187.00 378.00 Td (bb1ffece3a29f6193a9b7595) Tj ET
+0.35 0.39 0.46 rg
+BT /F2 8 Tf 42.00 338.00 Td (PRIVACY) Tj ET
+0.055 0.075 0.11 rg
+BT /F1 9 Tf 42.00 316.00 Td (Aggregated investor-safe output; cohorts below five are suppressed. Search text and user-level identifiers are) Tj ET
+0.055 0.075 0.11 rg
+BT /F1 9 Tf 42.00 303.22 Td (excluded.) Tj ET
+0.35 0.39 0.46 rg
+BT /F2 8 Tf 42.00 278.44 Td (REVENUE POLICY) Tj ET
+0.055 0.075 0.11 rg
+BT /F1 9 Tf 42.00 256.44 Td (Only reconciled values from authorized financial sources qualify as revenue. Commercial actions remain intent) Tj ET
+0.055 0.075 0.11 rg
+BT /F1 9 Tf 42.00 243.66 Td (signals.) Tj ET
+0.84 0.86 0.89 RG
+0.6 w 42.00 34.00 m 570.00 34.00 l S
+0.35 0.39 0.46 rg
+BT /F1 6.8 Tf 42.00 19.00 Td (Snapshot fingerprint: bb1ffece3a29f6193a9b7595) Tj ET
+0.35 0.39 0.46 rg
+BT /F1 7 Tf 540.00 19.00 Td (3 / 3) Tj ET
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 9 0 R >>
+endobj
+11 0 obj
+<< /Title (Explore Revenue Readiness) /Author (Explore) /Subject (investor_safe | 2026-09-13 to 2026-10-12) /Creator (Explore Intelligence 3.1) /CreationDate (D:20261013120000Z) >>
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000134 00000 n 
+0000000231 00000 n 
+0000000333 00000 n 
+0000001025 00000 n 
+0000001161 00000 n 
+0000003988 00000 n 
+0000004124 00000 n 
+0000006990 00000 n 
+0000007127 00000 n 
+trailer
+<< /Size 12 /Root 1 0 R /Info 11 0 R >>
+startxref
+7324
+%%EOF

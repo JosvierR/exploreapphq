@@ -13,6 +13,8 @@ test("admin routes remain lazy and preserve the canonical route split", async ()
     "AdminAnalyticsPage",
     "AdminBusinessInsightsPage",
     "AdminTourismBusinessPage",
+    "AdminRevenuePage",
+    "AdminReportBuilderPage",
     "ReportsAdminPage",
     "WaitlistAdminPage",
   ]) {
@@ -22,6 +24,8 @@ test("admin routes remain lazy and preserve the canonical route split", async ()
   assert.match(router, /path: "\/admin\/analytics"/);
   assert.match(router, /path: "\/admin\/analytics\/data"/);
   assert.match(router, /path: "\/admin\/analytics\/business"/);
+  assert.match(router, /path: "\/admin\/analytics\/revenue"/);
+  assert.match(router, /path: "\/admin\/analytics\/report-builder"/);
 });
 
 test("shareable analytics filters are URL-owned and requests are abortable", async () => {
@@ -49,6 +53,8 @@ test("the command-center navigation exposes explicit domain labels", async () =>
     "Growth & Engagement",
     "Tourism Intelligence",
     "Markets & Demand",
+    "Revenue & Monetization",
+    "Intelligence Reports",
     "Analytics Operations",
     "System Health",
     "Admin Management",

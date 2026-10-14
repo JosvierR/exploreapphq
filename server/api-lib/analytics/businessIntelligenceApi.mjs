@@ -38,6 +38,16 @@ import {
   businessCacheTtl,
   readThroughBusinessCache,
 } from "./businessIntelligenceCache.mjs";
+import { buildRevenueIntelligence } from "../intelligence/revenueIntelligenceService.mjs";
+import { buildInvestorSafeSnapshot } from "../intelligence/reportSnapshotService.mjs";
+import { renderIntelligencePdf } from "../intelligence/pdfReportService.mjs";
+import {
+  ReportRequestError,
+  reportFilename,
+  validateReportOptions,
+  withReportCapacity,
+} from "../intelligence/reportRequest.mjs";
+import { createHash } from "node:crypto";
 
 function queryMetadata(params, payload) {
   const warnings = Array.isArray(payload?.warnings) ? payload.warnings : [];
@@ -78,7 +88,7 @@ function failure(request, route, error, diagnostics) {
     });
   }
   const status = error?.status || 500;
-  if (status === 401 || status === 403 || status === 400) {
+  if ([400, 401, 403, 413, 429].includes(status)) {
     return jsonResponse(status, {
       ok: false,
       error: error?.message || (status === 401 ? "Authentication required." : "Access denied."),
@@ -273,6 +283,80 @@ export async function handleBusinessIntelHealth(request) {
   return handleLoader(request, "admin/business/health", getBusinessIntelligenceHealth);
 }
 
+export async function handleBusinessIntelRevenue(request) {
+  return handleLoader(request, "admin/business/revenue", async (supabase, params) => {
+    const dashboard = await getBusinessIntelligenceDashboard(supabase, params);
+    return buildRevenueIntelligence(dashboard);
+  });
+}
+
+export async function handleBusinessIntelReports(request) {
+  const route = "admin/business/reports";
+  const started = Date.now();
+  let diagnostics = null;
+  try {
+    if (request.method === "OPTIONS") return optionsResponse();
+    if (request.method !== "POST") return methodNotAllowed(request);
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > 32_768) throw new ReportRequestError(413, "Report request is too large.", "report_request_too_large");
+    const admin = await requireAdmin(request);
+    diagnostics = { admin_role: admin?.role || null };
+    let body;
+    try {
+      const rawBody = await request.text();
+      if (Buffer.byteLength(rawBody, "utf8") > 32_768) {
+        throw new ReportRequestError(413, "Report request is too large.", "report_request_too_large");
+      }
+      body = JSON.parse(rawBody);
+    } catch (parseError) {
+      if (parseError instanceof ReportRequestError) throw parseError;
+      throw new ReportRequestError(400, "A valid JSON report request is required.", "report_invalid_json");
+    }
+    const options = validateReportOptions(body);
+    const params = resolveBusinessIntelligenceParams(request);
+    params.access_scope = "admin_global";
+
+    const result = await withReportCapacity(async () => {
+      const dashboard = await getBusinessIntelligenceDashboard(admin.supabase, params);
+      const actorRef = createHash("sha256").update(String(admin.user?.id || "admin")).digest("hex").slice(0, 12);
+      const snapshot = buildInvestorSafeSnapshot(dashboard, {
+        classification: options.classification,
+        generatedBy: { role: admin.role || "admin", actor_ref: actorRef },
+      });
+      const rendered = renderIntelligencePdf(snapshot, options);
+      return { snapshot, rendered };
+    });
+    const filename = reportFilename(result.snapshot, options);
+    logger.info("Investor-safe report generated", {
+      ...requestLogMeta(request, route),
+      event: "admin_report_generated",
+      report_type: options.reportType,
+      classification: options.classification,
+      format: options.format,
+      language: options.language,
+      page_count: result.rendered.pageCount,
+      snapshot_fingerprint: result.snapshot.fingerprint,
+      actor_ref: result.snapshot.generated_by.actor_ref,
+      duration_ms: Date.now() - started,
+      status: 200,
+    });
+    return new Response(result.rendered.bytes, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Cache-Control": "private, no-store, max-age=0",
+        Pragma: "no-cache",
+        "X-Content-Type-Options": "nosniff",
+        "X-Explore-Report-Fingerprint": result.snapshot.fingerprint,
+        "X-Explore-Report-Pages": String(result.rendered.pageCount),
+      },
+    });
+  } catch (error) {
+    return failure(request, route, error, diagnostics);
+  }
+}
+
 export const ADMIN_BUSINESS_INTEL_ROUTES = {
   "admin/business/dashboard": handleBusinessIntelDashboard,
   "admin/business/overview": handleBusinessIntelOverview,
@@ -296,6 +380,8 @@ export const ADMIN_BUSINESS_INTEL_ROUTES = {
   "admin/business/mobile-overview": handleBusinessIntelMobileOverview,
   "admin/business/definitions": handleBusinessIntelDefinitions,
   "admin/business/health": handleBusinessIntelHealth,
+  "admin/business/revenue": handleBusinessIntelRevenue,
+  "admin/business/reports": handleBusinessIntelReports,
 };
 
 export async function dispatchBusinessIntelligenceApi(request, route) {

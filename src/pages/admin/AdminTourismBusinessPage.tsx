@@ -520,9 +520,9 @@ function BusinessIntelligenceContent() {
           >
             Export CSV
           </button>
-          <button type="button" className="admin-btn admin-btn--ghost admin-btn--sm" disabled={!data} onClick={() => window.print()}>
-            PDF report
-          </button>
+          <Link className="admin-btn admin-btn--ghost admin-btn--sm" to={`/admin/analytics/report-builder?dashboard=${activeTab === "demand" ? "markets" : "tourism"}&range=${range}`}>
+            Download PDF
+          </Link>
           <button type="button" className="admin-btn admin-btn--secondary admin-btn--sm" onClick={() => setRefreshKey((value) => value + 1)}>
             Refresh
           </button>
