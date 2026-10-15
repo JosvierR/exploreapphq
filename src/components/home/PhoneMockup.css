@@ -1,0 +1,76 @@
+.explore-home .phone-device { container-type: inline-size; }
+/* Family's separate transparent frame: https://family.co/assets/phone.png */
+.explore-home .phone-family-frame {
+  position: absolute; z-index: 3; inset: 0; width: 100%; height: 100%;
+  display: block; transform: scale(1.06); pointer-events: none;
+}
+.explore-home .phone-screen {
+  position: absolute; inset: 1.5% 3.3%; border-radius: 7.5%; overflow: hidden;
+  color: #fff; font-family: Arial, sans-serif;
+  background: linear-gradient(125deg, #c4e8e7 1%, #8dcedc 18%, #226ad0 48%, #061b5b 78%, #153389);
+}
+.explore-home .phone-screen::before {
+  content: ''; position: absolute; width: 116%; height: 122%; left: -52%; top: 7%;
+  transform: rotate(-25deg); border-radius: 48%;
+  background: linear-gradient(100deg, #63cce180, #beefdf 25%, #5dcac3 60%, #83e6df 74%, #22a7c7);
+  border-right: .25cqw solid #d0f7fd9c; box-shadow: 12cqw 0 18cqw #2554ca88;
+}
+.explore-home .phone-screen::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 15cqw #01368933; }
+.explore-home .phone-status { position: absolute; z-index: 1; left: 13%; right: 9%; top: 2.7%; display: flex; justify-content: space-between; align-items: center; font-size: 4cqw; font-weight: 600; }
+.explore-home .phone-status > div { display: flex; gap: 1.1cqw; align-items: center; }
+.explore-home .phone-status svg { width: 4.4cqw; height: 4.4cqw; stroke-width: 2.6; }
+.explore-home .phone-status svg:last-child { width: 6cqw; height: 5.3cqw; }
+.explore-home .phone-widgets { position: absolute; left: 7%; right: 7%; top: 9.4%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4.6cqw; }
+.explore-home .phone-widget-group { display: flex; flex-direction: column; align-items: center; gap: 1.5cqw; }
+.explore-home .home-widget { width: 100%; aspect-ratio: 1; border-radius: 6.5cqw; padding: 3.8cqw 3.3cqw; overflow: hidden; }
+.explore-home .weather-widget { display: flex; flex-direction: column; align-items: flex-start; background: linear-gradient(145deg, #174f83, #519acd); font-size: 2.7cqw; line-height: 1.2; }
+.explore-home .weather-widget > strong { font-size: 3.5cqw; font-weight: 500; }
+.explore-home .weather-degrees { font-size: 11cqw; font-weight: 300; line-height: 1.05; margin-bottom: 3cqw; }
+.explore-home .weather-widget svg { width: 5cqw; height: 5cqw; color: #fff3bc; margin-bottom: 1.1cqw; }
+.explore-home .weather-widget small { font-size: 2.6cqw; margin-top: .7cqw; }
+.explore-home .calendar-widget { display: flex; flex-direction: column; background: linear-gradient(#fff, #eaeaea); color: #131313; }
+.explore-home .calendar-widget > small { color: #ef353a; font-size: 2.6cqw; }
+.explore-home .calendar-date { font-size: 10cqw; font-weight: 300; line-height: 1.13; margin-bottom: 3.8cqw; }
+.explore-home .calendar-event { color: #8c458e; font-weight: 600; font-size: 2.5cqw; }
+.explore-home .calendar-note { font-size: 2.6cqw; color: #b64542; border-left: .5cqw solid #fa4f53; background: #f2e3e3; margin-top: 1.2cqw; padding: .8cqw 1cqw; }
+.explore-home .widget-label, .explore-home .phone-app > span:last-child { color: #fff; font-size: 2.8cqw; line-height: 1.2; text-shadow: 0 .2cqw 1cqw #184b7b55; white-space: nowrap; }
+.explore-home .phone-apps { position: absolute; left: 7.5%; right: 7.5%; top: 32%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4.3cqw 5.5cqw; }
+.explore-home .phone-app { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 1.7cqw; }
+.explore-home .phone-app > span:last-child { font-size: 2.65cqw; }
+.explore-home .phone-app:not(.phone-app--explore) .phone-app-icon, .explore-home .phone-dock .phone-app-icon { opacity: .34; filter: grayscale(.85); box-shadow: none; }
+.explore-home .phone-app:not(.phone-app--explore) > span:last-child { opacity: .44; }
+.explore-home .phone-app-icon { position: relative; display: flex; align-items: center; justify-content: center; flex-direction: column; width: 100%; aspect-ratio: 1; border-radius: 3.9cqw; overflow: hidden; color: white; box-shadow: inset 0 .15cqw .4cqw #ffffff55, 0 .7cqw 1.2cqw #17416912; }
+.explore-home .phone-app-icon > svg { width: 68%; height: 68%; }
+.explore-home .phone-app-icon--green { background: linear-gradient(#64ef63, #06b93d); }
+.explore-home .phone-app-icon--mail, .explore-home .phone-app-icon--store { background: linear-gradient(#59cefa, #0877e9); }
+.explore-home .phone-app-icon--calendar, .explore-home .phone-app-icon--notes, .explore-home .phone-app-icon--reminders, .explore-home .phone-app-icon--clock, .explore-home .phone-app-icon--health { background: #fcfcfc; color: #161616; }
+.explore-home .phone-app-icon--calendar small { color: #f0353d; font-size: 2.8cqw; position: absolute; top: 8%; }
+.explore-home .phone-app-icon--calendar strong { font-size: 9cqw; font-weight: 300; margin-top: 1.6cqw; }
+.explore-home .phone-app-icon--explore { border-radius: 23%; background: #0066ff; box-shadow: none; }
+.explore-home .phone-explore-symbol { width: 57%; height: 67%; object-fit: contain; }
+.explore-home .phone-app-icon--camera { background: linear-gradient(#e9e9e9, #9da0a6); color: #212329; }
+.explore-home .phone-app-icon--camera svg { stroke-width: 2.5; }
+.explore-home .phone-app-icon--reminders { color: #478de9; }
+.explore-home .phone-app-icon--notes::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 25%; background: #ffe257; border-bottom: .3cqw dotted #d8bf4c; }
+.explore-home .note-lines { position: absolute; inset: 34% 10% 9%; background: repeating-linear-gradient(transparent, transparent 2.8cqw, #c5c9ce 2.8cqw, #c5c9ce 3cqw); }
+.explore-home .clock-face { position: absolute; inset: 9%; border-radius: 50%; background: repeating-conic-gradient(#383838 0deg 1deg, transparent 1deg 30deg); }
+.explore-home .clock-face::after { content: ''; position: absolute; inset: 8%; border-radius: 50%; background: #fff; }
+.explore-home .clock-face i, .explore-home .clock-face b { z-index: 1; position: absolute; top: 50%; left: 50%; width: .6cqw; background: #222; border-radius: .4cqw; transform-origin: top; }
+.explore-home .clock-face i { height: 30%; transform: rotate(125deg); }
+.explore-home .clock-face b { height: 38%; transform: rotate(210deg); }
+.explore-home .phone-app-icon--news, .explore-home .phone-app-icon--games, .explore-home .phone-app-icon--music { background: linear-gradient(#ff7a7c, #fb3461); }
+.explore-home .phone-app-icon--tv { background: linear-gradient(#333, #0b1413); }
+.explore-home .phone-app-icon--tv strong { font-size: 8cqw; font-weight: 500; }
+.explore-home .phone-app-icon--maps { background: linear-gradient(100deg, #45d77b 0 30%, #fff 30% 36%, #76daab 36% 61%, #ffd961 61% 65%, #77c7ef 65%); }
+.explore-home .phone-app-icon--maps svg { background: #2693ee; padding: 10%; border: .6cqw solid #fff; border-radius: 50%; width: 66%; height: 66%; }
+.explore-home .phone-app-icon--health { color: #f42864; }
+.explore-home .phone-app-icon--health svg { fill: #f42864; stroke-width: 0; }
+.explore-home .phone-app-icon--wallet { background: #24282c; color: #fac864; }
+.explore-home .phone-app-icon--settings { background: linear-gradient(#d6d8dd, #8f959d); color: #fff; }
+.explore-home .phone-app-icon--settings svg { width: 83%; height: 83%; stroke-width: 1.8; }
+.explore-home .phone-app-icon--safari { background: #fff; color: #238de3; }
+.explore-home .phone-app-icon--safari svg { width: 88%; height: 88%; fill: #eefaff; stroke-width: 1.3; }
+.explore-home .phone-search { position: absolute; left: 39%; bottom: 16.3%; display: flex; align-items: center; gap: 1cqw; padding: 1.2cqw 2.7cqw; border-radius: 8cqw; background: #76aecd66; font-size: 2.8cqw; }
+.explore-home .phone-search > span { width: 2.1cqw; height: 2.1cqw; border: .3cqw solid #fff; border-radius: 50%; }
+.explore-home .phone-dock { position: absolute; left: 4%; right: 4%; bottom: 2.5%; padding: 5cqw 4.5cqw; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5.5cqw; background: #ade9ed33; border: .15cqw solid #d6f5fa55; border-radius: 10cqw; backdrop-filter: blur(8px); }
+.explore-home .phone-home-indicator { position: absolute; height: .9cqw; width: 31%; left: 34.5%; bottom: .6%; border-radius: 1cqw; background: #0009; }

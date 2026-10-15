@@ -70,6 +70,7 @@
     "firebase": "^13.0.0",
     "firebase-admin": "^13.10.0",
     "leaflet": "^1.9.4",
+    "lucide-react": "^1.57.0",
     "motion": "^12.42.2",
     "nodemailer": "^10.1.0",
     "react": "^19.0.0",
