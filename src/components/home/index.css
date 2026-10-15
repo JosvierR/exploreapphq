@@ -1,0 +1,146 @@
+/* Keep the landing design independent of the shared marketing/admin styles. */
+.explore-home { all: revert; display: block; line-height: normal; }
+.explore-home :where(:not(svg, svg *)) { all: revert; }
+@font-face {
+  font-family: 'Haffer VF';
+  src: url('/explore-home/fonts/HafferStandardUprights-VF.ttf') format('truetype');
+  font-weight: 100 1000;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Haffer Mono';
+  src: url('/explore-home/fonts/HafferMonoRegular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Haffer Mono';
+  src: url('/explore-home/fonts/HafferMonoMedium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Haffer XH';
+  src: url('/explore-home/fonts/HafferXHRegular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Brisa Pro';
+  src: url('/explore-home/fonts/BrisaPro-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+.explore-home {
+  --text: #94a3b8;
+  --text-h: #f7f9fc;
+  --bg: #000000;
+  --border: rgba(56, 189, 248, 0.15);
+  --accent: #0066ff;
+  --accent-glow: rgba(56, 189, 248, 0.35);
+  --blue-soft: #79aaff;
+  --blue-muted: #9bb1d0;
+  --title-muted: #92979f;
+  --surface-blue: #0b0f15;
+  --panel-blue: linear-gradient(145deg, #131820, #0a0d12 75%);
+  --surface-blue-light: #f7faff;
+  --surface-blue-tint: #eaf2ff;
+  --avatar-blue: #dceaff;
+  --avatar-ink: #1354b7;
+  --map-background: #eef5ff;
+  --map-land: #dce9fc;
+  --map-contour: #c2d4ef;
+  --map-water: #acd2ff;
+  --map-road: #bbcee9;
+  --map-label: #5e789d;
+
+  --sans: 'Haffer VF', system-ui, -apple-system, sans-serif;
+  --heading: 'Haffer VF', system-ui, -apple-system, sans-serif;
+  --mono: 'Haffer Mono', ui-monospace, Consolas, monospace;
+  --haffer-xh: 'Haffer XH', system-ui, sans-serif;
+  --script: 'Brisa Pro', cursive, sans-serif;
+
+  /* One responsive scale for the entire landing page. */
+  --type-title: clamp(36px, 5.15vw, 110px);
+  --type-hero: clamp(72px, 10vw, 160px);
+  --type-title-leading: 1.12;
+  --type-title-tracking: -.065em;
+  --type-card-title: 32px;
+  --type-dialog-title: 24px;
+  --type-body: 18px;
+  --type-body-leading: 1.5;
+  --type-secondary: 14px;
+  --type-label: 12px;
+  --type-control: 16px;
+  --type-avatar: 24px;
+  --type-signature: 24px;
+
+  --space-section: clamp(112px, 12vw, 208px);
+  --space-heading: clamp(56px, 6vw, 96px);
+  --space-grid: clamp(32px, 3.75vw, 64px);
+  --motion-ease: cubic-bezier(.625, .05, 0, 1);
+
+  color-scheme: dark;
+  background-color: #000000;
+  color: #f7f9fc;
+  font-family: var(--sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (max-width: 768px) {
+  .explore-home {
+    --type-title: 40px;
+    --type-card-title: 24px;
+    --type-body: 16px;
+    --type-control: 14px;
+    --space-section: 96px;
+    --space-heading: 56px;
+    --space-grid: 28px;
+  }
+}
+
+@media (max-width: 580px) {
+  .explore-home {
+    /* Keep the longest section title on one line at narrow widths. */
+    --type-title: clamp(24px, 7.4vw, 40px);
+    --type-hero: clamp(52px, 17.8vw, 96px);
+    --space-section: 76px;
+    --space-heading: 44px;
+  }
+}
+
+.explore-home * {
+  box-sizing: border-box;
+}
+
+.explore-home, .explore-home {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+  background-color: #000000;
+  overflow-x: clip;
+}
+
+.explore-home {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+/* Tailwind preflight changes SVG display; retain the source landing defaults. */
+.explore-home svg, .explore-home svg * { display: revert; vertical-align: revert; }

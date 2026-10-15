@@ -1,0 +1,14 @@
+{
+  "frameCount": 180,
+  "fps": 15,
+  "sourceStartSeconds": 34,
+  "sourceDurationSeconds": 12,
+  "desktop": {
+    "width": 1920,
+    "height": 1080
+  },
+  "mobile": {
+    "width": 640,
+    "height": 1138
+  }
+}
