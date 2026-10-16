@@ -1,5 +1,6 @@
 import { createContext } from "react";
-import type { Locale, TranslationKey } from "@/locales/messages";
+import type { Locale } from "@/features/i18n/locales";
+import type { TranslationKey } from "@/locales/messages";
 
 export type I18nContextValue = {
   locale: Locale;

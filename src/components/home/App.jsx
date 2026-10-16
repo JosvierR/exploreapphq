@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Camera, Check, Compass, Menu, Play, Route, Users, X } from 'lucide-react';
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
+import { useI18n } from '@/features/i18n/I18nProvider';
+import { getHomeLanding } from '@/locales/homeLanding';
 import HeroSequence from './HeroSequence';
 import RevealTitle from './RevealTitle';
 import { heroScrollProgress } from './lib/heroScroll';
@@ -10,7 +13,13 @@ import ExplorePhone from './ExplorePhone';
 import { smoothstep } from './lib/routeGeometry';
 import './App.css';
 
-const demos = [{ id: 'discover', title: 'Descubre', Icon: Compass }, { id: 'record', title: 'Graba', Icon: Route }, { id: 'community', title: 'Conecta', Icon: Users }];
+const DEMO_ICONS = { discover: Compass, record: Route, community: Users };
+const FEATURE_ICONS = [Route, Camera, Users];
+
+function withBreaks(text) {
+  const parts = String(text).split('\n');
+  return parts.flatMap((part, index) => (index === 0 ? [part] : [<br key={index} />, part]));
+}
 
 function entranceFrames(icon = false) {
   return Array.from({ length: 81 }, (_, index) => {
@@ -21,8 +30,12 @@ function entranceFrames(icon = false) {
   });
 }
 
-function PreviewDialog({ variant, setVariant, onClose }) {
+function PreviewDialog({ variant, setVariant, onClose, copy }) {
   const dialog = useRef(null);
+  const demos = useMemo(
+    () => copy.demos.map((demo) => ({ ...demo, Icon: DEMO_ICONS[demo.id] })),
+    [copy.demos],
+  );
   useEffect(() => {
     const element = dialog.current;
     const opener = document.activeElement;
@@ -43,15 +56,21 @@ function PreviewDialog({ variant, setVariant, onClose }) {
   };
   return (
     <dialog ref={dialog} className="preview-dialog" aria-labelledby="preview-title" onCancel={onClose} onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
-      <div className="preview-dialog-head"><div><span className="landing-eyebrow">Conoce Explore</span><RevealTitle id="preview-title" mutedFrom={2}>Tu próxima historia.</RevealTitle></div><button className="icon-button" onClick={onClose} aria-label="Cerrar vista previa"><X /></button></div>
-      <div className="preview-tabs" role="tablist" aria-label="Vistas de Explore" onKeyDown={handleTabKey}>{demos.map(({ id, title, Icon }) => <button key={id} role="tab" tabIndex={variant === id ? 0 : -1} aria-selected={variant === id} aria-controls="preview-screen" id={`tab-${id}`} onClick={() => setVariant(id)}><Icon />{title}</button>)}</div>
+      <div className="preview-dialog-head"><div><span className="landing-eyebrow">{copy.previewEyebrow}</span><RevealTitle id="preview-title" mutedFrom={2}>{copy.previewTitle}</RevealTitle></div><button className="icon-button" onClick={onClose} aria-label={copy.previewClose}><X /></button></div>
+      <div className="preview-tabs" role="tablist" aria-label={copy.previewTabs} onKeyDown={handleTabKey}>{demos.map(({ id, title, Icon }) => <button key={id} role="tab" tabIndex={variant === id ? 0 : -1} aria-selected={variant === id} aria-controls="preview-screen" id={`tab-${id}`} onClick={() => setVariant(id)}><Icon />{title}</button>)}</div>
       <div className="preview-screen" id="preview-screen" role="tabpanel" aria-labelledby={`tab-${variant}`}><ExplorePhone key={variant} variant={variant} interactive /></div>
-      <p className="preview-note">Vista conceptual de Explore · Contenido ilustrativo</p>
+      <p className="preview-note">{copy.previewNote}</p>
     </dialog>
   );
 }
 
 export default function App() {
+  const { locale } = useI18n();
+  const t = getHomeLanding(locale);
+  const demos = useMemo(
+    () => t.demos.map((demo) => ({ ...demo, Icon: DEMO_ICONS[demo.id] })),
+    [t.demos],
+  );
   useScrollMotion();
   const heading = useRef(null);
   const hero = useRef(null);
@@ -101,25 +120,26 @@ export default function App() {
     window.addEventListener('resize', updateHero);
     updateHero();
     return () => { cancelled = true; animations.forEach(animation => animation.cancel()); introStates.forEach(state => state.animations.forEach(animation => animation.cancel())); introObserver.disconnect(); window.removeEventListener('scroll', updateHero); window.removeEventListener('resize', updateHero); };
-  }, []);
+  }, [locale]);
 
   return (
     <>
-      <a className="skip-link" href="#descubre">Saltar al contenido</a>
+      <a className="skip-link" href="#descubre">{t.skip}</a>
       <main>
         <section className="hero-story" ref={hero} id="inicio" aria-labelledby="hero-title">
           <div className="landing-hero">
           <HeroSequence storyRef={hero} />
           <div className="hero-shade" aria-hidden="true" />
           <header className="landing-site-header landing-container">
-            <a href="#inicio" aria-label="Explore, inicio" className="brand-link"><img src="/explore-home/brand/explore-brand.svg" alt="Explore" width="283" height="72" /></a>
-            <button className="menu-toggle icon-button" onClick={() => setMenuOpen(value => !value)} aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={menuOpen} aria-controls="main-nav">{menuOpen ? <X /> : <Menu />}</button>
-            <nav id="main-nav" className={menuOpen ? "main-nav landing-is-open" : 'main-nav'} aria-label="Navegación principal"><a href="#descubre" onClick={() => setMenuOpen(false)}>Descubre</a><a href="#rutas" onClick={() => setMenuOpen(false)}>Rutas</a></nav>
-            <button className="button button-small header-cta" onClick={() => openPreview()}>Ver Explore <ArrowRight /></button>
+            <a href="#inicio" aria-label={t.brandAria} className="brand-link"><img src="/explore-home/brand/explore-brand.svg" alt="Explore" width="283" height="72" /></a>
+            <button className="menu-toggle icon-button" onClick={() => setMenuOpen(value => !value)} aria-label={menuOpen ? t.menuClose : t.menuOpen} aria-expanded={menuOpen} aria-controls="main-nav">{menuOpen ? <X /> : <Menu />}</button>
+            <nav id="main-nav" className={menuOpen ? "main-nav landing-is-open" : 'main-nav'} aria-label="Primary"><a href="#descubre" onClick={() => setMenuOpen(false)}>{t.navDiscover}</a><a href="#rutas" onClick={() => setMenuOpen(false)}>{t.navRoutes}</a></nav>
+            <LanguageSwitcher className="landing-lang-switch" />
+            <button className="button button-small header-cta" onClick={() => openPreview()}>{t.headerCta} <ArrowRight /></button>
           </header>
           <div className="hero-intro landing-container">
-            <h1 id="hero-title" className="landing-hero-title" ref={heading} aria-label="Conoce Explore"><span className="word-mask" aria-hidden="true"><span data-word>Conoce</span></span><span className="mark-mask" aria-hidden="true"><img className="hero-mark" src="/explore-home/brand/explore-symbol.svg" alt="" /></span><span className="word-mask" aria-hidden="true"><span data-word>Explore</span></span></h1>
-            <div className="hero-actions" ref={heroActions}><a className="button" href="#descubre">Empieza a descubrir <ArrowRight /></a><button className="button button-ghost" onClick={() => openPreview()}><Play fill="currentColor" />Conoce la app</button></div>
+            <h1 id="hero-title" className="landing-hero-title" ref={heading} aria-label={t.heroAria}><span className="word-mask" aria-hidden="true"><span data-word>{t.heroWord1}</span></span><span className="mark-mask" aria-hidden="true"><img className="hero-mark" src="/explore-home/brand/explore-symbol.svg" alt="" /></span><span className="word-mask" aria-hidden="true"><span data-word>{t.heroWord2}</span></span></h1>
+            <div className="hero-actions" ref={heroActions}><a className="button" href="#descubre">{t.ctaStart} <ArrowRight /></a><button className="button button-ghost" onClick={() => openPreview()}><Play fill="currentColor" />{t.ctaApp}</button></div>
           </div>
           <div className="earth-curtain" aria-hidden="true" />
           </div>
@@ -127,29 +147,29 @@ export default function App() {
 
         <section className="app-intro landing-container" id="descubre" aria-labelledby="app-intro-title">
           <div className="home-phone-window" ref={introPhone}><PhoneMockup /></div>
-          <div className="app-intro-copy"><h2 id="app-intro-title" ref={introHeading} aria-label="Miles de rutas. Una sola app."><span className="intro-line" aria-hidden="true">{['Miles', 'de', 'rutas.'].map(word => <span className="word-mask" key={word}><span data-word>{word}</span></span>)}</span><span className="intro-line intro-line-muted" aria-hidden="true">{['Una', 'sola', 'app.'].map(word => <span className="word-mask" key={word}><span data-word>{word}</span></span>)}</span></h2></div>
+          <div className="app-intro-copy"><h2 id="app-intro-title" ref={introHeading} aria-label={t.introAria}><span className="intro-line" aria-hidden="true">{t.introLine1.map(word => <span className="word-mask" key={word}><span data-word>{word}</span></span>)}</span><span className="intro-line intro-line-muted" aria-hidden="true">{t.introLine2.map(word => <span className="word-mask" key={word}><span data-word>{word}</span></span>)}</span></h2></div>
         </section>
 
         <section className="overview landing-section landing-container" aria-labelledby="overview-title">
-          <div className="section-heading" data-reveal><RevealTitle id="overview-title" mutedFrom={1}>Descubre. Graba. Conecta.</RevealTitle><p>Descubre, graba y comparte. Todo lo que te mueve,<br className="desktop-break" /> en un mismo lugar.</p></div>
-          <div className="phone-showcase">{demos.map(({ id, title }, index) => <figure className={`showcase-item showcase-${id}`} data-reveal key={id}><div className="phone-panel" data-parallax="phone"><ExplorePhone variant={id} cleanFrame={index === 2} /></div><figcaption><button onClick={() => openPreview(id)}>{title}<ArrowRight /></button><span>{['Encuentra tu próximo lugar favorito.', 'Convierte el camino en una historia.', 'La aventura también son las personas.'][index]}</span></figcaption></figure>)}</div>
+          <div className="section-heading" data-reveal><RevealTitle id="overview-title" mutedFrom={1}>{t.overviewTitle}</RevealTitle><p>{t.overviewLead}</p></div>
+          <div className="phone-showcase">{demos.map(({ id, title, caption }) => <figure className={`showcase-item showcase-${id}`} data-reveal key={id}><div className="phone-panel" data-parallax="phone"><ExplorePhone variant={id} cleanFrame={id === 'community'} /></div><figcaption><button onClick={() => openPreview(id)}>{title}<ArrowRight /></button><span>{caption}</span></figcaption></figure>)}</div>
         </section>
 
         <Worldwide onDiscover={() => openPreview('discover')} onExplore={() => openPreview('community')} />
 
         <section className="feature-row feature-reverse landing-container" id="rutas" aria-labelledby="routes-title">
-          <div className="feature-copy" data-reveal><span className="landing-eyebrow">Graba tu camino</span><RevealTitle id="routes-title" mutedFrom={3}>Cada ruta merece<br />ser recordada.</RevealTitle><p>El viaje empieza mucho antes de llegar. Graba tu recorrido, guarda lo que viviste y comparte esos pequeños descubrimientos que hicieron especial el camino.</p><ul className="feature-list"><li><Route />Tu recorrido, paso a paso</li><li><Camera />Lugares y experiencias en una historia</li><li><Users />Una nueva ruta para inspirar a otros</li></ul><button className="demo-link" onClick={() => openPreview('record')}><span><Play fill="currentColor" /></span><div><strong>Tu primera ruta empieza aquí</strong><small>Prueba la vista de recorrido</small></div><ArrowRight /></button></div>
-          <div className="feature-visual recording-visual" data-reveal data-parallax="phone"><ExplorePhone variant="record" cleanFrame /><div className="floating-route" aria-hidden="true"><span><Check /></span><div><strong>Un camino. Tu historia.</strong><small>Recuerda lo que te hizo llegar.</small></div></div></div>
+          <div className="feature-copy" data-reveal><span className="landing-eyebrow">{t.routesEyebrow}</span><RevealTitle id="routes-title" mutedFrom={3}>{withBreaks(t.routesTitle)}</RevealTitle><p>{t.routesLead}</p><ul className="feature-list">{t.routesBullets.map((bullet, index) => { const Icon = FEATURE_ICONS[index] || Route; return <li key={bullet}><Icon />{bullet}</li>; })}</ul><button className="demo-link" onClick={() => openPreview('record')}><span><Play fill="currentColor" /></span><div><strong>{t.routesDemoTitle}</strong><small>{t.routesDemoSub}</small></div><ArrowRight /></button></div>
+          <div className="feature-visual recording-visual" data-reveal data-parallax="phone"><ExplorePhone variant="record" cleanFrame /><div className="floating-route" aria-hidden="true"><span><Check /></span><div><strong>{t.routesFloatTitle}</strong><small>{t.routesFloatSub}</small></div></div></div>
         </section>
 
         <section className="destinations-section landing-section landing-container" aria-labelledby="destinations-title">
-          <div className="section-heading" data-reveal><span className="landing-eyebrow">Cambia de perspectiva</span><RevealTitle id="destinations-title" mutedFrom={2}>Sal de lo conocido.</RevealTitle><p>A veces, el mejor plan es descubrir un lugar<br className="desktop-break" /> que ni siquiera sabías que existía.</p></div>
-          <div className="destination-grid">{[{image:'mountains',tag:'Naturaleza',title:'Donde empieza el sendero.',text:'Un nuevo camino. Otra forma de mirar.'},{image:'coast',tag:'Escapadas',title:'Un rincón junto al mar.',text:'Desconecta de lo de siempre.'},{image:'forest',tag:'Aventura',title:'Un mundo que te sorprende.',text:'Deja espacio para lo inesperado.'}].map(place => <button className="destination-card" data-reveal key={place.image} onClick={() => openPreview('discover')}><div className="destination-image" data-parallax="image"><img src={`/explore-home/images/destinations/${place.image}.jpg`} alt={place.image === 'coast' ? 'Playa de agua turquesa al atardecer' : place.image === 'forest' ? 'Bosque con fauna y montañas' : 'Valle entre montañas'} loading="lazy" /><span>{place.tag}</span><i><ArrowRight /></i></div><RevealTitle as="h3" mutedFrom={2}>{place.title}</RevealTitle><p>{place.text}</p></button>)}</div>
+          <div className="section-heading" data-reveal><span className="landing-eyebrow">{t.destinationsEyebrow}</span><RevealTitle id="destinations-title" mutedFrom={2}>{t.destinationsTitle}</RevealTitle><p>{t.destinationsLead}</p></div>
+          <div className="destination-grid">{t.destinations.map(place => <button className="destination-card" data-reveal key={place.image} onClick={() => openPreview('discover')}><div className="destination-image" data-parallax="image"><img src={`/explore-home/images/destinations/${place.image}.jpg`} alt={place.alt} loading="lazy" /><span>{place.tag}</span><i><ArrowRight /></i></div><RevealTitle as="h3" mutedFrom={2}>{place.title}</RevealTitle><p>{place.text}</p></button>)}</div>
         </section>
 
-        <section className="closing-section" aria-labelledby="closing-title"><div className="landing-container closing-inner" data-reveal><span className="app-icon"><img src="/explore-home/brand/explore-symbol.svg" alt="" /></span><RevealTitle id="closing-title" mutedFrom={3}>Tu próxima historia<br />está ahí fuera.</RevealTitle><p>Un lugar por descubrir. Una ruta por vivir.<br />Personas que todavía no conoces.</p><button className="button button-white" onClick={() => openPreview()}>Conoce Explore<ArrowRight /></button></div></section>
+        <section className="closing-section" aria-labelledby="closing-title"><div className="landing-container closing-inner" data-reveal><span className="app-icon"><img src="/explore-home/brand/explore-symbol.svg" alt="" /></span><RevealTitle id="closing-title" mutedFrom={3}>{withBreaks(t.closingTitle)}</RevealTitle><p>{withBreaks(t.closingLead)}</p><button className="button button-white" onClick={() => openPreview()}>{t.closingCta}<ArrowRight /></button></div></section>
       </main>
-      {preview && <PreviewDialog variant={preview} setVariant={setPreview} onClose={() => setPreview(null)} />}
+      {preview && <PreviewDialog variant={preview} setVariant={setPreview} onClose={() => setPreview(null)} copy={t} />}
     </>
   );
 }

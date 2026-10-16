@@ -6,21 +6,29 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { messages, type Locale, type TranslationKey } from "@/locales/messages";
+import { messages, type TranslationKey } from "@/locales/messages";
+import { isLocale, type Locale } from "@/features/i18n/locales";
 import { I18nContext, type I18nContextValue } from "./i18nContext";
 
 const STORAGE_KEY = "explore-lang";
 
 function translate(locale: Locale, key: TranslationKey): string {
-  return messages[locale][key] ?? messages.en[key] ?? key;
+  if (locale === "es") return messages.es[key] ?? messages.en[key] ?? key;
+  return messages.en[key] ?? key;
 }
 
 function readStoredLocale(): Locale {
   try {
-    return localStorage.getItem(STORAGE_KEY) === "es" ? "es" : "en";
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (isLocale(stored)) return stored;
   } catch {
-    return "en";
+    /* ignore */
   }
+  if (typeof navigator !== "undefined") {
+    const nav = navigator.language?.slice(0, 2).toLowerCase();
+    if (isLocale(nav)) return nav;
+  }
+  return "en";
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
@@ -53,7 +61,6 @@ export function useI18n(): I18nContextValue {
   const ctx = useContext(I18nContext);
   if (ctx) return ctx;
 
-  // Fallback if a consumer remounts outside the provider (Vite HMR) — prefer EN.
   return {
     locale: "en",
     setLocale: () => {},

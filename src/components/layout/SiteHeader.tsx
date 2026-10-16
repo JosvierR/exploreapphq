@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useI18n } from "@/features/i18n/I18nProvider";
 import { useHeaderScroll } from "@/hooks/useHeaderScroll";
 import { T } from "@/components/ui/T";
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { isPioneersHomePath } from "@/features/pioneers/lib/paths";
-import type { Locale } from "@/locales/messages";
 
 const HOME_NAV = [
   { href: "#how-it-works", key: "nav.how" as const },
@@ -22,7 +21,6 @@ const INNER_NAV = [
 
 export function SiteHeader() {
   const scrolled = useHeaderScroll();
-  const { locale, setLocale } = useI18n();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -71,18 +69,7 @@ export function SiteHeader() {
             </Link>
           </nav>
           <div className="header-actions">
-            <div className="lang-switch" role="group" aria-label="Language">
-              {(["en", "es"] as Locale[]).map((lang) => (
-                <button
-                  key={lang}
-                  type="button"
-                  className={locale === lang ? "is-active" : ""}
-                  onClick={() => setLocale(lang)}
-                >
-                  {lang.toUpperCase()}
-                </button>
-              ))}
-            </div>
+            <LanguageSwitcher />
             <a href={onHome ? "#download" : "/#download"} className="btn btn-primary">
               <T k="cta.download" />
             </a>

@@ -1,4 +1,4 @@
-/** User-facing copy — EN / ES */
+/** User-facing copy — EN / ES (PT/FR/DE fall back to EN via I18nProvider). */
 export const messages = {
   en: {
     "meta.title": "Explore — Discover Real Places Through Videos",
@@ -774,5 +774,5 @@ export const messages = {
   },
 } as const;
 
-export type Locale = keyof typeof messages;
+export type { Locale } from "@/features/i18n/locales";
 export type TranslationKey = keyof (typeof messages)["en"];

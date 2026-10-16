@@ -206,7 +206,10 @@ button { font: inherit; cursor: pointer; border: none; background: none; }
   overflow: hidden;
 }
 .lang-switch button {
-  padding: 0.35rem 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.35rem 0.5rem;
   font-size: 0.72rem;
   font-weight: 700;
   color: var(--text-muted);
@@ -215,6 +218,14 @@ button { font: inherit; cursor: pointer; border: none; background: none; }
 .lang-switch button.is-active {
   background: var(--explore-blue);
   color: #fff;
+}
+.lang-switch__flag {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+.lang-switch__code {
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
 }
 .nav-toggle {
   display: flex;
